@@ -1,0 +1,655 @@
+.main {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px 56px;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  background: radial-gradient(circle at center, #334155 0%, #0f172a 45%, #020617 100%);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+  pointer-events: none;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  width: min(920px, 100%);
+  text-align: center;
+  padding: 20px 20px;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(34px, 5vw, 64px);
+  font-weight: 900;
+  line-height: 1.08;
+  color: white;
+}
+
+.heroSubTitle {
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.9);
+}
+
+.searchBox {
+  margin: 20px auto 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 10px;
+  width: min(760px, 100%);
+}
+
+.searchInput {
+  height: 56px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.12);
+  color: white;
+  padding: 0 50px 0 20px;
+  font-size: 16px;
+  outline: none;
+  backdrop-filter: blur(10px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.searchInput::placeholder {
+  color: rgba(255,255,255,0.68);
+}
+
+.searchButton {
+  height: 56px;
+  border: none;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.keywordRow {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.keywordChip {
+  height: 30px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filterSection {
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+.filterTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.categoryWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.categoryBtn {
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.categoryBtnActive {
+  background: #111827;
+  color: white;
+  border-color: #111827;
+}
+
+.sortWrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sortSelect {
+  height: 42px;
+  min-width: 116px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+}
+
+.sortWrap {
+  display: flex;
+  align-items: center;
+}
+
+.filterSummary {
+  margin-top: 14px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.section {
+  margin-top: 26px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.15;
+  color: #111827;
+  font-weight: 900;
+}
+
+.sectionBadge {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.topGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+  .topGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .topGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  padding: 0;
+}
+
+.modelLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.modelCard {
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.modelCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.thumbWrap {
+  position: relative;
+  background: #0b1220;
+}
+
+.thumbPlaceholder {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  overflow: hidden;
+}
+
+.thumbImg {
+  transition: transform 0.25s ease;
+}
+
+.modelCard:hover .thumbImg {
+  transform: scale(1.05);
+}
+
+.quickBtn {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255,255,255,0.9);
+  color: #111827;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.favoriteBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(15,23,42,0.72);
+  color: white;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.favoriteBtnActive {
+  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%);
+  border-color: rgba(244,63,94,0.9);
+}
+
+.typeBadge {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15,23,42,0.82);
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.priceTag {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255,255,255,0.92);
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.modelInfo {
+  padding: 16px;
+}
+
+.modelTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 10px;
+}
+
+.modelTitle {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 900;
+  color: #111827;
+}
+
+.modelMeta {
+  margin: 10px 0 0;
+  min-height: 44px;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.formatRow {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.cardBottom {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #eef2f7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.miniMeta {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.ctaHint {
+  color: #16a34a;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.mark {
+  background: #fde68a;
+  color: #111827;
+  border-radius: 6px;
+  padding: 0 3px;
+}
+
+.emptyText {
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modalCard {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 360px);
+  border-radius: 28px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+}
+
+.modalViewerPane {
+  min-height: 380px;
+  background: #0b1220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modalViewerInner {
+  width: 100%;
+  height: 380px;
+}
+
+.modalPreviewImage {
+  width: 100%;
+  height: 380px;
+  object-fit: cover;
+  display: block;
+}
+
+.modalInfoPane {
+  padding: 28px;
+  display: grid;
+  align-content: space-between;
+  gap: 20px;
+}
+
+.modalHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.modalPrice {
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.modalHint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.modalCloseBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: white;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modalActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.modalPrimaryBtn {
+  height: 46px;
+  border-radius: 14px;
+  background: #111827;
+  color: white;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+}
+
+.modalSecondaryBtn {
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.modalLoading {
+  color: white;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modalCard {
+    grid-template-columns: 1fr;
+  }
+
+  .modalViewerPane,
+  .modalViewerInner,
+  .modalPreviewImage {
+    min-height: 320px;
+    height: 320px;
+  }
+}
+
+@media (max-width: 720px) {
+  .main {
+    padding: 18px 14px 44px;
+  }
+
+  .hero {
+    border-radius: 20px;
+    min-height: 150px;
+  }
+
+  .heroContent {
+    padding: 20px 14px;
+  }
+
+  .heroSubTitle {
+    font-size: 13px;
+    margin-top: 10px;
+  }
+
+  .searchBox {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .searchInput {
+    height: 48px;
+    font-size: 14px;
+    border-radius: 14px;
+  }
+
+  .searchButton {
+    height: 48px;
+    font-size: 14px;
+    border-radius: 14px;
+  }
+
+  .sectionTitle {
+    font-size: 26px;
+  }
+
+  .cardGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .modelTitle {
+    font-size: 15px;
+  }
+
+  .modelMeta {
+    font-size: 12px;
+    min-height: 0;
+  }
+
+  .modalOverlay {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modalCard {
+    border-radius: 24px 24px 0 0;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modalInfoPane {
+    padding: 20px;
+  }
+
+  .modalActions {
+    grid-template-columns: 1fr;
+  }
+
+  .modalViewerPane,
+  .modalViewerInner,
+  .modalPreviewImage {
+    min-height: 240px !important;
+    height: 240px !important;
+  }
+
+  .categoryWrap {
+    gap: 6px;
+  }
+
+  .categoryBtn {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .keywordChip {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .filterTopRow {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 400px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}

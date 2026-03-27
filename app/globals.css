@@ -24,3 +24,96 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── 반응형 유틸 ── */
+@media (max-width: 640px) {
+  .hide-mobile { display: none !important; }
+}
+
+/* ── 헤더 네비 hover ── */
+.header-nav-item:hover {
+  background: #fdf6e3 !important;
+}
+.header-nav-item:hover span {
+  color: #c9a84c !important;
+}
+.header-nav-item:hover svg {
+  stroke: #c9a84c !important;
+}
+.header-my-btn-new:hover {
+  background: #fdf6e3 !important;
+}
+.header-dropdown-item:hover {
+  background: #fdf6e3 !important;
+  color: #c9a84c !important;
+}
+.header-logout-btn:hover {
+  background: #fff8f0 !important;
+}
+
+/* ── 헤더 모바일 ── */
+@media (max-width: 860px) {
+  .header-logo { height: 36px !important; }
+  .header-nav-item { padding: 6px 8px !important; }
+  .header-my-btn-new { padding: 6px 8px !important; }
+}
+
+/* ── 상세 페이지 반응형 ── */
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.detail-viewer-box {
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #111827;
+  min-height: 520px;
+}
+@media (max-width: 860px) {
+  .detail-viewer-box { min-height: 380px; }
+  .detail-viewer-box img,
+  .detail-viewer-box > div { height: 380px !important; min-height: 380px !important; }
+}
+@media (max-width: 640px) {
+  .detail-viewer-box { min-height: 280px; border-radius: 20px; }
+  .detail-viewer-box img,
+  .detail-viewer-box > div { height: 280px !important; min-height: 280px !important; }
+}
+
+/* ── 상세 페이지 aside ── */
+@media (max-width: 860px) {
+  .detail-aside {
+    padding: 20px !important;
+  }
+}
+
+/* ── 내 다운로드 카드 그리드 ── */
+.library-card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+@media (max-width: 1100px) {
+  .library-card-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 760px) {
+  .library-card-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+}
+@media (max-width: 480px) {
+  .library-card-grid { grid-template-columns: 1fr; gap: 12px; }
+}
