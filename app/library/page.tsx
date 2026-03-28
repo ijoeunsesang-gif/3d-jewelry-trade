@@ -37,6 +37,8 @@ type SenderTemplate = {
   email: string;
   businessName: string;
   phoneNumber: string;
+  address: string;
+  notes: string;
 };
 
 type PrinterModal = {
@@ -62,10 +64,7 @@ function loadAllPrinters(): PrinterContact[] {
   if (typeof window === "undefined") return INITIAL_PRINTERS;
   try {
     const raw = localStorage.getItem(ALL_PRINTERS_KEY);
-    if (!raw) {
-      localStorage.setItem(ALL_PRINTERS_KEY, JSON.stringify(INITIAL_PRINTERS));
-      return INITIAL_PRINTERS;
-    }
+    if (!raw) { localStorage.setItem(ALL_PRINTERS_KEY, JSON.stringify(INITIAL_PRINTERS)); return INITIAL_PRINTERS; }
     return JSON.parse(raw);
   } catch { return INITIAL_PRINTERS; }
 }
@@ -91,6 +90,14 @@ export default function LibraryPage() {
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // 템플릿 저장 팝업 (최초 1회)
+  const [showTemplateSetup, setShowTemplateSetup] = useState(false);
+  const [pendingItem, setPendingItem] = useState<PurchasedModel | null>(null);
+  const [setupBusinessName, setSetupBusinessName] = useState("");
+  const [setupPhone, setSetupPhone] = useState("");
+  const [setupAddress, setSetupAddress] = useState("");
+  const [setupNotes, setSetupNotes] = useState("");
+
   // 출력소 버튼
   const [printers, setPrinters] = useState<PrinterContact[]>([]);
   const [selectedPrinterId, setSelectedPrinterId] = useState<string | null>(null);
@@ -108,17 +115,21 @@ export default function LibraryPage() {
   const [tplFormEmail, setTplFormEmail] = useState("");
   const [tplFormBusinessName, setTplFormBusinessName] = useState("");
   const [tplFormPhoneNumber, setTplFormPhoneNumber] = useState("");
+  const [tplFormAddress, setTplFormAddress] = useState("");
+  const [tplFormNotes, setTplFormNotes] = useState("");
 
   // 주문 입력
   const [printerEmail, setPrinterEmail] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [address, setAddress] = useState("");
   const [printType, setPrintType] = useState<"CPX" | "일반" | "">("");
   const [castingType, setCastingType] = useState<"수지상태" | "은주물" | "금주물" | "">("");
   const [goldDetail, setGoldDetail] = useState<"14K_골드" | "14K_화이트" | "14K_핑크" | "18K_골드" | "18K_화이트" | "18K_핑크" | "25K" | "백금" | "">("");
   const [scaleType, setScaleType] = useState<"" | "확대" | "축소">("");
   const [scalePercent, setScalePercent] = useState("0");
+  const [extraNote, setExtraNote] = useState("");
 
   // 검색 / 카테고리 필터
   const [search, setSearch] = useState("");
@@ -127,9 +138,6 @@ export default function LibraryPage() {
   // 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
-
-  // 추가 내용
-  const [extraNote, setExtraNote] = useState("");
 
   // 파일 선택
   const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
@@ -183,27 +191,32 @@ export default function LibraryPage() {
     finally { setDownloadingId(null); }
   };
 
-  // ── 팝업 열기 ───────────────────────────────────────────────
-  const openPrinterModal = async (item: PurchasedModel) => {
+  // ── 팝업 열기 (실제) ─────────────────────────────────────────
+  const doOpenSendModal = async (item: PurchasedModel, tpl?: SenderTemplate) => {
     setPrinters(loadAllPrinters());
     setSelectedPrinterId(null);
     setPrinterFormMode(null); setEditingPrinterId(null); setPrinterFormName(""); setPrinterFormEmail("");
-    setTemplates(loadTemplates());
-    setSelectedTemplateId(null);
-    setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber("");
+
+    const allTpls = loadTemplates();
+    setTemplates(allTpls);
+    const applyTpl = tpl || (allTpls.length > 0 ? allTpls[0] : null);
+    if (applyTpl) {
+      setSelectedTemplateId(applyTpl.id);
+      setSenderEmail(applyTpl.email || "");
+      setBusinessName(applyTpl.businessName || "");
+      setPhoneNumber(applyTpl.phoneNumber || "");
+      setAddress(applyTpl.address || "");
+      setExtraNote(applyTpl.notes || "");
+    } else {
+      setSelectedTemplateId(null);
+      setSenderEmail(""); setBusinessName(""); setPhoneNumber(""); setAddress(""); setExtraNote("");
+    }
+    setTemplateFormMode(null); setEditingTemplateId(null);
+    setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes("");
     setPrinterEmail("");
-    setSenderEmail("");
-    setBusinessName("");
-    setPhoneNumber("");
-    setPrintType("");
-    setCastingType("");
-    setGoldDetail("");
-    setScaleType("");
-    setScalePercent("0");
-    setExtraNote("");
+    setPrintType(""); setCastingType(""); setGoldDetail(""); setScaleType(""); setScalePercent("0");
     setPrinterModal({ modelId: item.id, modelTitle: item.title, modelFilePath: item.model_file_path });
 
-    // 파일 목록 로드
     setFilesLoading(true);
     setModelFiles([]);
     setSelectedPaths(new Set());
@@ -218,6 +231,44 @@ export default function LibraryPage() {
     setModelFiles(files);
     setSelectedPaths(new Set(files.map((f) => f.path)));
     setFilesLoading(false);
+  };
+
+  // ── "출력소 전송" 버튼 클릭 ──────────────────────────────────
+  const openPrinterModal = (item: PurchasedModel) => {
+    const existingTemplates = loadTemplates();
+    if (existingTemplates.length === 0) {
+      // 템플릿 없음 → 내 정보 저장 팝업 먼저
+      setPendingItem(item);
+      setSetupBusinessName(""); setSetupPhone(""); setSetupAddress(""); setSetupNotes("");
+      setShowTemplateSetup(true);
+    } else {
+      // 템플릿 있음 → 바로 전송 팝업
+      doOpenSendModal(item, existingTemplates[0]);
+    }
+  };
+
+  // ── 내 정보 저장 (템플릿 설정 팝업) ─────────────────────────
+  const handleSaveTemplateSetup = async () => {
+    if (!setupBusinessName.trim()) { showError("출력소명(상호)을 입력해주세요."); return; }
+    if (!setupPhone.trim()) { showError("연락처를 입력해주세요."); return; }
+    const newTpl: SenderTemplate = {
+      id: crypto.randomUUID(),
+      name: setupBusinessName.trim(),
+      email: "",
+      businessName: setupBusinessName.trim(),
+      phoneNumber: setupPhone.trim(),
+      address: setupAddress.trim(),
+      notes: setupNotes.trim(),
+    };
+    const updated = [newTpl];
+    saveTemplates(updated);
+    setTemplates(updated);
+    setShowTemplateSetup(false);
+    showSuccess("내 정보가 저장되었습니다.");
+    if (pendingItem) {
+      await doOpenSendModal(pendingItem, newTpl);
+      setPendingItem(null);
+    }
   };
 
   const closePrinterModal = () => {
@@ -266,9 +317,11 @@ export default function LibraryPage() {
   // ── 템플릿 ──────────────────────────────────────────────────
   const handleSelectTemplate = (t: SenderTemplate) => {
     setSelectedTemplateId(t.id);
-    setSenderEmail(t.email);
-    if (t.businessName) setBusinessName(t.businessName);
-    if (t.phoneNumber) setPhoneNumber(t.phoneNumber);
+    setSenderEmail(t.email || "");
+    setBusinessName(t.businessName || "");
+    setPhoneNumber(t.phoneNumber || "");
+    setAddress(t.address || "");
+    setExtraNote(t.notes || "");
     setTemplateFormMode(null);
   };
   const handleSubmitTemplateForm = () => {
@@ -276,27 +329,30 @@ export default function LibraryPage() {
     if (!name) { showError("템플릿 이름을 입력해주세요."); return; }
     if (templateFormMode === "edit" && editingTemplateId) {
       const updated = templates.map((t) => t.id === editingTemplateId
-        ? { ...t, name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim() }
+        ? { ...t, name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), address: tplFormAddress.trim(), notes: tplFormNotes.trim() }
         : t);
       setTemplates(updated); saveTemplates(updated);
       if (selectedTemplateId === editingTemplateId) {
         setSenderEmail(tplFormEmail.trim());
         setBusinessName(tplFormBusinessName.trim());
         setPhoneNumber(tplFormPhoneNumber.trim());
+        setAddress(tplFormAddress.trim());
+        setExtraNote(tplFormNotes.trim());
       }
       showSuccess("템플릿을 수정했습니다.");
     } else {
-      const nt: SenderTemplate = { id: crypto.randomUUID(), name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim() };
+      const nt: SenderTemplate = { id: crypto.randomUUID(), name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), address: tplFormAddress.trim(), notes: tplFormNotes.trim() };
       const updated = [...templates, nt];
       setTemplates(updated); saveTemplates(updated);
       handleSelectTemplate(nt);
       showSuccess("템플릿을 저장했습니다.");
     }
-    setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber("");
+    setTemplateFormMode(null); setEditingTemplateId(null);
+    setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes("");
   };
   const startEditTemplate = (t: SenderTemplate) => {
     setTemplateFormMode("edit"); setEditingTemplateId(t.id);
-    setTplFormName(t.name); setTplFormEmail(t.email); setTplFormBusinessName(t.businessName); setTplFormPhoneNumber(t.phoneNumber);
+    setTplFormName(t.name); setTplFormEmail(t.email || ""); setTplFormBusinessName(t.businessName || ""); setTplFormPhoneNumber(t.phoneNumber || ""); setTplFormAddress(t.address || ""); setTplFormNotes(t.notes || "");
   };
   const handleDeleteTemplate = (id: string) => {
     if (!confirm("템플릿을 삭제할까요?")) return;
@@ -316,7 +372,6 @@ export default function LibraryPage() {
   };
 
   // ── 전송 ────────────────────────────────────────────────────
-  // 확인 팝업 열기 (유효성 검사만)
   const handleSendToPrinter = () => {
     if (!printerModal) return;
     if (!printerEmail.trim()) { showError("출력소를 선택해주세요."); return; }
@@ -329,7 +384,6 @@ export default function LibraryPage() {
     setShowConfirm(true);
   };
 
-  // 실제 전송
   const handleConfirmSend = async () => {
     if (!printerModal) return;
     const trimmedEmail = printerEmail.trim();
@@ -338,9 +392,8 @@ export default function LibraryPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) { showInfo("로그인이 필요합니다."); return; }
 
-      const effectiveCastingType = castingType === "금주물" && goldDetail
-        ? `금주물(${goldDetail})`
-        : castingType;
+      const effectiveCastingType = castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType;
+      const combinedNote = [address.trim() ? `주소: ${address.trim()}` : "", extraNote.trim()].filter(Boolean).join("\n");
 
       const res = await fetch("/api/send-to-printer", {
         method: "POST",
@@ -355,7 +408,7 @@ export default function LibraryPage() {
           castingType: effectiveCastingType,
           scaleType,
           scalePercent: scaleType ? scalePercent : "",
-          extraNote: extraNote.trim(),
+          extraNote: combinedNote,
           selectedFilePaths: Array.from(selectedPaths),
         }),
       });
@@ -373,14 +426,11 @@ export default function LibraryPage() {
 
   const getThumbnailUrl = (item: PurchasedModel) => {
     if (item.thumbnail_path) {
-      return supabase.storage
-        .from("thumbnails")
-        .getPublicUrl(item.thumbnail_path).data.publicUrl;
+      return supabase.storage.from("thumbnails").getPublicUrl(item.thumbnail_path).data.publicUrl;
     }
     return item.thumbnail || "";
   };
 
-  // ── 렌더 ────────────────────────────────────────────────────
   const filteredItems = items.filter((item) => {
     const matchSearch = !search.trim() || item.title.toLowerCase().includes(search.trim().toLowerCase());
     const matchCat = selectedCategory === "ALL" || item.category === selectedCategory;
@@ -394,16 +444,29 @@ export default function LibraryPage() {
     return <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>내 다운로드를 불러오는 중...</p></main>;
   }
 
+  // ── 스타일 (18px 기준) ─────────────────────────────────────
   const inputStyle: React.CSSProperties = {
-    width: "100%", height: 42, borderRadius: 10, border: "1px solid #d1d5db",
-    padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none",
+    width: "100%", height: 52, borderRadius: 12, border: "1.5px solid #d1d5db",
+    padding: "0 14px", fontSize: 18, boxSizing: "border-box", outline: "none",
   };
   const selectStyle: React.CSSProperties = {
-    width: "100%", height: 42, borderRadius: 10, border: "1px solid #d1d5db",
-    padding: "0 12px", fontSize: 14, boxSizing: "border-box", background: "white", cursor: "pointer",
+    width: "100%", height: 52, borderRadius: 12, border: "1.5px solid #d1d5db",
+    padding: "0 14px", fontSize: 18, boxSizing: "border-box", background: "white", cursor: "pointer",
   };
-  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 6, display: "block" };
-  const fieldWrap: React.CSSProperties = { marginBottom: 14 };
+  const labelStyle: React.CSSProperties = { fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 8, display: "block" };
+  const fieldWrap: React.CSSProperties = { marginBottom: 18 };
+
+  // ── 팝업 공통 overlay ─────────────────────────────────────
+  const overlayStyle: React.CSSProperties = {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100,
+    display: "flex", alignItems: "flex-end", justifyContent: "center",
+    padding: 0,
+  };
+  const modalStyle: React.CSSProperties = {
+    background: "white", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 560,
+    boxShadow: "0 -8px 40px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column",
+    maxHeight: "92vh",
+  };
 
   return (
     <>
@@ -419,7 +482,6 @@ export default function LibraryPage() {
             <div style={{ padding: "8px 14px", borderRadius: 999, background: "#f3f4f6", color: "#111827", fontWeight: 800, fontSize: 13 }}>총 {items.length}개</div>
           </div>
 
-          {/* 검색 */}
           <input
             type="text"
             value={search}
@@ -428,12 +490,10 @@ export default function LibraryPage() {
             style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none", marginBottom: 12 }}
           />
 
-          {/* 카테고리 필터 */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {CATEGORIES.map((cat) => (
               <button
-                key={cat}
-                type="button"
+                key={cat} type="button"
                 onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
                 style={{
                   height: 34, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
@@ -468,7 +528,6 @@ export default function LibraryPage() {
                 : "-";
               return (
                 <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 2px 12px rgba(15,23,42,0.06)" }}>
-                  {/* 썸네일 */}
                   <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#0b1220" }}>
                     {thumbUrl && <img src={thumbUrl} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
                     <div style={{ position: "absolute", top: 10, left: 10, padding: "3px 9px", borderRadius: 999, background: "rgba(15,23,42,0.75)", color: "white", fontSize: 11, fontWeight: 800 }}>
@@ -481,7 +540,6 @@ export default function LibraryPage() {
                     )}
                   </div>
 
-                  {/* 내용 */}
                   <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
                     <h2 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</h2>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}원</div>
@@ -493,7 +551,6 @@ export default function LibraryPage() {
                     <div style={{ fontSize: 12, color: "#9ca3af" }}>구매일 {purchaseDate}</div>
                   </div>
 
-                  {/* 버튼 */}
                   <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
                     <button
                       onClick={() => handleDownload(item)}
@@ -523,65 +580,122 @@ export default function LibraryPage() {
           </div>
         )}
 
-        {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}
-            >
-              ‹
-            </button>
+            <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
+              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}>‹</button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === page ? "none" : "1px solid #d1d5db", background: currentPage === page ? "#111827" : "white", color: currentPage === page ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
-              >
+              <button key={page} onClick={() => setCurrentPage(page)}
+                style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === page ? "none" : "1px solid #d1d5db", background: currentPage === page ? "#111827" : "white", color: currentPage === page ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>
                 {page}
               </button>
             ))}
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === totalPages ? 0.4 : 1 }}
-            >
-              ›
-            </button>
+            <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === totalPages ? 0.4 : 1 }}>›</button>
           </div>
         )}
       </main>
 
-      {/* ── 출력소 팝업 ───────────────────────────────────── */}
+      {/* ── 내 정보 저장 팝업 (최초 1회) ─────────────────────── */}
+      {showTemplateSetup && (
+        <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) setShowTemplateSetup(false); }}>
+          <div style={modalStyle}>
+            {/* 헤더 */}
+            <div style={{ padding: "24px 24px 16px", borderBottom: "1px solid #f3f4f6", position: "relative" }}>
+              <button
+                onClick={() => setShowTemplateSetup(false)}
+                style={{ position: "absolute", top: 20, right: 20, width: 44, height: 44, borderRadius: 999, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#374151", fontWeight: 700 }}
+                aria-label="닫기"
+              >×</button>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#c9a84c", marginBottom: 4 }}>처음 이용 시 1회 입력</div>
+              <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0, color: "#111827" }}>내 정보 저장</h2>
+              <p style={{ fontSize: 16, color: "#6b7280", margin: "6px 0 0" }}>저장된 정보는 다음 전송 시 자동으로 입력됩니다.</p>
+            </div>
+
+            {/* 폼 */}
+            <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>
+              <div style={fieldWrap}>
+                <label style={labelStyle}>상호명 (출력소명) <span style={{ color: "#ef4444" }}>*</span></label>
+                <input
+                  value={setupBusinessName}
+                  onChange={(e) => setSetupBusinessName(e.target.value)}
+                  placeholder="예: 홍길동 공방"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={fieldWrap}>
+                <label style={labelStyle}>연락처 <span style={{ color: "#ef4444" }}>*</span></label>
+                <input
+                  value={setupPhone}
+                  onChange={(e) => setSetupPhone(e.target.value)}
+                  placeholder="010-0000-0000"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={fieldWrap}>
+                <label style={labelStyle}>주소</label>
+                <input
+                  value={setupAddress}
+                  onChange={(e) => setSetupAddress(e.target.value)}
+                  placeholder="도로명 주소 입력"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ ...fieldWrap, marginBottom: 4 }}>
+                <label style={labelStyle}>기본 요청사항</label>
+                <textarea
+                  value={setupNotes}
+                  onChange={(e) => setSetupNotes(e.target.value)}
+                  placeholder="출력 시 참고할 내용을 입력해주세요."
+                  rows={3}
+                  style={{ width: "100%", borderRadius: 12, border: "1.5px solid #d1d5db", padding: "12px 14px", fontSize: 18, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6 }}
+                />
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div style={{ padding: "16px 24px 32px", borderTop: "1px solid #f3f4f6", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button onClick={() => setShowTemplateSetup(false)}
+                style={{ minHeight: 56, borderRadius: 14, border: "1.5px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 18 }}>
+                취소
+              </button>
+              <button onClick={handleSaveTemplateSetup}
+                style={{ minHeight: 56, borderRadius: 14, border: "none", background: "#111827", color: "white", fontWeight: 900, cursor: "pointer", fontSize: 18 }}>
+                저장 후 전송 →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 출력소 전송 팝업 ──────────────────────────────────── */}
       {printerModal && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) closePrinterModal(); }}
-        >
-          <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 520, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column", maxHeight: "92vh" }}>
+        <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) closePrinterModal(); }}>
+          <div style={modalStyle}>
 
             {/* 헤더 */}
-            <div style={{ padding: "24px 28px 12px", borderBottom: "1px solid #f3f4f6" }}>
-              <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 4px", color: "#111827" }}>출력소로 보내기</h2>
-              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>{printerModal.modelTitle}</p>
+            <div style={{ padding: "24px 24px 14px", borderBottom: "1px solid #f3f4f6", position: "relative" }}>
+              <button
+                onClick={closePrinterModal}
+                style={{ position: "absolute", top: 20, right: 20, width: 44, height: 44, borderRadius: 999, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#374151", fontWeight: 700 }}
+                aria-label="닫기"
+              >×</button>
+              <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px", color: "#111827" }}>출력소로 보내기</h2>
+              <p style={{ fontSize: 15, color: "#6b7280", margin: 0 }}>{printerModal.modelTitle}</p>
             </div>
 
             {/* 스크롤 영역 */}
-            <div style={{ padding: "16px 28px", overflowY: "auto", flex: 1 }}>
+            <div style={{ padding: "18px 24px", overflowY: "auto", flex: 1 }}>
 
               {/* ── 출력소 선택 ── */}
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 8 }}>
-                  출력소 <span style={{ color: "#ef4444" }}>*</span>
-                </div>
+              <div style={fieldWrap}>
+                <div style={labelStyle}>출력소 <span style={{ color: "#ef4444" }}>*</span></div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   {printers.map((p) => (
                     <button key={p.id} type="button" onClick={() => handleSelectPrinter(p)}
                       style={{
-                        height: 36, padding: "0 16px", borderRadius: 999,
-                        fontSize: 13, fontWeight: 800, cursor: "pointer",
-                        border: selectedPrinterId === p.id ? "none" : "1px solid #d1d5db",
+                        minHeight: 44, padding: "0 18px", borderRadius: 999, fontSize: 16, fontWeight: 800, cursor: "pointer",
+                        border: selectedPrinterId === p.id ? "none" : "1.5px solid #d1d5db",
                         background: selectedPrinterId === p.id ? "#111827" : "white",
                         color: selectedPrinterId === p.id ? "white" : "#374151",
                       }}>
@@ -590,37 +704,35 @@ export default function LibraryPage() {
                   ))}
                   {printerFormMode === "add" ? null : (
                     <button type="button" onClick={() => { setPrinterFormMode("add"); setEditingPrinterId(null); setPrinterFormName(""); setPrinterFormEmail(""); }}
-                      style={{ height: 36, width: 36, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                      style={{ height: 44, width: 44, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
                   )}
                 </div>
 
-                {/* 추가/편집 폼 */}
                 {printerFormMode !== null && (
-                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
                     <input value={printerFormName} onChange={(e) => setPrinterFormName(e.target.value)}
-                      placeholder="출력소명" style={{ height: 36, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, width: 100, boxSizing: "border-box", outline: "none" }} />
+                      placeholder="출력소명" style={{ height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 16, flex: "1 1 80px", minWidth: 80, boxSizing: "border-box", outline: "none" }} />
                     <input value={printerFormEmail} onChange={(e) => setPrinterFormEmail(e.target.value)}
                       placeholder="이메일" onKeyDown={(e) => { if (e.key === "Enter") handleSubmitPrinterForm(); }}
-                      style={{ height: 36, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, width: 170, boxSizing: "border-box", outline: "none" }} />
-                    <button onClick={handleSubmitPrinterForm} style={{ height: 36, padding: "0 12px", borderRadius: 8, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>저장</button>
+                      style={{ height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 16, flex: "2 1 140px", minWidth: 140, boxSizing: "border-box", outline: "none" }} />
+                    <button onClick={handleSubmitPrinterForm} style={{ height: 44, padding: "0 14px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>저장</button>
                     <button onClick={() => { setPrinterFormMode(null); setEditingPrinterId(null); setPrinterFormName(""); setPrinterFormEmail(""); }}
-                      style={{ height: 36, padding: "0 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>취소</button>
+                      style={{ height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>취소</button>
                   </div>
                 )}
 
-                {/* 선택된 출력소 이메일 + 편집/삭제 */}
                 {selectedPrinterId && printerFormMode !== "add" && (() => {
                   const sel = printers.find((p) => p.id === selectedPrinterId);
                   if (!sel) return null;
                   return (
                     <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 12, color: "#6b7280" }}>→ {sel.email}</div>
+                      <div style={{ fontSize: 15, color: "#6b7280" }}>→ {sel.email}</div>
                       {printerFormMode !== "edit" && (
-                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                           <button type="button" onClick={() => startEditPrinter(sel)}
-                            style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>편집</button>
+                            style={{ height: 36, padding: "0 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>편집</button>
                           <button type="button" onClick={() => handleDeletePrinter(sel.id)}
-                            style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>삭제</button>
+                            style={{ height: 36, padding: "0 14px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>삭제</button>
                         </div>
                       )}
                     </div>
@@ -629,15 +741,14 @@ export default function LibraryPage() {
               </div>
 
               {/* ── 내 정보 템플릿 ── */}
-              <div style={{ marginBottom: 4 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 8 }}>내 정보 템플릿</div>
+              <div style={fieldWrap}>
+                <div style={labelStyle}>내 정보 템플릿</div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   {templates.map((t) => (
                     <button key={t.id} type="button" onClick={() => handleSelectTemplate(t)}
                       style={{
-                        height: 36, padding: "0 16px", borderRadius: 999,
-                        fontSize: 13, fontWeight: 800, cursor: "pointer",
-                        border: selectedTemplateId === t.id ? "none" : "1px solid #d1d5db",
+                        minHeight: 44, padding: "0 18px", borderRadius: 999, fontSize: 16, fontWeight: 800, cursor: "pointer",
+                        border: selectedTemplateId === t.id ? "none" : "1.5px solid #d1d5db",
                         background: selectedTemplateId === t.id ? "#111827" : "white",
                         color: selectedTemplateId === t.id ? "white" : "#374151",
                       }}>
@@ -645,45 +756,46 @@ export default function LibraryPage() {
                     </button>
                   ))}
                   {templateFormMode === "add" ? null : (
-                    <button type="button" onClick={() => { setTemplateFormMode("add"); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); }}
-                      style={{ height: 36, width: 36, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                    <button type="button" onClick={() => { setTemplateFormMode("add"); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes(""); }}
+                      style={{ height: 44, width: 44, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
                   )}
                 </div>
 
-                {/* 추가/편집 폼 */}
                 {templateFormMode !== null && (
-                  <div style={{ border: "1px solid #d1d5db", borderRadius: 14, padding: "12px 14px", marginTop: 8, background: "#f8fafc" }}>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "#374151", marginBottom: 8 }}>
+                  <div style={{ border: "1.5px solid #d1d5db", borderRadius: 16, padding: "16px", marginTop: 10, background: "#f8fafc" }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: "#374151", marginBottom: 12 }}>
                       {templateFormMode === "edit" ? "템플릿 편집" : "새 템플릿 추가"}
                     </div>
-                    <input value={tplFormName} onChange={(e) => setTplFormName(e.target.value)} placeholder="템플릿 이름" style={{ ...inputStyle, marginBottom: 8 }} />
-                    <input value={tplFormEmail} onChange={(e) => setTplFormEmail(e.target.value)} placeholder="보내는 사람 이메일" style={{ ...inputStyle, marginBottom: 8 }} />
-                    <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호" style={{ ...inputStyle, marginBottom: 8 }} />
-                    <input value={tplFormPhoneNumber} onChange={(e) => setTplFormPhoneNumber(e.target.value)} placeholder="전화번호" onKeyDown={(e) => { if (e.key === "Enter") handleSubmitTemplateForm(); }} style={{ ...inputStyle, marginBottom: 10 }} />
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button onClick={handleSubmitTemplateForm} style={{ flex: 1, height: 34, borderRadius: 8, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>저장</button>
-                      <button onClick={() => { setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); }}
-                        style={{ flex: 1, height: 34, borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>취소</button>
+                    <input value={tplFormName} onChange={(e) => setTplFormName(e.target.value)} placeholder="템플릿 이름" style={{ ...inputStyle, marginBottom: 10 }} />
+                    <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호명 (출력소명)" style={{ ...inputStyle, marginBottom: 10 }} />
+                    <input value={tplFormPhoneNumber} onChange={(e) => setTplFormPhoneNumber(e.target.value)} placeholder="연락처" style={{ ...inputStyle, marginBottom: 10 }} />
+                    <input value={tplFormAddress} onChange={(e) => setTplFormAddress(e.target.value)} placeholder="주소" style={{ ...inputStyle, marginBottom: 10 }} />
+                    <input value={tplFormEmail} onChange={(e) => setTplFormEmail(e.target.value)} placeholder="보내는 사람 이메일 (선택)" style={{ ...inputStyle, marginBottom: 10 }} />
+                    <textarea value={tplFormNotes} onChange={(e) => setTplFormNotes(e.target.value)} placeholder="기본 요청사항 (선택)" rows={2}
+                      style={{ width: "100%", borderRadius: 12, border: "1.5px solid #d1d5db", padding: "12px 14px", fontSize: 18, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", marginBottom: 12 }} />
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button onClick={handleSubmitTemplateForm} style={{ flex: 1, minHeight: 48, borderRadius: 12, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 17 }}>저장</button>
+                      <button onClick={() => { setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes(""); }}
+                        style={{ flex: 1, minHeight: 48, borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 17 }}>취소</button>
                     </div>
                   </div>
                 )}
 
-                {/* 선택된 템플릿 편집/삭제 */}
                 {selectedTemplateId && templateFormMode !== "add" && (() => {
                   const sel = templates.find((t) => t.id === selectedTemplateId);
                   if (!sel) return null;
                   return templateFormMode !== "edit" ? (
-                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                       <button type="button" onClick={() => startEditTemplate(sel)}
-                        style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>편집</button>
+                        style={{ height: 38, padding: "0 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>편집</button>
                       <button type="button" onClick={() => handleDeleteTemplate(sel.id)}
-                        style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>삭제</button>
+                        style={{ height: 38, padding: "0 14px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>삭제</button>
                     </div>
                   ) : null;
                 })()}
               </div>
 
-              <div style={{ height: 1, background: "#f3f4f6", margin: "16px 0" }} />
+              <div style={{ height: 1, background: "#e5e7eb", margin: "4px 0 18px" }} />
 
               {/* 보내는 사람 이메일 */}
               <div style={fieldWrap}>
@@ -703,13 +815,19 @@ export default function LibraryPage() {
                 <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
               </div>
 
+              {/* 주소 */}
+              <div style={fieldWrap}>
+                <label style={labelStyle}>주소</label>
+                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="도로명 주소" style={inputStyle} />
+              </div>
+
               {/* 출력형태 */}
               <div style={fieldWrap}>
                 <label style={labelStyle}>출력형태 <span style={{ color: "#ef4444" }}>*</span></label>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 10 }}>
                   {(["CPX", "일반"] as const).map((v) => (
                     <button key={v} type="button" onClick={() => setPrintType(v)}
-                      style={{ height: 36, padding: "0 20px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: printType === v ? "none" : "1px solid #d1d5db", background: printType === v ? "#111827" : "white", color: printType === v ? "white" : "#374151" }}>
+                      style={{ flex: 1, minHeight: 52, borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: "pointer", border: printType === v ? "none" : "1.5px solid #d1d5db", background: printType === v ? "#111827" : "white", color: printType === v ? "white" : "#374151" }}>
                       {v}
                     </button>
                   ))}
@@ -719,17 +837,16 @@ export default function LibraryPage() {
               {/* 주물여부 */}
               <div style={fieldWrap}>
                 <label style={labelStyle}>주물여부 <span style={{ color: "#ef4444" }}>*</span></label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {(["수지상태", "은주물", "금주물"] as const).map((v) => (
                     <button key={v} type="button" onClick={() => { setCastingType(v); setGoldDetail(""); }}
-                      style={{ height: 36, padding: "0 18px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: castingType === v ? "none" : "1px solid #d1d5db", background: castingType === v ? "#111827" : "white", color: castingType === v ? "white" : "#374151" }}>
+                      style={{ flex: "1 1 auto", minHeight: 52, padding: "0 10px", borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: "pointer", border: castingType === v ? "none" : "1.5px solid #d1d5db", background: castingType === v ? "#111827" : "white", color: castingType === v ? "white" : "#374151" }}>
                       {v}
                     </button>
                   ))}
                 </div>
                 {castingType === "금주물" && (
-                  <select value={goldDetail} onChange={(e) => setGoldDetail(e.target.value as any)}
-                    style={{ ...selectStyle, marginTop: 8 }}>
+                  <select value={goldDetail} onChange={(e) => setGoldDetail(e.target.value as any)} style={{ ...selectStyle, marginTop: 10 }}>
                     <option value="">세부 옵션 선택</option>
                     <option value="14K_골드">14K 골드</option>
                     <option value="14K_화이트">14K 화이트</option>
@@ -746,24 +863,21 @@ export default function LibraryPage() {
               {/* 확대축소여부 */}
               <div style={fieldWrap}>
                 <label style={labelStyle}>확대축소여부</label>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   {(["", "확대", "축소"] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setScaleType(v)}
+                    <button key={v} type="button" onClick={() => setScaleType(v)}
                       style={{
-                        height: 36, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
-                        border: scaleType === v ? "none" : "1px solid #d1d5db",
+                        flex: "1 1 auto", minHeight: 52, padding: "0 10px", borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: "pointer",
+                        border: scaleType === v ? "none" : "1.5px solid #d1d5db",
                         background: scaleType === v ? "#111827" : "white",
                         color: scaleType === v ? "white" : "#374151",
-                      }}
-                    >
+                      }}>
                       {v === "" ? "없음" : v}
                     </button>
                   ))}
                   {scaleType !== "" && (
-                    <select value={scalePercent} onChange={(e) => setScalePercent(e.target.value as any)} style={{ height: 36, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, background: "white", cursor: "pointer" }}>
+                    <select value={scalePercent} onChange={(e) => setScalePercent(e.target.value)}
+                      style={{ height: 52, borderRadius: 12, border: "1.5px solid #d1d5db", padding: "0 12px", fontSize: 18, background: "white", cursor: "pointer", flexShrink: 0 }}>
                       {Array.from({ length: 11 }, (_, i) => (
                         <option key={i} value={String(i)}>{i}%</option>
                       ))}
@@ -773,7 +887,7 @@ export default function LibraryPage() {
               </div>
 
               {/* 추가 내용 */}
-              <div style={{ height: 1, background: "#f3f4f6", margin: "4px 0 16px" }} />
+              <div style={{ height: 1, background: "#e5e7eb", margin: "4px 0 18px" }} />
               <div style={fieldWrap}>
                 <label style={labelStyle}>추가 내용</label>
                 <textarea
@@ -781,28 +895,28 @@ export default function LibraryPage() {
                   onChange={(e) => setExtraNote(e.target.value)}
                   placeholder="출력 시 참고할 내용을 입력해주세요."
                   rows={3}
-                  style={{ width: "100%", borderRadius: 10, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "vertical", fontFamily: "inherit" }}
+                  style={{ width: "100%", borderRadius: 12, border: "1.5px solid #d1d5db", padding: "12px 14px", fontSize: 18, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6 }}
                 />
               </div>
 
               {/* 파일 선택 */}
-              <div style={{ height: 1, background: "#f3f4f6", margin: "4px 0 16px" }} />
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#6b7280", marginBottom: 10, letterSpacing: "0.05em" }}>파일 선택</div>
+              <div style={{ height: 1, background: "#e5e7eb", margin: "4px 0 18px" }} />
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#374151", marginBottom: 12 }}>파일 선택</div>
               {filesLoading ? (
-                <p style={{ fontSize: 13, color: "#9ca3af" }}>파일 목록을 불러오는 중...</p>
+                <p style={{ fontSize: 16, color: "#9ca3af" }}>파일 목록을 불러오는 중...</p>
               ) : modelFiles.length === 0 ? (
-                <p style={{ fontSize: 13, color: "#9ca3af" }}>파일이 없습니다.</p>
+                <p style={{ fontSize: 16, color: "#9ca3af" }}>파일이 없습니다.</p>
               ) : (
-                <div style={{ display: "grid", gap: 8 }}>
+                <div style={{ display: "grid", gap: 10 }}>
                   {modelFiles.map((f) => {
                     const checked = selectedPaths.has(f.path);
                     return (
-                      <label key={f.path} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderRadius: 12, border: checked ? "1px solid #111827" : "1px solid #e5e7eb", background: checked ? "#f8fafc" : "white", cursor: "pointer" }}>
-                        <input type="checkbox" checked={checked} onChange={() => toggleFile(f.path)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#111827" }} />
-                        <span style={{ fontSize: 12, fontWeight: 900, padding: "2px 7px", borderRadius: 6, background: f.isMain ? "#111827" : "#6366f1", color: "white", flexShrink: 0 }}>
+                      <label key={f.path} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 14, border: checked ? "2px solid #111827" : "1.5px solid #e5e7eb", background: checked ? "#f8fafc" : "white", cursor: "pointer" }}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleFile(f.path)} style={{ width: 20, height: 20, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 900, padding: "3px 9px", borderRadius: 6, background: f.isMain ? "#111827" : "#6366f1", color: "white", flexShrink: 0 }}>
                           {f.isMain ? "대표" : "추가"}
                         </span>
-                        <span style={{ fontSize: 13, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                        <span style={{ fontSize: 16, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                       </label>
                     );
                   })}
@@ -811,9 +925,11 @@ export default function LibraryPage() {
             </div>
 
             {/* 하단 버튼 */}
-            <div style={{ padding: "16px 28px 24px", borderTop: "1px solid #f3f4f6", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <button onClick={closePrinterModal} style={{ height: 48, borderRadius: 14, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 15 }}>취소</button>
-              <button onClick={handleSendToPrinter} disabled={sendingId === printerModal.modelId} style={{ height: 48, borderRadius: 14, border: "none", background: "#111827", color: "white", fontWeight: 900, cursor: sendingId === printerModal.modelId ? "default" : "pointer", fontSize: 15 }}>
+            <div style={{ padding: "16px 24px 32px", borderTop: "1px solid #f3f4f6", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button onClick={closePrinterModal}
+                style={{ minHeight: 56, borderRadius: 14, border: "1.5px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 18 }}>취소</button>
+              <button onClick={handleSendToPrinter} disabled={sendingId === printerModal.modelId}
+                style={{ minHeight: 56, borderRadius: 14, border: "none", background: "#111827", color: "white", fontWeight: 900, cursor: sendingId === printerModal.modelId ? "default" : "pointer", fontSize: 18 }}>
                 {sendingId === printerModal.modelId ? "전송 중..." : "전송"}
               </button>
             </div>
@@ -823,63 +939,62 @@ export default function LibraryPage() {
 
       {/* ── 전송 확인 팝업 ───────────────────────────────── */}
       {showConfirm && printerModal && (
-        <div
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowConfirm(false); }}
-        >
-          <div style={{ background: "white", borderRadius: 24, width: "100%", maxWidth: 500, boxShadow: "0 24px 60px rgba(0,0,0,0.22)", display: "flex", flexDirection: "column", maxHeight: "88vh" }}>
+        <div style={{ ...overlayStyle, zIndex: 200 }} onClick={(e) => { if (e.target === e.currentTarget) setShowConfirm(false); }}>
+          <div style={{ ...modalStyle, borderRadius: "24px 24px 0 0" }}>
 
             {/* 헤더 */}
-            <div style={{ padding: "24px 28px 16px", borderBottom: "1px solid #f3f4f6" }}>
-              <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 4px", color: "#111827" }}>전송 확인</h2>
-              <p style={{ fontSize: 13, color: "#6b7280", margin: 0 }}>아래 내용으로 이메일을 전송합니다.</p>
+            <div style={{ padding: "24px 24px 16px", borderBottom: "1px solid #f3f4f6", position: "relative" }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{ position: "absolute", top: 20, right: 20, width: 44, height: 44, borderRadius: 999, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#374151", fontWeight: 700 }}
+                aria-label="닫기"
+              >×</button>
+              <h2 style={{ fontSize: 22, fontWeight: 900, margin: "0 0 4px", color: "#111827" }}>전송 확인</h2>
+              <p style={{ fontSize: 15, color: "#6b7280", margin: 0 }}>아래 내용으로 이메일을 전송합니다.</p>
             </div>
 
             {/* 내용 */}
-            <div style={{ padding: "20px 28px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 18 }}>
 
-              {/* 받는 이메일 */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginBottom: 6, letterSpacing: "0.05em" }}>받는 이메일</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", padding: "10px 14px", background: "#f8fafc", borderRadius: 10 }}>{printerEmail}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280", marginBottom: 8, letterSpacing: "0.04em" }}>받는 이메일</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", padding: "12px 16px", background: "#f8fafc", borderRadius: 12 }}>{printerEmail}</div>
               </div>
 
-              {/* 메일 제목 */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginBottom: 6, letterSpacing: "0.05em" }}>메일 제목</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", padding: "10px 14px", background: "#f8fafc", borderRadius: 10 }}>&lt;{businessName.trim()}&gt; 출력부탁드려요</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280", marginBottom: 8, letterSpacing: "0.04em" }}>메일 제목</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", padding: "12px 16px", background: "#f8fafc", borderRadius: 12 }}>&lt;{businessName.trim()}&gt; 출력부탁드려요</div>
               </div>
 
-              {/* 메일 내용 */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginBottom: 6, letterSpacing: "0.05em" }}>메일 내용</div>
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280", marginBottom: 8, letterSpacing: "0.04em" }}>메일 내용</div>
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
                   {[
                     { label: "출력형태",      value: printType || "-" },
                     { label: "주물여부",      value: castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType || "-" },
                     { label: "확대축소",      value: !scaleType ? "없음" : `${scaleType} ${scalePercent}%` },
                     { label: "전화번호",      value: phoneNumber.trim() || "-" },
+                    { label: "주소",          value: address.trim() || "-" },
                     { label: "보내는 이메일", value: senderEmail.trim() || "-" },
                     { label: "추가 내용",     value: extraNote.trim() || "-" },
-                  ].map((row, i) => (
-                    <div key={row.label} style={{ display: "flex", borderBottom: i < 5 ? "1px solid #f3f4f6" : "none" }}>
-                      <div style={{ width: 80, flexShrink: 0, padding: "9px 14px", fontSize: 12, fontWeight: 800, color: "#6b7280", background: "#f8fafc" }}>{row.label}</div>
-                      <div style={{ flex: 1, padding: "9px 14px", fontSize: 13, fontWeight: 700, color: "#111827" }}>{row.value}</div>
+                  ].map((row, i, arr) => (
+                    <div key={row.label} style={{ display: "flex", borderBottom: i < arr.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                      <div style={{ width: 90, flexShrink: 0, padding: "10px 14px", fontSize: 14, fontWeight: 800, color: "#6b7280", background: "#f8fafc" }}>{row.label}</div>
+                      <div style={{ flex: 1, padding: "10px 14px", fontSize: 16, fontWeight: 700, color: "#111827" }}>{row.value}</div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* 첨부 파일 */}
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280", marginBottom: 6, letterSpacing: "0.05em" }}>첨부 파일 ({selectedPaths.size}개)</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "#6b7280", marginBottom: 8, letterSpacing: "0.04em" }}>첨부 파일 ({selectedPaths.size}개)</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {modelFiles.filter((f) => selectedPaths.has(f.path)).map((f) => (
-                    <div key={f.path} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, background: "#f8fafc", border: "1px solid #e5e7eb" }}>
-                      <span style={{ fontSize: 11, fontWeight: 900, padding: "2px 7px", borderRadius: 6, background: f.isMain ? "#111827" : "#6366f1", color: "white", flexShrink: 0 }}>
+                    <div key={f.path} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, background: "#f8fafc", border: "1px solid #e5e7eb" }}>
+                      <span style={{ fontSize: 12, fontWeight: 900, padding: "3px 8px", borderRadius: 6, background: f.isMain ? "#111827" : "#6366f1", color: "white", flexShrink: 0 }}>
                         {f.isMain ? "대표" : "추가"}
                       </span>
-                      <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>{f.name}</span>
+                      <span style={{ fontSize: 15, color: "#374151", fontWeight: 600 }}>{f.name}</span>
                     </div>
                   ))}
                 </div>
@@ -887,18 +1002,13 @@ export default function LibraryPage() {
             </div>
 
             {/* 하단 버튼 */}
-            <div style={{ padding: "16px 28px 24px", borderTop: "1px solid #f3f4f6", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <button
-                onClick={() => setShowConfirm(false)}
-                style={{ height: 48, borderRadius: 14, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 15 }}
-              >
-                취소
+            <div style={{ padding: "16px 24px 32px", borderTop: "1px solid #f3f4f6", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button onClick={() => setShowConfirm(false)}
+                style={{ minHeight: 56, borderRadius: 14, border: "1.5px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 18 }}>
+                수정
               </button>
-              <button
-                onClick={handleConfirmSend}
-                disabled={sendingId === printerModal.modelId}
-                style={{ height: 48, borderRadius: 14, border: "none", background: "#111827", color: "white", fontWeight: 900, cursor: sendingId === printerModal.modelId ? "default" : "pointer", fontSize: 15 }}
-              >
+              <button onClick={handleConfirmSend} disabled={sendingId === printerModal.modelId}
+                style={{ minHeight: 56, borderRadius: 14, border: "none", background: "#111827", color: "white", fontWeight: 900, cursor: sendingId === printerModal.modelId ? "default" : "pointer", fontSize: 18 }}>
                 {sendingId === printerModal.modelId ? "전송 중..." : "전송하기"}
               </button>
             </div>
