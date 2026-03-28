@@ -33,6 +33,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [viewMode, setViewMode] = useState<"image" | "viewer">("image");
   const [viewerUrl, setViewerUrl] = useState("");
   const [viewerLoading, setViewerLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   const [seller, setSeller] = useState<any>(null);
   const [alreadyPurchased, setAlreadyPurchased] = useState(false);
   const [relatedModels, setRelatedModels] = useState<ModelItem[]>([]);
@@ -42,6 +44,22 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [extraFiles, setExtraFiles] = useState<{ file_name: string; file_type: string }[]>([]);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    if (mobileViewerOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileViewerOpen]);
 
   useEffect(() => {
     checkPurchase();
@@ -465,36 +483,108 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
               type="button"
               onClick={() => setViewMode("image")}
               style={{
-                height: 44,
-                padding: "0 18px",
+                height: 52,
+                padding: "0 20px",
                 borderRadius: 999,
                 border: "1px solid #d1d5db",
                 background: viewMode === "image" ? "#111827" : "white",
                 color: viewMode === "image" ? "white" : "#111827",
                 fontWeight: 900,
+                fontSize: 16,
                 cursor: "pointer",
               }}
             >
               이미지 보기
             </button>
 
-            <button
-              type="button"
-              onClick={() => setViewMode("viewer")}
-              style={{
-                height: 44,
-                padding: "0 18px",
-                borderRadius: 999,
-                border: "1px solid #d1d5db",
-                background: viewMode === "viewer" ? "#111827" : "white",
-                color: viewMode === "viewer" ? "white" : "#111827",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              3D 보기
-            </button>
+            {viewerSupported && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isMobile) {
+                    if (!viewerUrl && !viewerLoading) loadViewerUrl();
+                    setMobileViewerOpen(true);
+                  } else {
+                    setViewMode("viewer");
+                  }
+                }}
+                style={{
+                  height: 52,
+                  padding: "0 20px",
+                  borderRadius: 999,
+                  border: "1px solid #d1d5db",
+                  background: viewMode === "viewer" && !isMobile ? "#111827" : "white",
+                  color: viewMode === "viewer" && !isMobile ? "white" : "#111827",
+                  fontWeight: 900,
+                  fontSize: 16,
+                  cursor: "pointer",
+                }}
+              >
+                3D 보기
+              </button>
+            )}
           </div>
+
+          {/* 모바일 풀스크린 3D 뷰어 모달 */}
+          {mobileViewerOpen && (
+            <div style={{
+              position: "fixed", inset: 0,
+              background: "#000",
+              zIndex: 1000,
+              display: "flex",
+              flexDirection: "column",
+            }}>
+              {/* 닫기 버튼 */}
+              <button
+                type="button"
+                onClick={() => setMobileViewerOpen(false)}
+                style={{
+                  position: "absolute",
+                  top: 16, right: 16,
+                  zIndex: 1001,
+                  width: 52, height: 52,
+                  borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.4)",
+                  background: "rgba(0,0,0,0.7)",
+                  color: "white",
+                  fontSize: 26,
+                  fontWeight: 900,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+                aria-label="닫기"
+              >
+                ×
+              </button>
+
+              {/* 뷰어 영역 */}
+              <div style={{ flex: 1, width: "100%", overflow: "hidden" }}>
+                {viewerLoading ? (
+                  <div style={{
+                    width: "100%", height: "100%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "white", fontSize: 18, fontWeight: 800,
+                  }}>
+                    3D 파일 준비 중...
+                  </div>
+                ) : viewerUrl ? (
+                  <ModelViewer url={viewerUrl} />
+                ) : (
+                  <div style={{
+                    width: "100%", height: "100%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "white", fontSize: 16, fontWeight: 800,
+                    padding: "0 24px", textAlign: "center",
+                  }}>
+                    3D 미리보기를 불러올 수 없습니다.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="detail-viewer-box">
             {viewMode === "image" ? (
@@ -707,7 +797,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
           <p
             style={{
               color: "#6b7280",
-              fontSize: 15,
+              fontSize: 16,
               marginBottom: 20,
               whiteSpace: "pre-wrap",
               lineHeight: 1.8,
