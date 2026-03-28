@@ -445,7 +445,7 @@ export default function LibraryPage() {
     width: "100%", height: 52, borderRadius: 12, border: "1.5px solid #d1d5db",
     padding: "0 14px", fontSize: 18, boxSizing: "border-box", background: "white", cursor: "pointer",
   };
-  const labelStyle: React.CSSProperties = { fontSize: 32, fontWeight: 800, color: "#111827", marginBottom: 8, display: "block" };
+  const labelStyle: React.CSSProperties = { fontSize: 24, fontWeight: 800, color: "#111827", marginBottom: 8, display: "block" };
   const fieldWrap: React.CSSProperties = { marginBottom: 18 };
 
   // ── 팝업 공통 overlay ─────────────────────────────────────
