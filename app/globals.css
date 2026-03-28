@@ -56,9 +56,18 @@ body {
   background: #fff8f0 !important;
 }
 
-/* ── 헤더 모바일 ── */
-@media (max-width: 860px) {
-  .header-logo { height: 36px !important; }
+/* ── 헤더 반응형 (데스크탑/모바일 전환) ── */
+.header-desktop-nav { display: flex; }
+.header-mobile-right { display: none !important; }
+
+@media (max-width: 768px) {
+  .header-desktop-nav { display: none !important; }
+  .header-mobile-right { display: flex !important; }
+  .header-logo { height: 40px !important; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .header-logo { height: 44px !important; }
   .header-nav-item { padding: 6px 8px !important; }
   .header-my-btn-new { padding: 6px 8px !important; }
 }
@@ -100,6 +109,53 @@ body {
   .detail-aside {
     padding: 20px !important;
   }
+}
+
+/* ── 상세 페이지 메인 ── */
+.detail-main {
+  max-width: 1240px;
+  margin: 40px auto 0;
+  padding: 0 20px 60px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+@media (max-width: 768px) {
+  .detail-main { margin: 16px auto 0; padding: 0 16px 40px; }
+}
+
+/* ── 상세 페이지 제목 ── */
+.detail-title {
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 900;
+  margin: 16px 0 12px;
+  color: #111827;
+}
+@media (max-width: 768px) {
+  .detail-title { font-size: 22px; }
+}
+
+/* ── 상세 페이지 관련 모델 섹션 제목 ── */
+.detail-section-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+  color: #111827;
+}
+@media (max-width: 768px) {
+  .detail-section-title { font-size: 22px; }
+}
+
+/* ── 관련 모델 그리드 ── */
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+@media (max-width: 860px) {
+  .related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .related-grid { grid-template-columns: 1fr; gap: 12px; }
 }
 
 /* ── 내 다운로드 카드 그리드 ── */

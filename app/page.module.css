@@ -648,8 +648,25 @@
   }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .cardGrid {
     grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .modelTitle {
+    font-size: 16px;
+  }
+
+  .modelInfo {
+    padding: 12px;
+  }
+
+  .hero {
+    border-radius: 16px;
+  }
+
+  .topGrid {
+    gap: 8px;
   }
 }

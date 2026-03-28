@@ -453,15 +453,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const displayImage = selectedImage || thumbnailUrl;
 
   return (
-    <main
-      style={{
-        maxWidth: 1240,
-        margin: "40px auto",
-        padding: "0 20px 60px",
-        fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
-    >
+    <main className="detail-main">
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>
         홈 / 3D 모델 / 상세보기
       </p>
@@ -674,15 +666,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
             {model.category}
           </div>
 
-          <h1
-            style={{
-              fontSize: 32,
-              lineHeight: 1.2,
-              fontWeight: 900,
-              margin: "16px 0 12px",
-              color: "#111827",
-            }}
-          >
+          <h1 className="detail-title">
             {model.title}
           </h1>
 
@@ -984,14 +968,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
           }}
         >
           <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 32,
-                fontWeight: 900,
-                color: "#111827",
-              }}
-            >
+            <h2 className="detail-section-title">
               관련 모델 추천
             </h2>
             <p
@@ -1009,13 +986,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         {relatedModels.length === 0 ? (
           <p style={{ color: "#6b7280" }}>관련 모델이 없습니다.</p>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              gap: 18,
-            }}
-          >
+          <div className="related-grid">
             {relatedModels.map((item) => {
               const thumb = getThumbnailUrl(item);
 
