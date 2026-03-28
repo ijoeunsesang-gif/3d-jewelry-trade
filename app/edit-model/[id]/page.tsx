@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
+import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
 
 type ModelItem = {
   id: string;
@@ -52,6 +53,7 @@ const textareaStyle: React.CSSProperties = {
   fontSize: 15,
   outline: "none",
   resize: "vertical",
+  boxSizing: "border-box",
 };
 
 const uploadBoxStyle: React.CSSProperties = {
@@ -632,11 +634,10 @@ export default function EditModelPage() {
         </Field>
 
         <Field label="설명">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="모델 설명을 입력하세요."
-            style={textareaStyle}
+          <DescriptionTemplateSelector
+            description={description}
+            onDescriptionChange={setDescription}
+            textareaStyle={textareaStyle}
           />
         </Field>
 
@@ -813,57 +814,45 @@ export default function EditModelPage() {
 
         {/* 4. 추가 파일 */}
         <Field label="기존 추가 파일">
-          <div
-            style={{
-              display: "grid",
-              gap: 10,
-            }}
-          >
+          <div style={{ display: "grid", gap: 8 }}>
             {existingFiles.length === 0 ? (
               <div style={helperTextStyle}>등록된 추가 파일이 없습니다.</div>
             ) : (
-              existingFiles.map((file) => (
+              existingFiles.map((file, idx) => (
                 <div
                   key={file.id}
                   style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 14,
-                    background: "white",
-                    padding: 12,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
+                    display: "flex", alignItems: "center",
+                    justifyContent: "space-between", gap: 10,
+                    padding: "10px 14px",
+                    borderRadius: 12, border: "1px solid #e5e7eb",
+                    background: "white", fontSize: 13,
                   }}
                 >
-                  <div style={{ display: "grid", gap: 4 }}>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 800,
-                        color: "#111827",
-                      }}
-                    >
-                      {file.file_name || "파일"}
-                    </div>
-
-                    <div style={helperTextStyle}>
-                      형식: {(file.file_type || "").toUpperCase() || "-"}
-                    </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                    <span style={{
+                      background: "#111827", color: "white",
+                      borderRadius: 6, padding: "2px 8px",
+                      fontSize: 11, fontWeight: 900, flexShrink: 0,
+                    }}>
+                      {(file.file_type || "파일").toUpperCase()}
+                    </span>
+                    <span style={{
+                      fontWeight: 700, color: "#111827",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {file.file_name || `파일 ${idx + 1}`}
+                    </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => removeExistingFile(file.id)}
                     style={{
-                      height: 36,
-                      padding: "0 12px",
-                      borderRadius: 10,
-                      border: "1px solid #d1d5db",
-                      background: "white",
-                      fontWeight: 800,
-                      cursor: "pointer",
+                      flexShrink: 0, height: 32, padding: "0 12px",
+                      borderRadius: 8, border: "1px solid #fca5a5",
+                      background: "white", color: "#dc2626",
+                      fontWeight: 800, fontSize: 13, cursor: "pointer",
                     }}
                   >
                     삭제
@@ -898,11 +887,39 @@ export default function EditModelPage() {
             />
 
             {extraFiles.length > 0 && (
-              <div style={fileListStyle}>
-                <div>선택된 파일 수: {extraFiles.length}개</div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
+                  선택된 파일 수: {extraFiles.length}개
+                </div>
                 {extraFiles.map((file, idx) => (
-                  <div key={`${file.name}-${idx}`}>
-                    {idx + 1}. {file.name}
+                  <div
+                    key={`${file.name}-${idx}`}
+                    style={{
+                      display: "flex", alignItems: "center",
+                      justifyContent: "space-between", gap: 10,
+                      padding: "8px 12px",
+                      borderRadius: 10, border: "1px solid #e5e7eb",
+                      background: "white", fontSize: 13, color: "#111827",
+                    }}
+                  >
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {idx + 1}. {file.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setExtraFiles((prev) => prev.filter((_, i) => i !== idx))}
+                      style={{
+                        flexShrink: 0, width: 28, height: 28, borderRadius: 8,
+                        border: "1px solid #fca5a5", background: "white",
+                        color: "#dc2626", fontWeight: 900, fontSize: 16,
+                        cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                      aria-label="파일 제거"
+                    >
+                      ×
+                    </button>
                   </div>
                 ))}
               </div>
