@@ -309,16 +309,11 @@ export default function Header() {
               </Link>
 
               {/* 알림 아이콘 */}
-              <div style={{
+              <Link href="/notifications" style={{
                 position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
-                width: 44, height: 44, flexShrink: 0,
+                width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
               }}>
-                <Link href="/notifications" style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 44, height: 44, borderRadius: 10, textDecoration: "none",
-                }}>
-                  <IconBell active={pathname === "/notifications"} size={28} />
-                </Link>
+                <IconBell active={pathname === "/notifications"} size={28} />
                 {notificationCount > 0 && (
                   <span style={{
                     position: "absolute", top: 6, right: 4,
@@ -330,7 +325,7 @@ export default function Header() {
                     {notificationCount > 99 ? "99+" : notificationCount}
                   </span>
                 )}
-              </div>
+              </Link>
 
               {/* MY 버튼 또는 로그인 */}
               {userEmail ? (
@@ -446,18 +441,22 @@ function BottomTabItem({ href, icon, label, active, badge }: {
     <Link
       href={href}
       style={{
-        flex: 1, display: "flex", flexDirection: "column",
+        flex: "1 1 0%", minWidth: 0, display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        gap: 4, position: "relative", textDecoration: "none",
-        paddingTop: 4,
+        gap: 3, position: "relative", textDecoration: "none",
+        paddingTop: 4, overflow: "hidden",
         borderTop: active ? `3px solid ${GOLD_TAB}` : "3px solid transparent",
       }}
     >
       {icon}
       <span style={{
-        fontSize: 13, fontWeight: 800,
+        fontSize: 11, fontWeight: 800,
         color: active ? GOLD_TAB : TAB_INACTIVE,
         letterSpacing: "-0.01em",
+        whiteSpace: "nowrap",
+        maxWidth: "100%",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}>
         {label}
       </span>

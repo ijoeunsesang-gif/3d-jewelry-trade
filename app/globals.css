@@ -280,6 +280,7 @@ body { overflow-x: hidden; }
     border-top: 2px solid #1e293b;
     z-index: 150;
     align-items: stretch;
+    overflow: hidden;
   }
   body {
     padding-bottom: 72px;
