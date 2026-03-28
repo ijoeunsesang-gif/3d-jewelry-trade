@@ -23,17 +23,18 @@ export default function RootLayout({
         <Footer />
         <Toaster
           position="top-center"
-          containerStyle={{
-            top: 80,
-          }}
+          containerStyle={{ top: 80 }}
           toastOptions={{
             duration: 2500,
             style: {
-              background: "#111827", // 🔥 검은색
-              color: "#ffffff",     // 🔥 흰 글씨
+              background: "#ffffff",
+              color: "#111827",
+              border: "1px solid #e5e7eb",
               borderRadius: "12px",
-              fontWeight: 700,
-              padding: "12px 16px",
+              fontWeight: 600,
+              fontSize: "14px",
+              padding: "10px 16px",
+              boxShadow: "0 4px 16px rgba(15,23,42,0.08)",
             },
           }}
         />
