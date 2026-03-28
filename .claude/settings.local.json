@@ -7,7 +7,15 @@
       "Bash(node -e \":*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx vercel:*)",
+      "Bash(gh run:*)",
+      "Bash(ls E:/3d-jewelry-trade/.env*)",
+      "Bash(npm show:*)",
+      "Bash(npm audit:*)",
+      "WebSearch",
+      "WebFetch(domain:nvd.nist.gov)",
+      "Bash(node -e \"console.log\\(require\\(''./package.json''\\).dependencies.next\\)\")"
     ]
   }
 }

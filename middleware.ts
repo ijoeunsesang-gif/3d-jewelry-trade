@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // 점검 모드 ON/OFF
-// 점검 종료 시 아래 값을 false 로 변경하거나 이 파일을 삭제하세요.
-const MAINTENANCE_MODE = true;
+// 점검은 true 종료는 false. 삭제하면 점검종료처리.
+const MAINTENANCE_MODE = false;
 
 export function middleware(request: NextRequest) {
   if (!MAINTENANCE_MODE) return NextResponse.next();
