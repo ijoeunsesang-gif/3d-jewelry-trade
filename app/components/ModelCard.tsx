@@ -53,7 +53,7 @@ export default function ModelCard({
   getThumbnailUrl,
 }: Props) {
   const thumbUrl = getThumbnailUrl(item);
-  const isPopular = (item.download_count || 0) >= 1;
+  const isPopular = (item.download_count || 0) >= 5;
 
   return (
     <Link

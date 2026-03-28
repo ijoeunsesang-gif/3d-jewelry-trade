@@ -239,7 +239,7 @@ export default function SalesPage() {
         </select>
       </div>
 
-      <section style={summaryGrid}>
+      <section style={summaryGrid} className="stats-summary-grid">
         <StatCard title="총 판매 수" value={`${totalSalesCount}건`} sub="선택한 기간 기준 판매 건수" />
         <StatCard title="총 매출" value={`${totalRevenue.toLocaleString("ko-KR")}원`} sub="선택한 기간 기준 매출 합계" />
         <StatCard title="평균 판매가" value={`${averagePrice.toLocaleString("ko-KR")}원`} sub="판매 1건당 평균" />
@@ -283,7 +283,7 @@ export default function SalesPage() {
         </div>
       </section>
 
-      <section style={twoColGrid}>
+      <section style={twoColGrid} className="stats-two-col">
         <div style={sectionBox}>
           <div style={sectionHead}>
             <h2 style={sectionTitle}>베스트셀러 모델</h2>
@@ -361,7 +361,7 @@ function StatCard({
   return (
     <div style={statCard}>
       <div style={statTitle}>{title}</div>
-      <div style={statValue}>{value}</div>
+      <div style={statValue} className="stats-stat-value">{value}</div>
       <div style={statSub}>{sub}</div>
     </div>
   );

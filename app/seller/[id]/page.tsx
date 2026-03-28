@@ -793,7 +793,7 @@ export default function SellerPage() {
                 const thumb = getThumbnailUrl(item);
                 const liked = !!favoriteMap[item.id];
                 const liking = !!favoriteLoadingIds[item.id];
-                const isPopular = (item.download_count || 0) >= 1;
+                const isPopular = (item.download_count || 0) >= 5;
 
                 console.log(item.title, item.download_count);
 

@@ -224,113 +224,168 @@ export default function Header() {
   );
 
   return (
-    <header style={{ borderBottom: "1px solid #f0ead8", background: "white", position: "sticky", top: 0, zIndex: 100 }}>
-      <div style={{
-        maxWidth: 1240, margin: "0 auto",
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}>
-
-        {/* ── Row 1: 로고 + 네비 ───────────────────────────── */}
+    <>
+      <header style={{ borderBottom: "1px solid #f0ead8", background: "white", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{
-          height: 68, padding: "0 20px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          maxWidth: 1240, margin: "0 auto",
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}>
 
-          {/* 로고 */}
-          <Link href="/" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
-            <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
-          </Link>
+          {/* ── Row 1: 로고 + 네비 ───────────────────────────── */}
+          <div style={{
+            height: 68, padding: "0 20px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
 
-          {/* 데스크탑 네비게이션 */}
-          <nav className="header-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <NavItem href="/" label="홈" icon={<IconHome />} active={pathname === "/"} />
-            <NavItem href="/favorites" label="찜" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
-            <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
-            <NavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} />
-            <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
-            <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
+            {/* 로고 */}
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
+              <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
+            </Link>
 
-            <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
+            {/* 데스크탑 네비게이션 */}
+            <nav className="header-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <NavItem href="/" label="홈" icon={<IconHome />} active={pathname === "/"} />
+              <NavItem href="/favorites" label="찜" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
+              <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
+              <NavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} />
+              <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
+              <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
 
-            {userEmail ? (
-              <div
-                ref={desktopMyRef}
-                style={{ position: "relative" }}
-                onMouseEnter={() => setMyOpen(true)}
-                onMouseLeave={() => setMyOpen(false)}
-              >
-                <button
-                  type="button"
-                  style={{
-                    display: "inline-flex", flexDirection: "column", alignItems: "center",
-                    justifyContent: "center", gap: 3, padding: "6px 10px",
-                    background: "none", border: "none", cursor: "pointer", borderRadius: 10,
-                  }}
-                  className="header-my-btn-new"
+              <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
+
+              {userEmail ? (
+                <div
+                  ref={desktopMyRef}
+                  style={{ position: "relative" }}
+                  onMouseEnter={() => setMyOpen(true)}
+                  onMouseLeave={() => setMyOpen(false)}
                 >
-                  <MyButtonInner />
-                </button>
-                {myOpen && <MyDropdown />}
-              </div>
-            ) : (
-              <Link href="/auth" style={{
-                display: "inline-flex", alignItems: "center", height: 36,
-                padding: "0 18px", borderRadius: 8,
-                background: GOLD, color: "white",
-                textDecoration: "none", fontSize: 13, fontWeight: 700,
-                letterSpacing: "0.01em",
-              }}>
-                로그인
-              </Link>
-            )}
-          </nav>
+                  <button
+                    type="button"
+                    style={{
+                      display: "inline-flex", flexDirection: "column", alignItems: "center",
+                      justifyContent: "center", gap: 3, padding: "6px 10px",
+                      background: "none", border: "none", cursor: "pointer", borderRadius: 10,
+                    }}
+                    className="header-my-btn-new"
+                  >
+                    <MyButtonInner />
+                  </button>
+                  {myOpen && <MyDropdown />}
+                </div>
+              ) : (
+                <Link href="/auth" style={{
+                  display: "inline-flex", alignItems: "center", height: 36,
+                  padding: "0 18px", borderRadius: 8,
+                  background: GOLD, color: "white",
+                  textDecoration: "none", fontSize: 13, fontWeight: 700,
+                  letterSpacing: "0.01em",
+                }}>
+                  로그인
+                </Link>
+              )}
+            </nav>
 
-          {/* 모바일 Row1 우측: MY 버튼 또는 로그인 */}
-          <div className="header-mobile-my" style={{ display: "none" }}>
-            {userEmail ? (
-              <div
-                ref={mobileMyRef}
-                style={{ position: "relative" }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setMyOpen((prev) => !prev)}
-                  style={{
-                    display: "inline-flex", flexDirection: "column", alignItems: "center",
-                    justifyContent: "center", gap: 2, padding: "6px 10px",
-                    background: "none", border: "none", cursor: "pointer", borderRadius: 10,
-                  }}
-                  className="header-my-btn-new"
-                >
-                  <MyButtonInner />
-                </button>
-                {myOpen && <MyDropdown />}
-              </div>
-            ) : (
-              <Link href="/auth" style={{
-                display: "inline-flex", alignItems: "center", height: 34,
-                padding: "0 14px", borderRadius: 8,
-                background: GOLD, color: "white",
-                textDecoration: "none", fontSize: 13, fontWeight: 700,
+            {/* 모바일 Row1 우측: 홈 + 알림 + MY */}
+            <div className="header-mobile-my" style={{ display: "none", alignItems: "center", gap: 0 }}>
+              {/* 홈 아이콘 */}
+              <Link href="/" style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
               }}>
-                로그인
+                <IconHome active={pathname === "/"} size={28} />
               </Link>
-            )}
+
+              {/* 알림 아이콘 */}
+              <div style={{
+                position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
+                width: 44, height: 44, flexShrink: 0,
+              }}>
+                <Link href="/notifications" style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 44, height: 44, borderRadius: 10, textDecoration: "none",
+                }}>
+                  <IconBell active={pathname === "/notifications"} size={28} />
+                </Link>
+                {notificationCount > 0 && (
+                  <span style={{
+                    position: "absolute", top: 6, right: 4,
+                    minWidth: 16, height: 16, padding: "0 3px",
+                    borderRadius: 999, background: GOLD, color: "white",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 9, fontWeight: 800, lineHeight: 1, pointerEvents: "none",
+                  }}>
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                )}
+              </div>
+
+              {/* MY 버튼 또는 로그인 */}
+              {userEmail ? (
+                <div ref={mobileMyRef} style={{
+                  position: "relative", display: "flex", alignItems: "center",
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setMyOpen((prev) => !prev)}
+                    style={{
+                      display: "inline-flex", flexDirection: "column", alignItems: "center",
+                      justifyContent: "center", gap: 2, padding: "6px 10px",
+                      background: "none", border: "none", cursor: "pointer", borderRadius: 10,
+                    }}
+                    className="header-my-btn-new"
+                  >
+                    <MyButtonInner />
+                  </button>
+                  {myOpen && <MyDropdown />}
+                </div>
+              ) : (
+                <Link href="/auth" style={{
+                  display: "inline-flex", alignItems: "center", height: 34,
+                  padding: "0 14px", borderRadius: 8,
+                  background: GOLD, color: "white",
+                  textDecoration: "none", fontSize: 13, fontWeight: 700,
+                }}>
+                  로그인
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* ── Row 2: 모바일 전용 아이콘 바 ─────────────────── */}
-        <div className="header-mobile-row2" style={{ display: "none" }}>
-          <MobileNavIcon href="/" icon={<IconHome />} active={pathname === "/"} />
-          <MobileNavIcon href="/favorites" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
-          <MobileNavIcon href="/cart" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
-          <MobileNavIcon href="/library" icon={<IconDownload />} active={pathname === "/library"} />
-          <MobileNavIcon href="/messages" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
-          <MobileNavIcon href="/notifications" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
         </div>
+      </header>
 
-      </div>
-    </header>
+      {/* ── 모바일 하단 탭 네비게이션 ─────────────────────────── */}
+      <nav className="mobile-bottom-tab-bar">
+        <BottomTabItem
+          href="/favorites"
+          icon={<IconHeart active={pathname === "/favorites"} size={28} />}
+          label="찜"
+          badge={favoriteCount}
+          active={pathname === "/favorites"}
+        />
+        <BottomTabItem
+          href="/cart"
+          icon={<IconCart active={pathname === "/cart"} size={28} />}
+          label="장바구니"
+          badge={cartCount}
+          active={pathname === "/cart"}
+        />
+        <BottomTabItem
+          href="/library"
+          icon={<IconDownload active={pathname === "/library"} size={28} />}
+          label="내 다운로드"
+          active={pathname === "/library"}
+        />
+        <BottomTabItem
+          href="/messages"
+          icon={<IconMail active={pathname === "/messages"} size={28} />}
+          label="문의함"
+          badge={messageCount}
+          active={pathname === "/messages"}
+        />
+      </nav>
+    </>
   );
 }
 
@@ -371,28 +426,37 @@ function NavItem({ href, label, icon, active, badge }: {
   );
 }
 
-/* ── 모바일 Row2 아이콘 전용 네비 아이템 ─────────────────── */
-function MobileNavIcon({ href, icon, active, badge }: {
-  href: string; icon: React.ReactNode; active: boolean; badge?: number;
+/* ── 하단 탭 바 아이템 ────────────────────────────────────── */
+function BottomTabItem({ href, icon, label, active, badge }: {
+  href: string; icon: React.ReactNode; label: string; active: boolean; badge?: number;
 }) {
   return (
     <Link
       href={href}
       style={{
-        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-        height: "100%", position: "relative", textDecoration: "none",
-        borderBottom: active ? `2px solid ${GOLD}` : "2px solid transparent",
+        flex: 1, display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        gap: 5, position: "relative", textDecoration: "none",
+        paddingTop: 4,
+        borderTop: active ? `3px solid ${GOLD}` : "3px solid transparent",
       }}
     >
       {icon}
+      <span style={{
+        fontSize: 13, fontWeight: 700,
+        color: active ? GOLD : "#6b7280",
+        letterSpacing: "-0.01em",
+      }}>
+        {label}
+      </span>
       {typeof badge === "number" && badge > 0 && (
         <span style={{
           position: "absolute", top: 4,
-          left: "calc(50% + 2px)",
-          minWidth: 15, height: 15, padding: "0 3px",
+          left: "calc(50% + 8px)",
+          minWidth: 17, height: 17, padding: "0 3px",
           borderRadius: 999, background: GOLD, color: "white",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontSize: 9, fontWeight: 800, lineHeight: 1,
+          fontSize: 10, fontWeight: 800, lineHeight: 1,
         }}>
           {badge > 99 ? "99+" : badge}
         </span>
@@ -437,23 +501,23 @@ function svgProps(active: boolean, size = 22) {
   };
 }
 
-function IconHome({ active = false }: { active?: boolean }) {
-  return <svg {...svgProps(active)}><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" /><path d="M9 21V12h6v9" /></svg>;
+function IconHome({ active = false, size = 22 }: { active?: boolean; size?: number }) {
+  return <svg {...svgProps(active, size)}><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" /><path d="M9 21V12h6v9" /></svg>;
 }
-function IconHeart({ active = false }: { active?: boolean }) {
-  return <svg {...svgProps(active)}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>;
+function IconHeart({ active = false, size = 22 }: { active?: boolean; size?: number }) {
+  return <svg {...svgProps(active, size)}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>;
 }
-function IconCart({ active = false }: { active?: boolean }) {
-  return <svg {...svgProps(active)}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>;
+function IconCart({ active = false, size = 22 }: { active?: boolean; size?: number }) {
+  return <svg {...svgProps(active, size)}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>;
 }
-function IconDownload({ active = false }: { active?: boolean }) {
-  return <svg {...svgProps(active)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
+function IconDownload({ active = false, size = 22 }: { active?: boolean; size?: number }) {
+  return <svg {...svgProps(active, size)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
 }
-function IconMail({ active = false }: { active?: boolean }) {
-  return <svg {...svgProps(active)}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>;
+function IconMail({ active = false, size = 22 }: { active?: boolean; size?: number }) {
+  return <svg {...svgProps(active, size)}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>;
 }
-function IconBell({ active = false }: { active?: boolean }) {
-  return <svg {...svgProps(active)}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>;
+function IconBell({ active = false, size = 22 }: { active?: boolean; size?: number }) {
+  return <svg {...svgProps(active, size)}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>;
 }
 function IconUser({ active = false }: { active?: boolean }) {
   return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;

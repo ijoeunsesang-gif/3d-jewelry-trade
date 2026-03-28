@@ -196,7 +196,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <section style={cardWrap}>
+      <section style={cardWrap} className="profile-card-wrap">
         <div style={avatarSection}>
           <img
             src={previewUrl || "/default-avatar.png"}
@@ -355,6 +355,8 @@ const inputStyle: React.CSSProperties = {
   padding: "0 14px",
   outline: "none",
   fontSize: 14,
+  width: "100%",
+  boxSizing: "border-box",
 };
 
 const textareaStyle: React.CSSProperties = {
@@ -365,6 +367,8 @@ const textareaStyle: React.CSSProperties = {
   outline: "none",
   fontSize: 14,
   resize: "vertical",
+  width: "100%",
+  boxSizing: "border-box",
   fontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 };

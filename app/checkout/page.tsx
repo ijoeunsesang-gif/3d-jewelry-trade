@@ -258,7 +258,7 @@ function CheckoutContent() {
 
   if (loading) {
     return (
-      <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}>
+      <main className="cart-checkout-main" style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}>
         <p>결제 정보를 불러오는 중...</p>
       </main>
     );
@@ -266,6 +266,7 @@ function CheckoutContent() {
 
   return (
     <main
+      className="cart-checkout-main"
       style={{
         maxWidth: 1100,
         margin: "40px auto",
@@ -293,6 +294,7 @@ function CheckoutContent() {
         </div>
       ) : (
         <div
+          className="cart-checkout-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 0.8fr)",

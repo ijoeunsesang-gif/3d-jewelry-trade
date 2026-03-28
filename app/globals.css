@@ -70,7 +70,6 @@ body {
 @media (max-width: 768px) {
   .header-desktop-nav  { display: none !important; }
   .header-mobile-my   { display: flex !important; align-items: center; }
-  .header-mobile-row2 { display: flex !important; }
   .header-logo { height: 38px !important; }
 }
 
@@ -180,4 +179,63 @@ body {
 }
 @media (max-width: 480px) {
   .library-card-grid { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* ── 프로필 카드 그리드 ── */
+@media (max-width: 640px) {
+  .profile-card-wrap {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── 판매 통계 그리드 ── */
+@media (max-width: 640px) {
+  .stats-summary-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .stats-stat-value {
+    font-size: 22px !important;
+  }
+}
+@media (max-width: 768px) {
+  .stats-two-col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── 장바구니 / 결제 레이아웃 ── */
+@media (max-width: 768px) {
+  .cart-checkout-main {
+    margin-top: 20px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  .cart-checkout-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── body 가로 스크롤 방지 ── */
+body { overflow-x: hidden; }
+
+/* ── 모바일 하단 탭 네비게이션 ── */
+.mobile-bottom-tab-bar {
+  display: none;
+}
+@media (max-width: 768px) {
+  .mobile-bottom-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 72px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    z-index: 150;
+    align-items: stretch;
+  }
+  body {
+    padding-bottom: 72px;
+  }
 }

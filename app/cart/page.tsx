@@ -37,6 +37,7 @@ export default function CartPage() {
 
   return (
     <main
+      className="cart-checkout-main"
       style={{
         maxWidth: 1200,
         margin: "40px auto",
@@ -89,6 +90,7 @@ export default function CartPage() {
         </div>
       ) : (
         <div
+          className="cart-checkout-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0, 1.6fr) minmax(280px, 0.8fr)",

@@ -1,7 +1,13 @@
+import type { Viewport } from "next";
 import "./globals.css";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import { Toaster } from "react-hot-toast";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 export default function RootLayout({
   children,
@@ -23,7 +29,7 @@ export default function RootLayout({
         <Footer />
         <Toaster
           position="top-center"
-          containerStyle={{ top: 116 }}
+          containerStyle={{ top: 80 }}
           toastOptions={{
             duration: 2500,
             style: {
