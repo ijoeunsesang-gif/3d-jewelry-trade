@@ -30,6 +30,18 @@ body {
   50% { opacity: 0.4; }
 }
 
+@keyframes helpFadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 도움말 페이지 모바일 ── */
+@media (max-width: 640px) {
+  .help-section-tabs {
+    gap: 6px !important;
+  }
+}
+
 /* ── 반응형 유틸 ── */
 @media (max-width: 640px) {
   .hide-mobile { display: none !important; }

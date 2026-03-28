@@ -181,6 +181,7 @@ export default function Header() {
           { href: "/upload", label: "업로드" },
           { href: "/sales", label: "판매 통계" },
           { href: "/customer-service", label: "고객센터" },
+          { href: "/help", label: "도움말" },
         ].map(({ href, label }) => (
           <MyMenuLink key={href} href={href} onClick={() => setMyOpen(false)} active={pathname.startsWith(href)}>
             {label}
@@ -253,6 +254,7 @@ export default function Header() {
               <NavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} />
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
+              <NavItem href="/help" label="도움말" icon={<IconHelp />} active={pathname === "/help"} />
               <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
 
               <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
@@ -532,6 +534,9 @@ function IconBell({ active = false, size = 22, inactiveColor = "#5a5a5a", active
 }
 function IconHeadphones({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
   return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" /><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></svg>;
+}
+function IconHelp({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="2.5" /></svg>;
 }
 function IconUser({ active = false }: { active?: boolean }) {
   return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
