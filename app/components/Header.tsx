@@ -252,6 +252,7 @@ export default function Header() {
               <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
               <NavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} />
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
+              <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
               <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
 
               <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
@@ -297,6 +298,14 @@ export default function Header() {
                 width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
               }}>
                 <IconHome active={pathname === "/"} size={28} />
+              </Link>
+
+              {/* 고객센터 아이콘 */}
+              <Link href="/customer-service" style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+              }}>
+                <IconHeadphones active={pathname === "/customer-service"} size={28} />
               </Link>
 
               {/* 알림 아이콘 */}
@@ -521,6 +530,9 @@ function IconMail({ active = false, size = 22, inactiveColor = "#5a5a5a", active
 }
 function IconBell({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
   return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>;
+}
+function IconHeadphones({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" /><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></svg>;
 }
 function IconUser({ active = false }: { active?: boolean }) {
   return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
