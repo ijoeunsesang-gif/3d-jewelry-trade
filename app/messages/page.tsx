@@ -244,6 +244,7 @@ function MessagesContent() {
 
   return (
     <main
+      className="messages-main"
       style={{
         maxWidth: 1240,
         margin: "0 auto",
@@ -275,6 +276,7 @@ function MessagesContent() {
       </div>
 
       <section
+        className="messages-layout"
         style={{
           display: "grid",
           gridTemplateColumns: "320px 1fr",
@@ -399,8 +401,9 @@ function MessagesContent() {
             borderRadius: 24,
             background: "white",
             display: "grid",
-            gridTemplateRows: "auto 1fr 86px",
+            gridTemplateRows: "auto 1fr auto",
             overflow: "hidden",
+            minWidth: 0,
           }}
         >
           <div
@@ -578,13 +581,16 @@ function MessagesContent() {
 
           <form
             onSubmit={handleSendMessage}
+            className="messages-input-row"
             style={{
               borderTop: "1px solid #f3f4f6",
-              padding: 14,
-              display: "grid",
-              gridTemplateColumns: "1fr 120px",
-              gap: 12,
+              padding: 12,
+              display: "flex",
+              gap: 10,
               alignItems: "center",
+              width: "100%",
+              boxSizing: "border-box",
+              overflow: "hidden",
             }}
           >
             <input
@@ -592,12 +598,15 @@ function MessagesContent() {
               onChange={(e) => setMessageText(e.target.value)}
               placeholder="메시지를 입력하세요"
               style={{
+                flex: 1,
+                minWidth: 0,
                 height: 54,
                 borderRadius: 16,
                 border: "1px solid #d1d5db",
                 padding: "0 14px",
                 outline: "none",
                 fontSize: 14,
+                boxSizing: "border-box",
               }}
             />
 
@@ -605,16 +614,19 @@ function MessagesContent() {
               type="submit"
               disabled={sending || !selectedConversationId}
               style={{
+                flexShrink: 0,
+                width: 90,
                 height: 54,
                 borderRadius: 16,
                 border: "none",
                 background: "#111827",
                 color: "white",
                 fontWeight: 900,
+                fontSize: 14,
                 cursor: "pointer",
               }}
             >
-              {sending ? "전송 중..." : "보내기"}
+              {sending ? "전송" : "보내기"}
             </button>
           </form>
         </section>
