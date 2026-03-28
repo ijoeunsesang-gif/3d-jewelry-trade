@@ -445,7 +445,7 @@ export default function LibraryPage() {
     width: "100%", height: 52, borderRadius: 12, border: "1.5px solid #d1d5db",
     padding: "0 14px", fontSize: 18, boxSizing: "border-box", background: "white", cursor: "pointer",
   };
-  const labelStyle: React.CSSProperties = { fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 8, display: "block" };
+  const labelStyle: React.CSSProperties = { fontSize: 32, fontWeight: 800, color: "#111827", marginBottom: 8, display: "block" };
   const fieldWrap: React.CSSProperties = { marginBottom: 18 };
 
   // ── 팝업 공통 overlay ─────────────────────────────────────
@@ -725,7 +725,7 @@ export default function LibraryPage() {
 
               {/* ── 내 정보 템플릿 ── */}
               <div style={fieldWrap}>
-                <div style={labelStyle}>내 정보 템플릿</div>
+                <div style={labelStyle}>내 정보 템플릿 <span style={{ fontSize: 16, fontWeight: 600, color: "#6b7280" }}>(기본정보를 저장해 사용하세요)</span></div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   {templates.map((t) => (
                     <button key={t.id} type="button" onClick={() => handleSelectTemplate(t)}
