@@ -514,6 +514,7 @@ export default function SellerPage() {
   return (
     <>
       <main
+        className="seller-main"
         style={{
           maxWidth: 1240,
           margin: "0 auto",
@@ -527,6 +528,7 @@ export default function SellerPage() {
         }}
       >
         <section
+          className="seller-profile-section"
           style={{
             border: "1px solid #e5e7eb",
             borderRadius: 28,

@@ -101,14 +101,14 @@ body {
   min-height: 520px;
 }
 @media (max-width: 860px) {
-  .detail-viewer-box { min-height: 380px; }
+  .detail-viewer-box { min-height: 56vh; }
   .detail-viewer-box img,
-  .detail-viewer-box > div { height: 380px !important; min-height: 380px !important; }
+  .detail-viewer-box > div { height: 56vh !important; min-height: 56vh !important; }
 }
 @media (max-width: 640px) {
-  .detail-viewer-box { min-height: 280px; border-radius: 20px; }
+  .detail-viewer-box { min-height: 66vh; border-radius: 20px; }
   .detail-viewer-box img,
-  .detail-viewer-box > div { height: 280px !important; min-height: 280px !important; }
+  .detail-viewer-box > div { height: 66vh !important; min-height: 66vh !important; }
 }
 
 /* ── 상세 페이지 aside ── */
@@ -218,6 +218,52 @@ body {
 /* ── body 가로 스크롤 방지 ── */
 body { overflow-x: hidden; }
 
+/* ── 문의함 레이아웃 ── */
+@media (max-width: 768px) {
+  .messages-main {
+    padding-bottom: 100px !important;
+  }
+  .messages-layout {
+    grid-template-columns: 1fr !important;
+    min-height: unset !important;
+  }
+}
+
+/* ── 업로드 폼 ── */
+.upload-main {
+  overflow-x: hidden;
+}
+.upload-form input,
+.upload-form select,
+.upload-form textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+@media (max-width: 640px) {
+  .upload-main {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+  .upload-form {
+    padding: 16px !important;
+    border-radius: 20px !important;
+  }
+}
+
+/* ── 판매자 페이지 반응형 ── */
+@media (max-width: 768px) {
+  .seller-main {
+    grid-template-columns: 1fr !important;
+    padding: 20px 16px 60px !important;
+    gap: 20px !important;
+  }
+  .seller-profile-section {
+    position: static !important;
+    top: auto !important;
+  }
+}
+
 /* ── 모바일 하단 탭 네비게이션 ── */
 .mobile-bottom-tab-bar {
   display: none;
@@ -230,8 +276,8 @@ body { overflow-x: hidden; }
     left: 0;
     right: 0;
     height: 72px;
-    background: white;
-    border-top: 1px solid #e5e7eb;
+    background: #0f172a;
+    border-top: 2px solid #1e293b;
     z-index: 150;
     align-items: stretch;
   }
