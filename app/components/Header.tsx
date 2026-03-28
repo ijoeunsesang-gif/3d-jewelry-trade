@@ -7,6 +7,8 @@ import { supabase } from "../lib/supabase";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
+const GOLD_TAB = "#D4AF37";
+const TAB_INACTIVE = "rgba(255,255,255,0.72)";
 
 export default function Header() {
   const pathname = usePathname();
@@ -178,6 +180,7 @@ export default function Header() {
           { href: "/my-models", label: "내 모델" },
           { href: "/upload", label: "업로드" },
           { href: "/sales", label: "판매 통계" },
+          { href: "/customer-service", label: "고객센터" },
         ].map(({ href, label }) => (
           <MyMenuLink key={href} href={href} onClick={() => setMyOpen(false)} active={pathname.startsWith(href)}>
             {label}
@@ -359,27 +362,27 @@ export default function Header() {
       <nav className="mobile-bottom-tab-bar">
         <BottomTabItem
           href="/favorites"
-          icon={<IconHeart active={pathname === "/favorites"} size={28} />}
+          icon={<IconHeart active={pathname === "/favorites"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
           label="찜"
           badge={favoriteCount}
           active={pathname === "/favorites"}
         />
         <BottomTabItem
           href="/cart"
-          icon={<IconCart active={pathname === "/cart"} size={28} />}
+          icon={<IconCart active={pathname === "/cart"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
           label="장바구니"
           badge={cartCount}
           active={pathname === "/cart"}
         />
         <BottomTabItem
           href="/library"
-          icon={<IconDownload active={pathname === "/library"} size={28} />}
+          icon={<IconDownload active={pathname === "/library"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
           label="내 다운로드"
           active={pathname === "/library"}
         />
         <BottomTabItem
           href="/messages"
-          icon={<IconMail active={pathname === "/messages"} size={28} />}
+          icon={<IconMail active={pathname === "/messages"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
           label="문의함"
           badge={messageCount}
           active={pathname === "/messages"}
@@ -436,15 +439,15 @@ function BottomTabItem({ href, icon, label, active, badge }: {
       style={{
         flex: 1, display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        gap: 5, position: "relative", textDecoration: "none",
+        gap: 4, position: "relative", textDecoration: "none",
         paddingTop: 4,
-        borderTop: active ? `3px solid ${GOLD}` : "3px solid transparent",
+        borderTop: active ? `3px solid ${GOLD_TAB}` : "3px solid transparent",
       }}
     >
       {icon}
       <span style={{
-        fontSize: 13, fontWeight: 700,
-        color: active ? GOLD : "#6b7280",
+        fontSize: 13, fontWeight: 800,
+        color: active ? GOLD_TAB : TAB_INACTIVE,
         letterSpacing: "-0.01em",
       }}>
         {label}
@@ -454,7 +457,7 @@ function BottomTabItem({ href, icon, label, active, badge }: {
           position: "absolute", top: 4,
           left: "calc(50% + 8px)",
           minWidth: 17, height: 17, padding: "0 3px",
-          borderRadius: 999, background: GOLD, color: "white",
+          borderRadius: 999, background: GOLD_TAB, color: "#0f172a",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           fontSize: 10, fontWeight: 800, lineHeight: 1,
         }}>
@@ -491,33 +494,33 @@ function MyMenuLink({ href, children, onClick, active }: {
 }
 
 /* ── SVG 아이콘 ────────────────────────────────────────── */
-function svgProps(active: boolean, size = 22) {
+function svgProps(active: boolean, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD) {
   return {
     width: size, height: size, viewBox: "0 0 24 24", fill: "none",
-    stroke: active ? GOLD : "#5a5a5a",
+    stroke: active ? activeColor : inactiveColor,
     strokeWidth: active ? 2 : 1.6,
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
   };
 }
 
-function IconHome({ active = false, size = 22 }: { active?: boolean; size?: number }) {
-  return <svg {...svgProps(active, size)}><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" /><path d="M9 21V12h6v9" /></svg>;
+function IconHome({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" /><path d="M9 21V12h6v9" /></svg>;
 }
-function IconHeart({ active = false, size = 22 }: { active?: boolean; size?: number }) {
-  return <svg {...svgProps(active, size)}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>;
+function IconHeart({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>;
 }
-function IconCart({ active = false, size = 22 }: { active?: boolean; size?: number }) {
-  return <svg {...svgProps(active, size)}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>;
+function IconCart({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>;
 }
-function IconDownload({ active = false, size = 22 }: { active?: boolean; size?: number }) {
-  return <svg {...svgProps(active, size)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
+function IconDownload({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
 }
-function IconMail({ active = false, size = 22 }: { active?: boolean; size?: number }) {
-  return <svg {...svgProps(active, size)}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>;
+function IconMail({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>;
 }
-function IconBell({ active = false, size = 22 }: { active?: boolean; size?: number }) {
-  return <svg {...svgProps(active, size)}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>;
+function IconBell({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>;
 }
 function IconUser({ active = false }: { active?: boolean }) {
   return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
