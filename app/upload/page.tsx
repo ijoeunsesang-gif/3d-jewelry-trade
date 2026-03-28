@@ -63,8 +63,8 @@ export default function UploadPage() {
     try {
       if (!title.trim()) { showInfo("모델명을 입력하세요."); return; }
       if (!price.trim()) { showInfo("가격을 입력하세요."); return; }
-      if (!thumbnailFile) { showInfo("썸네일 이미지를 선택하세요."); return; }
-      if (!modelFile) { showInfo("모델 파일을 선택하세요."); return; }
+      if (!thumbnailFile) { showError("썸네일 이미지를 선택하세요."); return; }
+      if (!modelFile) { showError("출력(대표)파일을 선택하세요."); return; }
 
       setUploading(true);
 
@@ -203,6 +203,7 @@ export default function UploadPage() {
 
   return (
     <main
+      className="upload-main"
       style={{
         maxWidth: 980,
         margin: "0 auto",
@@ -219,6 +220,7 @@ export default function UploadPage() {
 
       <form
         onSubmit={handleSubmit}
+        className="upload-form"
         style={{
           marginTop: 24,
           border: "1px solid #e5e7eb",
@@ -267,7 +269,7 @@ export default function UploadPage() {
           />
         </Field>
 
-        <Field label="썸네일 이미지">
+        <Field label="썸네일 이미지 *">
           <div style={uploadBoxStyle}>
             <div style={helperTextStyle}>대표로 보여질 이미지를 1장 업로드하세요.</div>
             <input
@@ -301,10 +303,10 @@ export default function UploadPage() {
           </div>
         </Field>
 
-        <Field label="대표 모델 파일">
+        <Field label="출력(대표)파일 *">
           <div style={uploadBoxStyle}>
             <div style={helperTextStyle}>
-              대표 모델 파일 1개를 업로드하세요. 예: STL, OBJ, 3DM
+              출력(대표)파일 1개를 업로드하세요. 예: STL, OBJ, 3DM
             </div>
             <input
               type="file"
@@ -320,7 +322,7 @@ export default function UploadPage() {
         <Field label="추가 파일 (최대 10개)">
           <div style={uploadBoxStyle}>
             <div style={helperTextStyle}>
-              대표 모델 파일 외에 보조 파일을 추가로 업로드할 수 있습니다.
+              출력(대표)파일 외에 보조 파일을 추가로 업로드할 수 있습니다.
               예: STL, OBJ, 3DM, ZIP, PDF
             </div>
             <input
@@ -375,7 +377,7 @@ export default function UploadPage() {
           type="submit"
           disabled={uploading}
           style={{
-            height: 54, borderRadius: 16, border: "none",
+            width: "100%", height: 54, borderRadius: 16, border: "none",
             background: "#111827", color: "white",
             fontWeight: 900, fontSize: 17, cursor: "pointer",
           }}
@@ -403,4 +405,6 @@ const inputStyle: React.CSSProperties = {
   padding: "0 14px",
   outline: "none",
   fontSize: 14,
+  width: "100%",
+  boxSizing: "border-box",
 };
