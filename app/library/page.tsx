@@ -37,7 +37,6 @@ type SenderTemplate = {
   email: string;
   businessName: string;
   phoneNumber: string;
-  address: string;
   notes: string;
 };
 
@@ -95,7 +94,6 @@ export default function LibraryPage() {
   const [pendingItem, setPendingItem] = useState<PurchasedModel | null>(null);
   const [setupBusinessName, setSetupBusinessName] = useState("");
   const [setupPhone, setSetupPhone] = useState("");
-  const [setupAddress, setSetupAddress] = useState("");
   const [setupNotes, setSetupNotes] = useState("");
 
   // 출력소 버튼
@@ -115,7 +113,6 @@ export default function LibraryPage() {
   const [tplFormEmail, setTplFormEmail] = useState("");
   const [tplFormBusinessName, setTplFormBusinessName] = useState("");
   const [tplFormPhoneNumber, setTplFormPhoneNumber] = useState("");
-  const [tplFormAddress, setTplFormAddress] = useState("");
   const [tplFormNotes, setTplFormNotes] = useState("");
 
   // 주문 입력
@@ -123,7 +120,6 @@ export default function LibraryPage() {
   const [senderEmail, setSenderEmail] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [address, setAddress] = useState("");
   const [printType, setPrintType] = useState<"CPX" | "일반" | "">("");
   const [castingType, setCastingType] = useState<"수지상태" | "은주물" | "금주물" | "">("");
   const [goldDetail, setGoldDetail] = useState<"14K_골드" | "14K_화이트" | "14K_핑크" | "18K_골드" | "18K_화이트" | "18K_핑크" | "25K" | "백금" | "">("");
@@ -205,14 +201,13 @@ export default function LibraryPage() {
       setSenderEmail(applyTpl.email || "");
       setBusinessName(applyTpl.businessName || "");
       setPhoneNumber(applyTpl.phoneNumber || "");
-      setAddress(applyTpl.address || "");
       setExtraNote(applyTpl.notes || "");
     } else {
       setSelectedTemplateId(null);
-      setSenderEmail(""); setBusinessName(""); setPhoneNumber(""); setAddress(""); setExtraNote("");
+      setSenderEmail(""); setBusinessName(""); setPhoneNumber(""); setExtraNote("");
     }
     setTemplateFormMode(null); setEditingTemplateId(null);
-    setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes("");
+    setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes("");
     setPrinterEmail("");
     setPrintType(""); setCastingType(""); setGoldDetail(""); setScaleType(""); setScalePercent("0");
     setPrinterModal({ modelId: item.id, modelTitle: item.title, modelFilePath: item.model_file_path });
@@ -239,7 +234,7 @@ export default function LibraryPage() {
     if (existingTemplates.length === 0) {
       // 템플릿 없음 → 내 정보 저장 팝업 먼저
       setPendingItem(item);
-      setSetupBusinessName(""); setSetupPhone(""); setSetupAddress(""); setSetupNotes("");
+      setSetupBusinessName(""); setSetupPhone(""); setSetupNotes("");
       setShowTemplateSetup(true);
     } else {
       // 템플릿 있음 → 바로 전송 팝업
@@ -257,7 +252,6 @@ export default function LibraryPage() {
       email: "",
       businessName: setupBusinessName.trim(),
       phoneNumber: setupPhone.trim(),
-      address: setupAddress.trim(),
       notes: setupNotes.trim(),
     };
     const updated = [newTpl];
@@ -320,7 +314,6 @@ export default function LibraryPage() {
     setSenderEmail(t.email || "");
     setBusinessName(t.businessName || "");
     setPhoneNumber(t.phoneNumber || "");
-    setAddress(t.address || "");
     setExtraNote(t.notes || "");
     setTemplateFormMode(null);
   };
@@ -329,30 +322,29 @@ export default function LibraryPage() {
     if (!name) { showError("템플릿 이름을 입력해주세요."); return; }
     if (templateFormMode === "edit" && editingTemplateId) {
       const updated = templates.map((t) => t.id === editingTemplateId
-        ? { ...t, name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), address: tplFormAddress.trim(), notes: tplFormNotes.trim() }
+        ? { ...t, name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), notes: tplFormNotes.trim() }
         : t);
       setTemplates(updated); saveTemplates(updated);
       if (selectedTemplateId === editingTemplateId) {
         setSenderEmail(tplFormEmail.trim());
         setBusinessName(tplFormBusinessName.trim());
         setPhoneNumber(tplFormPhoneNumber.trim());
-        setAddress(tplFormAddress.trim());
         setExtraNote(tplFormNotes.trim());
       }
       showSuccess("템플릿을 수정했습니다.");
     } else {
-      const nt: SenderTemplate = { id: crypto.randomUUID(), name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), address: tplFormAddress.trim(), notes: tplFormNotes.trim() };
+      const nt: SenderTemplate = { id: crypto.randomUUID(), name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), notes: tplFormNotes.trim() };
       const updated = [...templates, nt];
       setTemplates(updated); saveTemplates(updated);
       handleSelectTemplate(nt);
       showSuccess("템플릿을 저장했습니다.");
     }
     setTemplateFormMode(null); setEditingTemplateId(null);
-    setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes("");
+    setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes("");
   };
   const startEditTemplate = (t: SenderTemplate) => {
     setTemplateFormMode("edit"); setEditingTemplateId(t.id);
-    setTplFormName(t.name); setTplFormEmail(t.email || ""); setTplFormBusinessName(t.businessName || ""); setTplFormPhoneNumber(t.phoneNumber || ""); setTplFormAddress(t.address || ""); setTplFormNotes(t.notes || "");
+    setTplFormName(t.name); setTplFormEmail(t.email || ""); setTplFormBusinessName(t.businessName || ""); setTplFormPhoneNumber(t.phoneNumber || ""); setTplFormNotes(t.notes || "");
   };
   const handleDeleteTemplate = (id: string) => {
     if (!confirm("템플릿을 삭제할까요?")) return;
@@ -393,7 +385,7 @@ export default function LibraryPage() {
       if (!session?.access_token) { showInfo("로그인이 필요합니다."); return; }
 
       const effectiveCastingType = castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType;
-      const combinedNote = [address.trim() ? `주소: ${address.trim()}` : "", extraNote.trim()].filter(Boolean).join("\n");
+      const combinedNote = extraNote.trim();
 
       const res = await fetch("/api/send-to-printer", {
         method: "POST",
@@ -632,15 +624,6 @@ export default function LibraryPage() {
                   style={inputStyle}
                 />
               </div>
-              <div style={fieldWrap}>
-                <label style={labelStyle}>주소</label>
-                <input
-                  value={setupAddress}
-                  onChange={(e) => setSetupAddress(e.target.value)}
-                  placeholder="도로명 주소 입력"
-                  style={inputStyle}
-                />
-              </div>
               <div style={{ ...fieldWrap, marginBottom: 4 }}>
                 <label style={labelStyle}>기본 요청사항</label>
                 <textarea
@@ -756,7 +739,7 @@ export default function LibraryPage() {
                     </button>
                   ))}
                   {templateFormMode === "add" ? null : (
-                    <button type="button" onClick={() => { setTemplateFormMode("add"); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes(""); }}
+                    <button type="button" onClick={() => { setTemplateFormMode("add"); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes(""); }}
                       style={{ height: 44, width: 44, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
                   )}
                 </div>
@@ -769,13 +752,12 @@ export default function LibraryPage() {
                     <input value={tplFormName} onChange={(e) => setTplFormName(e.target.value)} placeholder="템플릿 이름" style={{ ...inputStyle, marginBottom: 10 }} />
                     <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호명 (출력소명)" style={{ ...inputStyle, marginBottom: 10 }} />
                     <input value={tplFormPhoneNumber} onChange={(e) => setTplFormPhoneNumber(e.target.value)} placeholder="연락처" style={{ ...inputStyle, marginBottom: 10 }} />
-                    <input value={tplFormAddress} onChange={(e) => setTplFormAddress(e.target.value)} placeholder="주소" style={{ ...inputStyle, marginBottom: 10 }} />
                     <input value={tplFormEmail} onChange={(e) => setTplFormEmail(e.target.value)} placeholder="보내는 사람 이메일 (선택)" style={{ ...inputStyle, marginBottom: 10 }} />
                     <textarea value={tplFormNotes} onChange={(e) => setTplFormNotes(e.target.value)} placeholder="기본 요청사항 (선택)" rows={2}
                       style={{ width: "100%", borderRadius: 12, border: "1.5px solid #d1d5db", padding: "12px 14px", fontSize: 18, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", marginBottom: 12 }} />
                     <div style={{ display: "flex", gap: 10 }}>
                       <button onClick={handleSubmitTemplateForm} style={{ flex: 1, minHeight: 48, borderRadius: 12, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 17 }}>저장</button>
-                      <button onClick={() => { setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormAddress(""); setTplFormNotes(""); }}
+                      <button onClick={() => { setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes(""); }}
                         style={{ flex: 1, minHeight: 48, borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 17 }}>취소</button>
                     </div>
                   </div>
@@ -815,11 +797,6 @@ export default function LibraryPage() {
                 <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
               </div>
 
-              {/* 주소 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>주소</label>
-                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="도로명 주소" style={inputStyle} />
-              </div>
 
               {/* 출력형태 */}
               <div style={fieldWrap}>
@@ -974,7 +951,6 @@ export default function LibraryPage() {
                     { label: "주물여부",      value: castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType || "-" },
                     { label: "확대축소",      value: !scaleType ? "없음" : `${scaleType} ${scalePercent}%` },
                     { label: "전화번호",      value: phoneNumber.trim() || "-" },
-                    { label: "주소",          value: address.trim() || "-" },
                     { label: "보내는 이메일", value: senderEmail.trim() || "-" },
                     { label: "추가 내용",     value: extraNote.trim() || "-" },
                   ].map((row, i, arr) => (
