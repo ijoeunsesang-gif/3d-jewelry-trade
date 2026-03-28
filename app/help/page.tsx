@@ -191,21 +191,26 @@ const SECTIONS = [
   },
 ];
 
+/* ── 섹션별 강조색 ── */
+const SECTION_COLORS = ["#3b82f6","#f59e0b","#8b5cf6","#10b981","#f97316","#ec4899"];
+const SECTION_BG    = ["#eff6ff","#fffbeb","#f5f3ff","#ecfdf5","#fff7ed","#fdf2f8"];
+
 export default function HelpPage() {
   const [activeSection, setActiveSection] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
 
-  const section = SECTIONS[activeSection];
-  const step = section.steps[activeStep];
+  const section   = SECTIONS[activeSection];
+  const step      = section.steps[activeStep];
   const totalSteps = section.steps.length;
+  const accent    = SECTION_COLORS[activeSection];
+  const accentBg  = SECTION_BG[activeSection];
 
   const goToSection = (idx: number) => {
     setActiveSection(idx);
     setActiveStep(0);
     setAnimKey((k) => k + 1);
   };
-
   const goToStep = (idx: number) => {
     setActiveStep(idx);
     setAnimKey((k) => k + 1);
@@ -215,252 +220,311 @@ export default function HelpPage() {
     <main style={{
       maxWidth: 800,
       margin: "0 auto",
-      padding: "36px 20px 80px",
+      padding: "32px 16px 96px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      background: "#f8fafc",
+      minHeight: "100vh",
     }}>
-      {/* 페이지 제목 */}
-      <h1 style={{ margin: 0, fontSize: 38, fontWeight: 900, color: "#111827" }}>도움말</h1>
-      <p style={{ margin: "10px 0 0", color: "#6b7280", fontSize: 18 }}>
-        서비스 이용 방법을 단계별로 안내합니다.
-      </p>
 
-      {/* 섹션 탭 */}
+      {/* ── 페이지 제목 ── */}
       <div style={{
-        marginTop: 28,
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
+        background: "white",
+        borderRadius: 24,
+        padding: "28px 24px 24px",
+        border: "1px solid #e5e7eb",
+        marginBottom: 20,
       }}>
-        {SECTIONS.map((sec, idx) => (
-          <button
-            key={sec.id}
-            type="button"
-            onClick={() => goToSection(idx)}
-            style={{
-              height: 52,
-              padding: "0 18px",
-              borderRadius: 999,
-              border: "none",
-              fontWeight: 800,
-              fontSize: 16,
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-              background: activeSection === idx ? "#111827" : "#f3f4f6",
-              color: activeSection === idx ? "white" : "#374151",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span>{sec.icon}</span>
-            <span>{sec.label}</span>
-          </button>
-        ))}
+        <h1 style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#111827", lineHeight: 1.15 }}>
+          도움말 안내
+        </h1>
+        <p style={{ margin: "10px 0 0", color: "#4b5563", fontSize: 18, lineHeight: 1.6 }}>
+          아래 항목을 선택하면 단계별로 이용 방법을 안내합니다.
+        </p>
       </div>
 
-      {/* STEP 진행 바 */}
+      {/* ── 섹션 탭 (가로 스크롤) ── */}
       <div style={{
-        marginTop: 28,
         display: "flex",
-        alignItems: "center",
-        gap: 6,
-      }}>
-        {section.steps.map((_, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => goToStep(idx)}
-            style={{
-              flex: 1,
-              height: 8,
-              borderRadius: 999,
-              border: "none",
-              cursor: "pointer",
-              background: idx === activeStep ? "#111827" : idx < activeStep ? "#9ca3af" : "#e5e7eb",
-              transition: "background 0.2s ease",
-              padding: 0,
-            }}
-            aria-label={"STEP " + (idx + 1)}
-          />
-        ))}
-      </div>
-      <div style={{ marginTop: 8, fontSize: 14, color: "#9ca3af", fontWeight: 700 }}>
-        STEP {activeStep + 1} / {totalSteps}
+        gap: 10,
+        overflowX: "auto",
+        paddingBottom: 4,
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
+      } as React.CSSProperties}>
+        {SECTIONS.map((sec, idx) => {
+          const on = activeSection === idx;
+          return (
+            <button
+              key={sec.id}
+              type="button"
+              onClick={() => goToSection(idx)}
+              style={{
+                flexShrink: 0,
+                height: 60,
+                padding: "0 22px",
+                borderRadius: 18,
+                border: on ? "none" : "2px solid #e5e7eb",
+                fontWeight: 800,
+                fontSize: 17,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                background: on ? SECTION_COLORS[idx] : "white",
+                color: on ? "white" : "#374151",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                boxShadow: on ? "0 4px 14px rgba(0,0,0,0.15)" : "none",
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{sec.icon}</span>
+              <span>{sec.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* STEP 카드 */}
+      {/* ── STEP 진행 바 ── */}
+      <div style={{
+        marginTop: 20,
+        background: "white",
+        borderRadius: 20,
+        padding: "18px 20px",
+        border: "1px solid #e5e7eb",
+      }}>
+        {/* 바 */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {section.steps.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => goToStep(idx)}
+              style={{
+                flex: 1, height: 12,
+                borderRadius: 999, border: "none", padding: 0,
+                cursor: "pointer",
+                background: idx === activeStep ? accent
+                  : idx < activeStep ? "#9ca3af" : "#e5e7eb",
+                transition: "background 0.25s ease",
+              }}
+              aria-label={"STEP " + (idx + 1)}
+            />
+          ))}
+        </div>
+        {/* STEP 레이블 */}
+        <div style={{
+          marginTop: 10,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}>
+          <span style={{
+            fontSize: 15, fontWeight: 800, color: "#111827",
+            background: accentBg,
+            padding: "4px 12px", borderRadius: 999,
+            border: "1px solid " + accent + "44",
+          }}>
+            STEP {activeStep + 1} / {totalSteps}
+          </span>
+          <span style={{ fontSize: 15, color: "#6b7280", fontWeight: 600 }}>
+            {step.title}
+          </span>
+        </div>
+      </div>
+
+      {/* ── STEP 카드 ── */}
       <div
         key={animKey}
         style={{
-          marginTop: 16,
+          marginTop: 14,
           border: "1px solid #e5e7eb",
           borderRadius: 28,
           background: "white",
-          padding: "36px 28px",
+          overflow: "hidden",
           animation: "helpFadeIn 0.28s ease",
-          minHeight: 320,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
         }}
       >
-        <div>
-          {/* 이모지 + STEP 레이블 */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-            <div style={{
-              width: 64, height: 64,
-              borderRadius: 20,
-              background: "#f8fafc",
-              border: "1px solid #e5e7eb",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 32,
-              flexShrink: 0,
-            }}>
-              {step.image}
-            </div>
-            <div>
-              <div style={{
-                display: "inline-flex", alignItems: "center",
-                height: 28, padding: "0 12px",
-                borderRadius: 999, background: "#111827",
-                color: "white", fontSize: 13, fontWeight: 800,
-                marginBottom: 6,
-              }}>
-                STEP {activeStep + 1}
-              </div>
-              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: "#111827", lineHeight: 1.2 }}>
-                {step.title}
-              </h2>
-            </div>
+        {/* 카드 헤더 (컬러 배경) */}
+        <div style={{
+          background: accentBg,
+          borderBottom: "1px solid " + accent + "33",
+          padding: "24px 24px 20px",
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+        }}>
+          <div style={{
+            width: 76, height: 76,
+            borderRadius: 22,
+            background: "white",
+            border: "2px solid " + accent + "44",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 38,
+            flexShrink: 0,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+          }}>
+            {step.image}
           </div>
+          <div>
+            <div style={{
+              display: "inline-flex", alignItems: "center",
+              height: 32, padding: "0 14px",
+              borderRadius: 999,
+              background: accent,
+              color: "white", fontSize: 14, fontWeight: 900,
+              marginBottom: 8,
+              letterSpacing: "0.04em",
+            }}>
+              STEP {activeStep + 1}
+            </div>
+            <h2 style={{
+              margin: 0,
+              fontSize: 26,
+              fontWeight: 900,
+              color: "#111827",
+              lineHeight: 1.25,
+            }}>
+              {step.title}
+            </h2>
+          </div>
+        </div>
 
-          {/* 본문 */}
+        {/* 카드 본문 */}
+        <div style={{ padding: "28px 24px 32px" }}>
           <p style={{
             margin: 0,
-            fontSize: 18,
+            fontSize: 19,
             color: "#1f2937",
-            lineHeight: 1.9,
+            lineHeight: 2.0,
             whiteSpace: "pre-line",
+            fontWeight: 500,
           }}>
             {step.body}
           </p>
 
-          {/* 팁 */}
+          {/* 팁 박스 */}
           {step.tip && (
             <div style={{
-              marginTop: 20,
-              padding: "14px 18px",
-              borderRadius: 16,
+              marginTop: 24,
+              padding: "18px 20px",
+              borderRadius: 18,
               background: "#fffbeb",
-              border: "1px solid #fde68a",
-              fontSize: 16,
-              color: "#92400e",
+              border: "2px solid #fcd34d",
+              fontSize: 18,
+              color: "#78350f",
               fontWeight: 700,
-              lineHeight: 1.6,
+              lineHeight: 1.7,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
             }}>
-              {step.tip}
+              <span style={{ fontSize: 22, lineHeight: 1.4, flexShrink: 0 }}>💡</span>
+              <span>{step.tip.replace("💡 ", "")}</span>
             </div>
           )}
 
-          {/* 링크 버튼 */}
+          {/* 바로가기 버튼 */}
           {step.link && (
             <Link
               href={step.link.href}
               style={{
                 display: "inline-flex", alignItems: "center",
-                marginTop: 18,
-                height: 52, padding: "0 22px",
-                borderRadius: 14,
-                background: "#f0fdf4",
-                border: "1px solid #bbf7d0",
-                color: "#16a34a",
+                marginTop: 20,
+                minHeight: 56, padding: "0 26px",
+                borderRadius: 16,
+                background: "#ecfdf5",
+                border: "2px solid #6ee7b7",
+                color: "#065f46",
                 fontWeight: 800,
-                fontSize: 16,
+                fontSize: 18,
                 textDecoration: "none",
+                gap: 6,
               }}
             >
               {step.link.label}
             </Link>
           )}
-        </div>
 
-        {/* 이전 / 다음 버튼 */}
-        <div style={{
-          marginTop: 32,
-          display: "flex",
-          gap: 12,
-          justifyContent: "space-between",
-        }}>
-          <button
-            type="button"
-            onClick={() => activeStep > 0 && goToStep(activeStep - 1)}
-            disabled={activeStep === 0}
-            style={{
-              flex: 1,
-              minHeight: 56,
-              borderRadius: 16,
-              border: "1px solid #d1d5db",
-              background: activeStep === 0 ? "#f9fafb" : "white",
-              color: activeStep === 0 ? "#d1d5db" : "#111827",
-              fontWeight: 800,
-              fontSize: 17,
-              cursor: activeStep === 0 ? "default" : "pointer",
-            }}
-          >
-            ← 이전
-          </button>
-
-          {activeStep < totalSteps - 1 ? (
+          {/* ── 이전 / 다음 버튼 ── */}
+          <div style={{
+            marginTop: 32,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 12,
+          }}>
             <button
               type="button"
-              onClick={() => goToStep(activeStep + 1)}
+              onClick={() => activeStep > 0 && goToStep(activeStep - 1)}
+              disabled={activeStep === 0}
               style={{
-                flex: 1,
-                minHeight: 56,
-                borderRadius: 16,
-                border: "none",
-                background: "#111827",
-                color: "white",
-                fontWeight: 800,
-                fontSize: 17,
-                cursor: "pointer",
+                minHeight: 60,
+                borderRadius: 18,
+                border: "2px solid " + (activeStep === 0 ? "#e5e7eb" : "#d1d5db"),
+                background: activeStep === 0 ? "#f9fafb" : "white",
+                color: activeStep === 0 ? "#d1d5db" : "#111827",
+                fontWeight: 900,
+                fontSize: 18,
+                cursor: activeStep === 0 ? "default" : "pointer",
+                transition: "all 0.15s ease",
               }}
             >
-              다음 →
+              ← 이전
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                const next = activeSection + 1;
-                goToSection(next < SECTIONS.length ? next : 0);
-              }}
-              style={{
-                flex: 1,
-                minHeight: 56,
-                borderRadius: 16,
-                border: "none",
-                background: "#16a34a",
-                color: "white",
-                fontWeight: 800,
-                fontSize: 17,
-                cursor: "pointer",
-              }}
-            >
-              {activeSection < SECTIONS.length - 1
-                ? "다음 단원: " + SECTIONS[activeSection + 1].label + " →"
-                : "처음으로 돌아가기"}
-            </button>
-          )}
+
+            {activeStep < totalSteps - 1 ? (
+              <button
+                type="button"
+                onClick={() => goToStep(activeStep + 1)}
+                style={{
+                  minHeight: 60,
+                  borderRadius: 18,
+                  border: "none",
+                  background: accent,
+                  color: "white",
+                  fontWeight: 900,
+                  fontSize: 18,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.14)",
+                }}
+              >
+                다음 →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = activeSection + 1;
+                  goToSection(next < SECTIONS.length ? next : 0);
+                }}
+                style={{
+                  minHeight: 60,
+                  borderRadius: 18,
+                  border: "none",
+                  background: "#16a34a",
+                  color: "white",
+                  fontWeight: 900,
+                  fontSize: 17,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.14)",
+                  lineHeight: 1.3,
+                  padding: "0 12px",
+                }}
+              >
+                {activeSection < SECTIONS.length - 1
+                  ? SECTIONS[activeSection + 1].icon + " " + SECTIONS[activeSection + 1].label + " →"
+                  : "처음으로 돌아가기"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 스텝 도트 네비 */}
+      {/* ── 도트 네비 ── */}
       <div style={{
-        marginTop: 16,
+        marginTop: 18,
         display: "flex",
-        gap: 8,
+        gap: 10,
         justifyContent: "center",
+        alignItems: "center",
       }}>
         {section.steps.map((s, idx) => (
           <button
@@ -469,48 +533,52 @@ export default function HelpPage() {
             onClick={() => goToStep(idx)}
             title={s.title}
             style={{
-              width: idx === activeStep ? 28 : 10,
-              height: 10,
+              width: idx === activeStep ? 36 : 14,
+              height: 14,
               borderRadius: 999,
               border: "none",
-              background: idx === activeStep ? "#111827" : "#d1d5db",
+              background: idx === activeStep ? accent : "#d1d5db",
               cursor: "pointer",
               padding: 0,
-              transition: "all 0.2s ease",
+              transition: "all 0.22s ease",
             }}
           />
         ))}
       </div>
 
-      {/* 하단 고객센터 링크 */}
+      {/* ── 하단 고객센터 CTA ── */}
       <div style={{
-        marginTop: 40,
-        padding: "28px 20px",
+        marginTop: 36,
+        padding: "32px 24px",
         borderRadius: 24,
-        background: "#f8fafc",
-        border: "1px solid #e5e7eb",
+        background: "#111827",
         textAlign: "center",
       }}>
-        <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#374151" }}>
+        <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "white", lineHeight: 1.5 }}>
           원하는 답변을 찾지 못하셨나요?
+        </p>
+        <p style={{ margin: "8px 0 0", fontSize: 17, color: "rgba(255,255,255,0.7)" }}>
+          운영팀이 직접 답변해 드립니다.
         </p>
         <Link
           href="/customer-service"
           style={{
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            marginTop: 14,
-            minHeight: 56, padding: "0 28px",
-            borderRadius: 16,
-            background: "#111827",
+            marginTop: 20,
+            minHeight: 60, padding: "0 36px",
+            borderRadius: 18,
+            background: "#c9a84c",
             color: "white",
             fontWeight: 900,
-            fontSize: 18,
+            fontSize: 19,
             textDecoration: "none",
+            boxShadow: "0 4px 16px rgba(201,168,76,0.5)",
           }}
         >
           고객센터 1:1 문의하기
         </Link>
       </div>
+
     </main>
   );
 }
