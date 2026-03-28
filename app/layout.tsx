@@ -23,7 +23,7 @@ export default function RootLayout({
         <Footer />
         <Toaster
           position="top-center"
-          containerStyle={{ top: 80 }}
+          containerStyle={{ top: 116 }}
           toastOptions={{
             duration: 2500,
             style: {

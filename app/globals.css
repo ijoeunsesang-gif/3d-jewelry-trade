@@ -58,12 +58,20 @@ body {
 
 /* ── 헤더 반응형 (데스크탑/모바일 전환) ── */
 .header-desktop-nav { display: flex; }
-.header-mobile-right { display: none !important; }
+.header-mobile-my  { display: none !important; }
+.header-mobile-row2 {
+  display: none !important;
+  align-items: stretch;
+  border-top: 1px solid #f0ead8;
+  height: 44px;
+  padding: 0 4px;
+}
 
 @media (max-width: 768px) {
-  .header-desktop-nav { display: none !important; }
-  .header-mobile-right { display: flex !important; }
-  .header-logo { height: 40px !important; }
+  .header-desktop-nav  { display: none !important; }
+  .header-mobile-my   { display: flex !important; align-items: center; }
+  .header-mobile-row2 { display: flex !important; }
+  .header-logo { height: 38px !important; }
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {

@@ -18,20 +18,14 @@ export default function Header() {
   const [messageCount, setMessageCount] = useState(0);
   const [myOpen, setMyOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const myRef = useRef<HTMLDivElement | null>(null);
+  const desktopMyRef = useRef<HTMLDivElement | null>(null);
+  const mobileMyRef = useRef<HTMLDivElement | null>(null);
 
-  // 라우트 변경 시 모바일 메뉴 닫기
+  // 라우트 변경 시 MY 드롭다운 닫기
   useEffect(() => {
-    setMobileMenuOpen(false);
+    setMyOpen(false);
   }, [pathname]);
-
-  // 모바일 메뉴 열릴 때 body 스크롤 잠금
-  useEffect(() => {
-    document.body.style.overflow = mobileMenuOpen ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [mobileMenuOpen]);
 
   useEffect(() => {
     initHeader();
@@ -53,8 +47,9 @@ export default function Header() {
     window.addEventListener("notifications-reset", onNotificationsReset);
 
     const onDocClick = (e: MouseEvent) => {
-      if (!myRef.current) return;
-      if (!myRef.current.contains(e.target as Node)) setMyOpen(false);
+      const inDesktop = desktopMyRef.current?.contains(e.target as Node);
+      const inMobile = mobileMyRef.current?.contains(e.target as Node);
+      if (!inDesktop && !inMobile) setMyOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
 
@@ -151,14 +146,94 @@ export default function Header() {
 
   const isMyPage = ["/profile", "/my-models", "/upload", "/sales"].some((p) => pathname.startsWith(p));
 
-  return (
+  /* ── MY 드롭다운 (데스크탑·모바일 공용) ──────────────────── */
+  const MyDropdown = () => (
+    <div style={{
+      position: "absolute", right: 0, top: "100%",
+      paddingTop: 8, zIndex: 200,
+    }}>
+      <div style={{
+        width: 220, borderRadius: 16, background: "white",
+        border: "1px solid #f0ead8",
+        boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
+        overflow: "hidden",
+      }}>
+        <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0ead8", display: "flex", alignItems: "center", gap: 10 }}>
+          <img
+            src={avatarUrl || "/default-avatar.png"} alt="me"
+            style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: `2px solid ${GOLD}`, flexShrink: 0 }}
+          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, color: "#111827", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {nickname || "사용자"}
+            </div>
+            <div style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {userEmail}
+            </div>
+          </div>
+        </div>
+
+        {[
+          { href: "/profile", label: "내 프로필" },
+          { href: "/my-models", label: "내 모델" },
+          { href: "/upload", label: "업로드" },
+          { href: "/sales", label: "판매 통계" },
+        ].map(({ href, label }) => (
+          <MyMenuLink key={href} href={href} onClick={() => setMyOpen(false)} active={pathname.startsWith(href)}>
+            {label}
+          </MyMenuLink>
+        ))}
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          style={{
+            width: "100%", height: 44, border: "none",
+            borderTop: "1px solid #f5f1e8", background: "white",
+            color: "#b45309", fontWeight: 700, fontSize: 13,
+            cursor: "pointer", letterSpacing: "-0.01em",
+          }}
+          className="header-logout-btn"
+        >
+          로그아웃
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── MY 버튼 내용 (아바타 + MY 텍스트) ───────────────────── */
+  const MyButtonInner = () => (
     <>
-      <header style={{ borderBottom: "1px solid #f0ead8", background: "white", position: "sticky", top: 0, zIndex: 100 }}>
+      {avatarUrl ? (
+        <img
+          src={avatarUrl} alt="프로필"
+          style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}` }}
+        />
+      ) : (
         <div style={{
-          maxWidth: 1240, margin: "0 auto", height: 68,
-          padding: "0 20px", display: "flex", alignItems: "center",
-          justifyContent: "space-between",
-          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          width: 32, height: 32, borderRadius: "50%",
+          border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: isMyPage || myOpen ? GOLD_LIGHT : "white",
+        }}>
+          <IconUser active={isMyPage || myOpen} />
+        </div>
+      )}
+      <span style={{ fontSize: 11, fontWeight: 700, color: isMyPage || myOpen ? GOLD : "#9ca3af", letterSpacing: "0.02em" }}>MY</span>
+    </>
+  );
+
+  return (
+    <header style={{ borderBottom: "1px solid #f0ead8", background: "white", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{
+        maxWidth: 1240, margin: "0 auto",
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}>
+
+        {/* ── Row 1: 로고 + 네비 ───────────────────────────── */}
+        <div style={{
+          height: 68, padding: "0 20px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
 
           {/* 로고 */}
@@ -175,13 +250,11 @@ export default function Header() {
             <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
             <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
 
-            {/* 구분선 */}
             <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
 
-            {/* MY / 로그인 */}
             {userEmail ? (
               <div
-                ref={myRef}
+                ref={desktopMyRef}
                 style={{ position: "relative" }}
                 onMouseEnter={() => setMyOpen(true)}
                 onMouseLeave={() => setMyOpen(false)}
@@ -195,197 +268,69 @@ export default function Header() {
                   }}
                   className="header-my-btn-new"
                 >
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl} alt="프로필"
-                      style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}` }}
-                    />
-                  ) : (
-                    <div style={{
-                      width: 34, height: 34, borderRadius: "50%",
-                      border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      background: isMyPage || myOpen ? GOLD_LIGHT : "white",
-                    }}>
-                      <IconUser active={isMyPage || myOpen} />
-                    </div>
-                  )}
-                  <span style={{ fontSize: 13, fontWeight: 700, color: isMyPage || myOpen ? GOLD : "#9ca3af", letterSpacing: "0.02em" }}>MY</span>
+                  <MyButtonInner />
                 </button>
-
-                {myOpen && (
-                  <div style={{ position: "absolute", right: 0, top: "100%", paddingTop: 8, zIndex: 50 }}>
-                    <div style={{
-                      width: 220, borderRadius: 16, background: "white",
-                      border: "1px solid #f0ead8",
-                      boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
-                      overflow: "hidden",
-                    }}>
-                      <div style={{ padding: "14px 16px", borderBottom: `1px solid #f0ead8`, display: "flex", alignItems: "center", gap: 10 }}>
-                        <img
-                          src={avatarUrl || "/default-avatar.png"} alt="me"
-                          style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: `2px solid ${GOLD}`, flexShrink: 0 }}
-                        />
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, color: "#111827", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {nickname || "사용자"}
-                          </div>
-                          <div style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {userEmail}
-                          </div>
-                        </div>
-                      </div>
-
-                      {[
-                        { href: "/profile", label: "내 프로필" },
-                        { href: "/my-models", label: "내 모델" },
-                        { href: "/upload", label: "업로드" },
-                        { href: "/sales", label: "판매 통계" },
-                      ].map(({ href, label }) => (
-                        <MyMenuLink key={href} href={href} onClick={() => setMyOpen(false)} active={pathname.startsWith(href)}>
-                          {label}
-                        </MyMenuLink>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        style={{
-                          width: "100%", height: 44, border: "none",
-                          borderTop: "1px solid #f5f1e8", background: "white",
-                          color: "#b45309", fontWeight: 700, fontSize: 13,
-                          cursor: "pointer", letterSpacing: "-0.01em",
-                        }}
-                        className="header-logout-btn"
-                      >
-                        로그아웃
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {myOpen && <MyDropdown />}
               </div>
             ) : (
-              <Link
-                href="/auth"
-                style={{
-                  display: "inline-flex", alignItems: "center", height: 36,
-                  padding: "0 18px", borderRadius: 8,
-                  background: GOLD, color: "white",
-                  textDecoration: "none", fontSize: 13, fontWeight: 700,
-                  letterSpacing: "0.01em",
-                }}
-              >
+              <Link href="/auth" style={{
+                display: "inline-flex", alignItems: "center", height: 36,
+                padding: "0 18px", borderRadius: 8,
+                background: GOLD, color: "white",
+                textDecoration: "none", fontSize: 13, fontWeight: 700,
+                letterSpacing: "0.01em",
+              }}>
                 로그인
               </Link>
             )}
           </nav>
 
-          {/* 모바일 우측: 햄버거 버튼 */}
-          <div className="header-mobile-right" style={{ display: "none", alignItems: "center" }}>
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label={mobileMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
-              style={{
-                width: 44, height: 44, display: "flex", alignItems: "center",
-                justifyContent: "center", background: "none", border: "none",
-                cursor: "pointer", borderRadius: 10, padding: 10,
-              }}
-            >
-              {mobileMenuOpen ? (
-                <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth={2.2} strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              ) : (
-                <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth={2.2} strokeLinecap="round">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* 모바일 메뉴 */}
-      {mobileMenuOpen && (
-        <>
-          {/* 배경 오버레이 */}
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            style={{
-              position: "fixed", inset: 0, top: 68,
-              background: "rgba(15,23,42,0.35)",
-              zIndex: 98,
-            }}
-          />
-          {/* 메뉴 패널 */}
-          <div style={{
-            position: "fixed", top: 68, left: 0, right: 0,
-            background: "white", zIndex: 99,
-            borderBottom: "1px solid #f0ead8",
-            maxHeight: "calc(100dvh - 68px)",
-            overflowY: "auto",
-            boxShadow: "0 8px 32px rgba(15,23,42,0.12)",
-            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          }}>
-            {/* 네비 항목 */}
-            <div style={{ padding: "8px 20px 0" }}>
-              <MobileNavItem href="/" label="홈" icon={<IconHome />} active={pathname === "/"} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavItem href="/favorites" label="찜" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} onClick={() => setMobileMenuOpen(false)} />
-              <MobileNavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} onClick={() => setMobileMenuOpen(false)} />
-            </div>
-
-            <div style={{ height: 1, background: "#f0ead8", margin: "8px 20px" }} />
-
-            {/* 유저 섹션 */}
+          {/* 모바일 Row1 우측: MY 버튼 또는 로그인 */}
+          <div className="header-mobile-my" style={{ display: "none" }}>
             {userEmail ? (
-              <div style={{ padding: "0 20px 20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0 14px", borderBottom: "1px solid #f5f1e8" }}>
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="프로필" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", border: `2px solid ${GOLD}`, flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: 46, height: 46, borderRadius: "50%", border: `2px solid ${GOLD}`, display: "flex", alignItems: "center", justifyContent: "center", background: GOLD_LIGHT, flexShrink: 0 }}>
-                      <IconUser active />
-                    </div>
-                  )}
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, color: "#111827", fontSize: 15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nickname || "사용자"}</div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userEmail}</div>
-                  </div>
-                </div>
-                <MobileNavItem href="/profile" label="내 프로필" icon={<IconUser />} active={pathname === "/profile"} onClick={() => setMobileMenuOpen(false)} />
-                <MobileNavItem href="/my-models" label="내 모델" active={pathname.startsWith("/my-models")} onClick={() => setMobileMenuOpen(false)} />
-                <MobileNavItem href="/upload" label="업로드" active={pathname.startsWith("/upload")} onClick={() => setMobileMenuOpen(false)} />
-                <MobileNavItem href="/sales" label="판매 통계" active={pathname.startsWith("/sales")} onClick={() => setMobileMenuOpen(false)} />
+              <div
+                ref={mobileMyRef}
+                style={{ position: "relative" }}
+              >
                 <button
                   type="button"
-                  onClick={() => { setMobileMenuOpen(false); handleLogout(); }}
-                  style={{ marginTop: 10, width: "100%", height: 50, borderRadius: 14, border: "1px solid #fecaca", background: "#fff5f5", color: "#dc2626", fontWeight: 700, fontSize: 15, cursor: "pointer" }}
+                  onClick={() => setMyOpen((prev) => !prev)}
+                  style={{
+                    display: "inline-flex", flexDirection: "column", alignItems: "center",
+                    justifyContent: "center", gap: 2, padding: "6px 10px",
+                    background: "none", border: "none", cursor: "pointer", borderRadius: 10,
+                  }}
+                  className="header-my-btn-new"
                 >
-                  로그아웃
+                  <MyButtonInner />
                 </button>
+                {myOpen && <MyDropdown />}
               </div>
             ) : (
-              <div style={{ padding: "0 20px 20px" }}>
-                <Link
-                  href="/auth"
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 52, borderRadius: 14, background: GOLD, color: "white", textDecoration: "none", fontWeight: 700, fontSize: 16 }}
-                >
-                  로그인
-                </Link>
-              </div>
+              <Link href="/auth" style={{
+                display: "inline-flex", alignItems: "center", height: 34,
+                padding: "0 14px", borderRadius: 8,
+                background: GOLD, color: "white",
+                textDecoration: "none", fontSize: 13, fontWeight: 700,
+              }}>
+                로그인
+              </Link>
             )}
           </div>
-        </>
-      )}
-    </>
+        </div>
+
+        {/* ── Row 2: 모바일 전용 아이콘 바 ─────────────────── */}
+        <div className="header-mobile-row2" style={{ display: "none" }}>
+          <MobileNavIcon href="/" icon={<IconHome />} active={pathname === "/"} />
+          <MobileNavIcon href="/favorites" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
+          <MobileNavIcon href="/cart" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
+          <MobileNavIcon href="/library" icon={<IconDownload />} active={pathname === "/library"} />
+          <MobileNavIcon href="/messages" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
+          <MobileNavIcon href="/notifications" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
+        </div>
+
+      </div>
+    </header>
   );
 }
 
@@ -426,47 +371,31 @@ function NavItem({ href, label, icon, active, badge }: {
   );
 }
 
-/* ── 모바일 메뉴 아이템 ───────────────────────────────────── */
-function MobileNavItem({ href, label, icon, active, badge, onClick }: {
-  href: string; label: string; icon?: React.ReactNode; active: boolean; badge?: number; onClick?: () => void;
+/* ── 모바일 Row2 아이콘 전용 네비 아이템 ─────────────────── */
+function MobileNavIcon({ href, icon, active, badge }: {
+  href: string; icon: React.ReactNode; active: boolean; badge?: number;
 }) {
   return (
     <Link
       href={href}
-      onClick={onClick}
       style={{
-        display: "flex", alignItems: "center", gap: 14,
-        padding: "14px 0", textDecoration: "none",
-        borderBottom: "1px solid #faf8f3",
-        color: active ? GOLD : "#374151",
-        fontWeight: active ? 700 : 600,
-        fontSize: 15,
-        position: "relative",
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100%", position: "relative", textDecoration: "none",
+        borderBottom: active ? `2px solid ${GOLD}` : "2px solid transparent",
       }}
     >
-      {icon && (
-        <span style={{ width: 24, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          {icon}
-        </span>
-      )}
-      <span>{label}</span>
+      {icon}
       {typeof badge === "number" && badge > 0 && (
         <span style={{
-          minWidth: 20, height: 20, borderRadius: 999,
-          background: GOLD, color: "white",
-          fontSize: 11, fontWeight: 800,
+          position: "absolute", top: 4,
+          left: "calc(50% + 2px)",
+          minWidth: 15, height: 15, padding: "0 3px",
+          borderRadius: 999, background: GOLD, color: "white",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          padding: "0 5px",
+          fontSize: 9, fontWeight: 800, lineHeight: 1,
         }}>
           {badge > 99 ? "99+" : badge}
         </span>
-      )}
-      {active && (
-        <span style={{
-          position: "absolute", left: -20, width: 3, height: 24,
-          top: "50%", transform: "translateY(-50%)",
-          background: GOLD, borderRadius: "0 3px 3px 0",
-        }} />
       )}
     </Link>
   );
@@ -498,9 +427,9 @@ function MyMenuLink({ href, children, onClick, active }: {
 }
 
 /* ── SVG 아이콘 ────────────────────────────────────────── */
-function svgProps(active: boolean) {
+function svgProps(active: boolean, size = 22) {
   return {
-    width: 24, height: 24, viewBox: "0 0 24 24", fill: "none",
+    width: size, height: size, viewBox: "0 0 24 24", fill: "none",
     stroke: active ? GOLD : "#5a5a5a",
     strokeWidth: active ? 2 : 1.6,
     strokeLinecap: "round" as const,
