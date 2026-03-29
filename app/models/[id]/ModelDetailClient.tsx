@@ -592,17 +592,12 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                 <img
                   src={displayImage}
                   alt={model.title}
-                  style={{
-                    width: "100%",
-                    height: 520,
-                    objectFit: "cover",
-                    display: "block",
-                  }}
                 />
               ) : (
                 <div
                   style={{
-                    minHeight: 520,
+                    position: "absolute",
+                    inset: 0,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -617,7 +612,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
               viewerLoading ? (
                 <div
                   style={{
-                    minHeight: 520,
+                    position: "absolute",
+                    inset: 0,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -628,13 +624,14 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                   3D 파일 준비 중...
                 </div>
               ) : viewerUrl ? (
-                <div style={{ width: "100%", height: 520 }}>
+                <div style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
                   <ModelViewer url={viewerUrl} />
                 </div>
               ) : (
                 <div
                   style={{
-                    minHeight: 520,
+                    position: "absolute",
+                    inset: 0,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -648,7 +645,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
             ) : (
               <div
                 style={{
-                  minHeight: 520,
+                  position: "absolute",
+                  inset: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",

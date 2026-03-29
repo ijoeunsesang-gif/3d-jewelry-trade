@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'GowunBatang';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/GowunBatang-Regular.woff') format('woff');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'GowunBatang';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2108@1.1/GowunBatang-Bold.woff') format('woff');
+  font-weight: 700;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -8,7 +19,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'GowunBatang', serif;
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,7 +33,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'GowunBatang', serif;
 }
 
 @keyframes skeleton-pulse {
@@ -94,7 +105,7 @@ body {
 /* ── 상세 페이지 반응형 ── */
 .detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 4fr) minmax(0, 1.5fr);
   gap: 28px;
   align-items: start;
 }
@@ -110,22 +121,29 @@ body {
   overflow: hidden;
   border: 1px solid #e5e7eb;
   background: #111827;
-  min-height: 520px;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
 }
-@media (max-width: 860px) {
-  .detail-viewer-box { min-height: 56vh; }
-  .detail-viewer-box img,
-  .detail-viewer-box > div { height: 56vh !important; min-height: 56vh !important; }
+.detail-viewer-box img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 @media (max-width: 640px) {
-  .detail-viewer-box { min-height: 66vh; border-radius: 20px; }
-  .detail-viewer-box img,
-  .detail-viewer-box > div { height: 66vh !important; min-height: 66vh !important; }
+  .detail-viewer-box { border-radius: 20px; }
 }
 
 /* ── 상세 페이지 aside ── */
+.detail-aside {
+  margin-top: 66px; /* 토글버튼(52px) + marginBottom(14px) = 메인이미지 상단에 맞춤 */
+}
 @media (max-width: 860px) {
   .detail-aside {
+    margin-top: 0 !important;
     padding: 20px !important;
   }
 }
@@ -143,14 +161,16 @@ body {
 
 /* ── 상세 페이지 제목 ── */
 .detail-title {
-  font-size: 28px;
-  line-height: 1.2;
+  font-size: 20px;
+  line-height: 1.4;
   font-weight: 900;
   margin: 16px 0 12px;
   color: #111827;
+  word-break: keep-all;
+  white-space: normal;
 }
 @media (max-width: 768px) {
-  .detail-title { font-size: 22px; }
+  .detail-title { font-size: 18px; }
 }
 
 /* ── 상세 페이지 관련 모델 섹션 제목 ── */
