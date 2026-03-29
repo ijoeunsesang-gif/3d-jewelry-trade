@@ -413,13 +413,11 @@ export default function Home() {
         <section className={styles.hero}>
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
-            <img
-              src="/logo/logo.png"
-              alt="주얼리 3D 모델 마켓플레이스"
-              style={{ height: 100, width: "auto", objectFit: "contain", marginBottom: 8, display: "block", margin: "0 auto 8px" }}
-            />
             <p className={styles.heroSubTitle}>
-              주얼리 기술자와 3D 디자이너가 함께 사용하는 한국형 주얼리 3D 모델 거래 플랫폼
+              JEWELRY 3D MARKET
+            </p>
+            <p className={styles.heroTitle}>
+              주얼리 3D 모델 거래 플랫폼
             </p>
 
             <div className={styles.searchBox} style={{ position: "relative" }} ref={searchWrapRef}>
@@ -445,8 +443,8 @@ export default function Home() {
                       height: 28,
                       borderRadius: 999,
                       border: "none",
-                      background: "rgba(255,255,255,0.18)",
-                      color: "white",
+                      background: "rgba(160,140,91,0.15)",
+                      color: "#7a6840",
                       cursor: "pointer",
                       fontSize: 16,
                       lineHeight: 1,
