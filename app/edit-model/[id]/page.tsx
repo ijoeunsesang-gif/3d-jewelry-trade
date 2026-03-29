@@ -424,7 +424,7 @@ export default function EditModelPage() {
 
         if (uploadError) {
           console.error("대표 모델 파일 업로드 실패:", uploadError);
-          showError("대표 모델 파일 업로드에 실패했습니다.");
+          showError("출력파일(대표) 업로드에 실패했습니다.");
           return;
         }
 
@@ -782,7 +782,7 @@ export default function EditModelPage() {
           </div>
         </Field>
 
-        <Field label="대표 모델 파일 교체">
+        <Field label="출력파일(대표) 교체">
           <div
             onDragOver={(e) => handleDragOver(e, "modelFile")}
             onDragEnter={(e) => handleDragEnter(e, "modelFile")}
@@ -795,7 +795,7 @@ export default function EditModelPage() {
             }}
           >
             <div style={helperTextStyle}>
-              새 모델 파일을 올리면 기존 대표 모델 파일을 교체합니다.
+              새 모델 파일을 올리면 기존 출력파일(대표)을 교체합니다.
             </div>
 
             <input

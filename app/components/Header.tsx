@@ -155,11 +155,12 @@ export default function Header() {
       paddingTop: 8, zIndex: 200,
     }}>
       <div style={{
-        width: 220, borderRadius: 16, background: "white",
+        width: 228, borderRadius: 16, background: "white",
         border: "1px solid #f0ead8",
         boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
         overflow: "hidden",
       }}>
+        {/* 프로필 헤더 */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0ead8", display: "flex", alignItems: "center", gap: 10 }}>
           <img
             src={avatarUrl || "/default-avatar.png"} alt="me"
@@ -175,30 +176,42 @@ export default function Header() {
           </div>
         </div>
 
-        {[
-          { href: "/profile", label: "내 프로필" },
-          { href: "/my-models", label: "내 모델" },
-          { href: "/upload", label: "업로드" },
-          { href: "/sales", label: "판매 통계" },
-          { href: "/customer-service", label: "고객센터" },
-          { href: "/help", label: "도움말" },
-        ].map(({ href, label }) => (
-          <MyMenuLink key={href} href={href} onClick={() => setMyOpen(false)} active={pathname.startsWith(href)}>
-            {label}
-          </MyMenuLink>
-        ))}
+        {/* 섹션 1: 프로필 / 모델 / 업로드 */}
+        <MyMenuLink href="/profile"   icon={<IconDropUser   active={pathname.startsWith("/profile")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/profile")}>내 프로필</MyMenuLink>
+        <MyMenuLink href="/my-models" icon={<IconDropBox    active={pathname.startsWith("/my-models")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/my-models")}>내 모델</MyMenuLink>
+        <MyMenuLink href="/upload"    icon={<IconDropUpload active={pathname.startsWith("/upload")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/upload")}>업로드</MyMenuLink>
 
+        <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
+
+        {/* 섹션 2: 다운로드 / 판매통계 / 찜 / 장바구니 */}
+        <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>내 다운로드</MyMenuLink>
+        <MyMenuLink href="/sales"     icon={<IconDropChart   active={pathname.startsWith("/sales")}     />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/sales")}>판매통계</MyMenuLink>
+        <MyMenuLink href="/favorites" icon={<IconDropHeart   active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>찜</MyMenuLink>
+        <MyMenuLink href="/cart"      icon={<IconDropCart    active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>장바구니</MyMenuLink>
+
+        <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
+
+        {/* 섹션 3: 문의 / 고객센터 / 도움말 */}
+        <MyMenuLink href="/messages"        icon={<IconDropMail       active={pathname.startsWith("/messages")}        />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>문의함</MyMenuLink>
+        <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>고객센터</MyMenuLink>
+        <MyMenuLink href="/help"            icon={<IconDropHelp       active={pathname.startsWith("/help")}            />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>도움말</MyMenuLink>
+
+        <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
+
+        {/* 로그아웃 */}
         <button
           type="button"
           onClick={handleLogout}
           style={{
-            width: "100%", height: 44, border: "none",
-            borderTop: "1px solid #f5f1e8", background: "white",
+            width: "100%", height: 42, border: "none",
+            background: "white", display: "flex", alignItems: "center",
+            gap: 8, padding: "0 16px",
             color: "#b45309", fontWeight: 700, fontSize: 13,
             cursor: "pointer", letterSpacing: "-0.01em",
           }}
           className="header-logout-btn"
         >
+          <IconDropLogout />
           로그아웃
         </button>
       </div>
@@ -479,25 +492,25 @@ function BottomTabItem({ href, icon, label, active, badge }: {
 }
 
 /* ── 드롭다운 메뉴 링크 ────────────────────────────────── */
-function MyMenuLink({ href, children, onClick, active }: {
-  href: string; children: React.ReactNode; onClick?: () => void; active?: boolean;
+function MyMenuLink({ href, children, onClick, active, icon }: {
+  href: string; children: React.ReactNode; onClick?: () => void; active?: boolean; icon?: React.ReactNode;
 }) {
   return (
     <Link
       href={href}
       onClick={onClick}
       style={{
-        display: "flex", alignItems: "center", height: 44,
+        display: "flex", alignItems: "center", gap: 8, height: 40,
         padding: "0 16px", textDecoration: "none",
         color: active ? GOLD : "#374151",
         fontWeight: active ? 700 : 600, fontSize: 13,
-        borderBottom: "1px solid #faf8f3",
         borderLeft: active ? `3px solid ${GOLD}` : "3px solid transparent",
         background: active ? GOLD_LIGHT : "white",
         letterSpacing: "-0.01em",
       }}
       className="header-dropdown-item"
     >
+      {icon && <span style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>{icon}</span>}
       {children}
     </Link>
   );
@@ -540,4 +553,42 @@ function IconHelp({ active = false, size = 22, inactiveColor = "#5a5a5a", active
 }
 function IconUser({ active = false }: { active?: boolean }) {
   return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+}
+
+/* ── 드롭다운 전용 소형 아이콘 (15×15) ─────────────────── */
+function dropSvg(active: boolean) {
+  return { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: active ? GOLD : "#9ca3af", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+}
+function IconDropUser({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+}
+function IconDropBox({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>;
+}
+function IconDropUpload({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>;
+}
+function IconDropDownload({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
+}
+function IconDropChart({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>;
+}
+function IconDropHeart({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>;
+}
+function IconDropCart({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>;
+}
+function IconDropMail({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>;
+}
+function IconDropHeadphones({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" /><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></svg>;
+}
+function IconDropHelp({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="2.5" /></svg>;
+}
+function IconDropLogout() {
+  return <svg {...dropSvg(false)} stroke="#b45309"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
 }

@@ -113,6 +113,7 @@ export default function LibraryPage() {
   const [tplFormEmail, setTplFormEmail] = useState("");
   const [tplFormBusinessName, setTplFormBusinessName] = useState("");
   const [tplFormPhoneNumber, setTplFormPhoneNumber] = useState("");
+  const [tplPhoneError, setTplPhoneError] = useState(false);
   const [tplFormNotes, setTplFormNotes] = useState("");
 
   // 주문 입력
@@ -120,6 +121,7 @@ export default function LibraryPage() {
   const [senderEmail, setSenderEmail] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState(false);
   const [printType, setPrintType] = useState<"CPX" | "일반" | "">("");
   const [castingType, setCastingType] = useState<"수지상태" | "은주물" | "금주물" | "">("");
   const [goldDetail, setGoldDetail] = useState<"14K_골드" | "14K_화이트" | "14K_핑크" | "18K_골드" | "18K_화이트" | "18K_핑크" | "25K" | "백금" | "">("");
@@ -140,7 +142,16 @@ export default function LibraryPage() {
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [filesLoading, setFilesLoading] = useState(false);
 
+  // PC 여부
+  const [isPC, setIsPC] = useState(false);
+
   useEffect(() => { fetchLibrary(); }, []);
+  useEffect(() => {
+    const check = () => setIsPC(window.innerWidth >= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const fetchLibrary = async () => {
     try {
@@ -320,6 +331,7 @@ export default function LibraryPage() {
   const handleSubmitTemplateForm = () => {
     const name = tplFormName.trim();
     if (!name) { showError("템플릿 이름을 입력해주세요."); return; }
+    if (tplFormPhoneNumber && !isValidPhone(tplFormPhoneNumber)) { setTplPhoneError(true); showError("올바른 전화번호를 입력해주세요."); return; }
     if (templateFormMode === "edit" && editingTemplateId) {
       const updated = templates.map((t) => t.id === editingTemplateId
         ? { ...t, name, email: tplFormEmail.trim(), businessName: tplFormBusinessName.trim(), phoneNumber: tplFormPhoneNumber.trim(), notes: tplFormNotes.trim() }
@@ -343,7 +355,7 @@ export default function LibraryPage() {
     setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes("");
   };
   const startEditTemplate = (t: SenderTemplate) => {
-    setTemplateFormMode("edit"); setEditingTemplateId(t.id);
+    setTemplateFormMode("edit"); setEditingTemplateId(t.id); setTplPhoneError(false);
     setTplFormName(t.name); setTplFormEmail(t.email || ""); setTplFormBusinessName(t.businessName || ""); setTplFormPhoneNumber(t.phoneNumber || ""); setTplFormNotes(t.notes || "");
   };
   const handleDeleteTemplate = (id: string) => {
@@ -363,12 +375,27 @@ export default function LibraryPage() {
     });
   };
 
+  // ── 전화번호 포맷팅 / 유효성 ────────────────────────────────
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.startsWith("010")) {
+      if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+    } else {
+      if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+  };
+  const isValidPhone = (v: string) => /^01[0-9]-\d{3,4}-\d{4}$/.test(v);
+
   // ── 전송 ────────────────────────────────────────────────────
   const handleSendToPrinter = () => {
     if (!printerModal) return;
     if (!printerEmail.trim()) { showError("출력소를 선택해주세요."); return; }
     if (!businessName.trim()) { showError("상호를 입력해주세요."); return; }
     if (!phoneNumber.trim()) { showError("전화번호를 입력해주세요."); return; }
+    if (!isValidPhone(phoneNumber)) { setPhoneError(true); showError("올바른 전화번호를 입력해주세요."); return; }
     if (!printType) { showError("출력형태를 선택해주세요."); return; }
     if (!castingType) { showError("주물여부를 선택해주세요."); return; }
     if (castingType === "금주물" && !goldDetail) { showError("금주물 세부 옵션을 선택해주세요."); return; }
@@ -438,26 +465,27 @@ export default function LibraryPage() {
 
   // ── 스타일 (18px 기준) ─────────────────────────────────────
   const inputStyle: React.CSSProperties = {
-    width: "100%", height: 52, borderRadius: 12, border: "1.5px solid #d1d5db",
-    padding: "0 14px", fontSize: 18, boxSizing: "border-box", outline: "none",
+    width: "100%", height: 40, borderRadius: 10, border: "1.5px solid #d1d5db",
+    padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none",
   };
   const selectStyle: React.CSSProperties = {
-    width: "100%", height: 52, borderRadius: 12, border: "1.5px solid #d1d5db",
-    padding: "0 14px", fontSize: 18, boxSizing: "border-box", background: "white", cursor: "pointer",
+    width: "100%", height: 40, borderRadius: 10, border: "1.5px solid #d1d5db",
+    padding: "0 12px", fontSize: 14, boxSizing: "border-box", background: "white", cursor: "pointer",
   };
-  const labelStyle: React.CSSProperties = { fontSize: 24, fontWeight: 800, color: "#111827", marginBottom: 8, display: "block" };
-  const fieldWrap: React.CSSProperties = { marginBottom: 18 };
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#6b7280", marginBottom: 4, display: "block" };
+  const fieldWrap: React.CSSProperties = { marginBottom: 10 };
+  const sectionTitle: React.CSSProperties = { fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 10, display: "block" };
 
   // ── 팝업 공통 overlay ─────────────────────────────────────
   const overlayStyle: React.CSSProperties = {
     position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100,
-    display: "flex", alignItems: "flex-end", justifyContent: "center",
-    padding: 0,
+    display: "flex", alignItems: isPC ? "center" : "flex-end", justifyContent: "center",
+    padding: isPC ? 24 : 0,
   };
   const modalStyle: React.CSSProperties = {
-    background: "white", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 560,
+    background: "white", borderRadius: isPC ? "20px" : "24px 24px 0 0", width: "100%", maxWidth: isPC ? 660 : 560,
     boxShadow: "0 -8px 40px rgba(0,0,0,0.18)", display: "flex", flexDirection: "column",
-    maxHeight: "92vh",
+    maxHeight: "90vh",
   };
 
   return (
@@ -653,7 +681,7 @@ export default function LibraryPage() {
 
       {/* ── 출력소 전송 팝업 ──────────────────────────────────── */}
       {printerModal && (
-        <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) closePrinterModal(); }}>
+        <div style={overlayStyle}>
           <div style={modalStyle}>
 
             {/* 헤더 */}
@@ -668,16 +696,16 @@ export default function LibraryPage() {
             </div>
 
             {/* 스크롤 영역 */}
-            <div style={{ padding: "18px 24px", overflowY: "auto", flex: 1 }}>
+            <div style={{ overflowY: "auto", flex: 1 }}>
 
-              {/* ── 출력소 선택 ── */}
-              <div style={fieldWrap}>
-                <div style={labelStyle}>출력소 <span style={{ color: "#ef4444" }}>*</span></div>
+              {/* ── 출력소 ── */}
+              <div style={{ padding: "14px 24px 16px", borderBottom: "1px solid #f3f4f6", background: "#f9fafb" }}>
+                <div style={sectionTitle}>출력소 <span style={{ color: "#ef4444" }}>*</span></div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   {printers.map((p) => (
                     <button key={p.id} type="button" onClick={() => handleSelectPrinter(p)}
                       style={{
-                        minHeight: 44, padding: "0 18px", borderRadius: 999, fontSize: 16, fontWeight: 800, cursor: "pointer",
+                        minHeight: 36, padding: "0 16px", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer",
                         border: selectedPrinterId === p.id ? "none" : "1.5px solid #d1d5db",
                         background: selectedPrinterId === p.id ? "#111827" : "white",
                         color: selectedPrinterId === p.id ? "white" : "#374151",
@@ -687,36 +715,34 @@ export default function LibraryPage() {
                   ))}
                   {printerFormMode === "add" ? null : (
                     <button type="button" onClick={() => { setPrinterFormMode("add"); setEditingPrinterId(null); setPrinterFormName(""); setPrinterFormEmail(""); }}
-                      style={{ height: 44, width: 44, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                      style={{ height: 36, width: 36, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
                   )}
                 </div>
-
                 {printerFormMode !== null && (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
                     <input value={printerFormName} onChange={(e) => setPrinterFormName(e.target.value)}
-                      placeholder="출력소명" style={{ height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 16, flex: "1 1 80px", minWidth: 80, boxSizing: "border-box", outline: "none" }} />
+                      placeholder="출력소명" style={{ ...inputStyle, flex: "1 1 80px", minWidth: 80 }} />
                     <input value={printerFormEmail} onChange={(e) => setPrinterFormEmail(e.target.value)}
                       placeholder="이메일" onKeyDown={(e) => { if (e.key === "Enter") handleSubmitPrinterForm(); }}
-                      style={{ height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 16, flex: "2 1 140px", minWidth: 140, boxSizing: "border-box", outline: "none" }} />
-                    <button onClick={handleSubmitPrinterForm} style={{ height: 44, padding: "0 14px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>저장</button>
+                      style={{ ...inputStyle, flex: "2 1 140px", minWidth: 140 }} />
+                    <button onClick={handleSubmitPrinterForm} style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 700, cursor: "pointer", fontSize: 14, flexShrink: 0 }}>저장</button>
                     <button onClick={() => { setPrinterFormMode(null); setEditingPrinterId(null); setPrinterFormName(""); setPrinterFormEmail(""); }}
-                      style={{ height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 16, flexShrink: 0 }}>취소</button>
+                      style={{ height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 600, cursor: "pointer", fontSize: 14, flexShrink: 0 }}>취소</button>
                   </div>
                 )}
-
                 {selectedPrinterId && printerFormMode !== "add" && (() => {
                   const sel = printers.find((p) => p.id === selectedPrinterId);
                   if (!sel) return null;
                   return (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 15, color: "#6b7280" }}>→ {sel.email}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 15, color: "#111827", fontWeight: 500, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>→ {sel.email}</span>
                       {printerFormMode !== "edit" && (
-                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <>
                           <button type="button" onClick={() => startEditPrinter(sel)}
-                            style={{ height: 36, padding: "0 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>편집</button>
+                            style={{ padding: "2px 8px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#6b7280", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0, lineHeight: "18px" }}>편집</button>
                           <button type="button" onClick={() => handleDeletePrinter(sel.id)}
-                            style={{ height: 36, padding: "0 14px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>삭제</button>
-                        </div>
+                            style={{ padding: "2px 8px", borderRadius: 6, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0, lineHeight: "18px" }}>삭제</button>
+                        </>
                       )}
                     </div>
                   );
@@ -724,13 +750,16 @@ export default function LibraryPage() {
               </div>
 
               {/* ── 내 정보 템플릿 ── */}
-              <div style={fieldWrap}>
-                <div style={labelStyle}>내 정보 템플릿 <span style={{ fontSize: 16, fontWeight: 600, color: "#6b7280" }}>(기본정보를 저장해 사용하세요)</span></div>
+              <div style={{ padding: "14px 24px 16px", borderBottom: "1px solid #f3f4f6" }}>
+                <div style={sectionTitle}>
+                  내 정보 템플릿
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af", marginLeft: 6 }}>기본정보를 저장해 사용하세요</span>
+                </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                   {templates.map((t) => (
                     <button key={t.id} type="button" onClick={() => handleSelectTemplate(t)}
                       style={{
-                        minHeight: 44, padding: "0 18px", borderRadius: 999, fontSize: 16, fontWeight: 800, cursor: "pointer",
+                        minHeight: 36, padding: "0 16px", borderRadius: 999, fontSize: 14, fontWeight: 700, cursor: "pointer",
                         border: selectedTemplateId === t.id ? "none" : "1.5px solid #d1d5db",
                         background: selectedTemplateId === t.id ? "#111827" : "white",
                         color: selectedTemplateId === t.id ? "white" : "#374151",
@@ -740,165 +769,188 @@ export default function LibraryPage() {
                   ))}
                   {templateFormMode === "add" ? null : (
                     <button type="button" onClick={() => { setTemplateFormMode("add"); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes(""); }}
-                      style={{ height: 44, width: 44, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 22, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
+                      style={{ height: 36, width: 36, borderRadius: 999, border: "1px dashed #d1d5db", background: "white", color: "#9ca3af", fontWeight: 900, cursor: "pointer", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
                   )}
                 </div>
-
                 {templateFormMode !== null && (
-                  <div style={{ border: "1.5px solid #d1d5db", borderRadius: 16, padding: "16px", marginTop: 10, background: "#f8fafc" }}>
-                    <div style={{ fontSize: 16, fontWeight: 800, color: "#374151", marginBottom: 12 }}>
+                  <div style={{ border: "1.5px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", marginTop: 8, background: "#f8fafc" }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 10 }}>
                       {templateFormMode === "edit" ? "템플릿 편집" : "새 템플릿 추가"}
                     </div>
-                    <input value={tplFormName} onChange={(e) => setTplFormName(e.target.value)} placeholder="템플릿 이름" style={{ ...inputStyle, marginBottom: 10 }} />
-                    <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호명 (출력소명)" style={{ ...inputStyle, marginBottom: 10 }} />
-                    <input value={tplFormPhoneNumber} onChange={(e) => setTplFormPhoneNumber(e.target.value)} placeholder="연락처" style={{ ...inputStyle, marginBottom: 10 }} />
-                    <input value={tplFormEmail} onChange={(e) => setTplFormEmail(e.target.value)} placeholder="보내는 사람 이메일 (선택)" style={{ ...inputStyle, marginBottom: 10 }} />
+                    <input value={tplFormName} onChange={(e) => setTplFormName(e.target.value)} placeholder="템플릿 이름" style={{ ...inputStyle, marginBottom: 8 }} />
+                    <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호명 (출력소명)" style={{ ...inputStyle, marginBottom: 8 }} />
+                    <input
+                      value={tplFormPhoneNumber}
+                      onChange={(e) => {
+                        const formatted = formatPhone(e.target.value);
+                        setTplFormPhoneNumber(formatted);
+                        if (tplPhoneError && isValidPhone(formatted)) setTplPhoneError(false);
+                      }}
+                      onBlur={() => { if (tplFormPhoneNumber && !isValidPhone(tplFormPhoneNumber)) setTplPhoneError(true); }}
+                      placeholder="010-0000-0000"
+                      style={{ ...inputStyle, marginBottom: tplPhoneError ? 4 : 8, border: tplPhoneError ? "1.5px solid #ef4444" : inputStyle.border }}
+                    />
+                    {tplPhoneError && <p style={{ margin: "0 0 8px", fontSize: 11, color: "#ef4444" }}>올바른 전화번호를 입력해주세요</p>}
+                    <input value={tplFormEmail} onChange={(e) => setTplFormEmail(e.target.value)} placeholder="보내는 사람 이메일 (선택)" style={{ ...inputStyle, marginBottom: 8 }} />
                     <textarea value={tplFormNotes} onChange={(e) => setTplFormNotes(e.target.value)} placeholder="기본 요청사항 (선택)" rows={2}
-                      style={{ width: "100%", borderRadius: 12, border: "1.5px solid #d1d5db", padding: "12px 14px", fontSize: 18, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", marginBottom: 12 }} />
-                    <div style={{ display: "flex", gap: 10 }}>
-                      <button onClick={handleSubmitTemplateForm} style={{ flex: 1, minHeight: 48, borderRadius: 12, border: "none", background: "#111827", color: "white", fontWeight: 800, cursor: "pointer", fontSize: 17 }}>저장</button>
-                      <button onClick={() => { setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes(""); }}
-                        style={{ flex: 1, minHeight: 48, borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, cursor: "pointer", fontSize: 17 }}>취소</button>
+                      style={{ width: "100%", borderRadius: 10, border: "1.5px solid #e5e7eb", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", marginBottom: 10 }} />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={handleSubmitTemplateForm} style={{ flex: 1, height: 42, borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 700, cursor: "pointer", fontSize: 14 }}>저장</button>
+                      <button onClick={() => { setTemplateFormMode(null); setEditingTemplateId(null); setTplFormName(""); setTplFormEmail(""); setTplFormBusinessName(""); setTplFormPhoneNumber(""); setTplFormNotes(""); setTplPhoneError(false); }}
+                        style={{ flex: 1, height: 42, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 600, cursor: "pointer", fontSize: 14 }}>취소</button>
                     </div>
                   </div>
                 )}
-
                 {selectedTemplateId && templateFormMode !== "add" && (() => {
                   const sel = templates.find((t) => t.id === selectedTemplateId);
                   if (!sel) return null;
                   return templateFormMode !== "edit" ? (
-                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                       <button type="button" onClick={() => startEditTemplate(sel)}
-                        style={{ height: 38, padding: "0 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>편집</button>
+                        style={{ padding: "2px 8px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", color: "#6b7280", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0, lineHeight: "18px" }}>편집</button>
                       <button type="button" onClick={() => handleDeleteTemplate(sel.id)}
-                        style={{ height: 38, padding: "0 14px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>삭제</button>
+                        style={{ padding: "2px 8px", borderRadius: 6, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0, lineHeight: "18px" }}>삭제</button>
                     </div>
                   ) : null;
                 })()}
               </div>
 
-              <div style={{ height: 1, background: "#e5e7eb", margin: "4px 0 18px" }} />
-
-              {/* 보내는 사람 이메일 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>보내는 사람 이메일</label>
-                <input type="email" value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="my@email.com" style={inputStyle} />
-              </div>
-
-              {/* 상호 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>상호 <span style={{ color: "#ef4444" }}>*</span></label>
-                <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="상호명" style={inputStyle} />
-              </div>
-
-              {/* 전화번호 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>전화번호 <span style={{ color: "#ef4444" }}>*</span></label>
-                <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
-              </div>
-
-
-              {/* 출력형태 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>출력형태 <span style={{ color: "#ef4444" }}>*</span></label>
-                <div style={{ display: "flex", gap: 10 }}>
-                  {(["CPX", "일반"] as const).map((v) => (
-                    <button key={v} type="button" onClick={() => setPrintType(v)}
-                      style={{ flex: 1, minHeight: 52, borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: "pointer", border: printType === v ? "none" : "1.5px solid #d1d5db", background: printType === v ? "#111827" : "white", color: printType === v ? "white" : "#374151" }}>
-                      {v}
-                    </button>
-                  ))}
+              {/* ── 보내는 사람 정보 ── */}
+              <div style={{ padding: "14px 24px 16px", borderBottom: "1px solid #f3f4f6", background: "#f9fafb" }}>
+                <div style={sectionTitle}>보내는 사람 정보</div>
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>이메일</label>
+                  <input type="email" value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="my@email.com" style={inputStyle} />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label style={labelStyle}>상호 <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="상호명" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>전화번호 <span style={{ color: "#ef4444" }}>*</span></label>
+                    <input
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        const formatted = formatPhone(e.target.value);
+                        setPhoneNumber(formatted);
+                        if (phoneError && isValidPhone(formatted)) setPhoneError(false);
+                      }}
+                      onBlur={() => { if (phoneNumber && !isValidPhone(phoneNumber)) setPhoneError(true); }}
+                      placeholder="010-0000-0000"
+                      style={{ ...inputStyle, border: phoneError ? "1.5px solid #ef4444" : inputStyle.border }}
+                    />
+                    {phoneError && <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444" }}>올바른 전화번호를 입력해주세요</p>}
+                  </div>
                 </div>
               </div>
 
-              {/* 주물여부 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>주물여부 <span style={{ color: "#ef4444" }}>*</span></label>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {(["수지상태", "은주물", "금주물"] as const).map((v) => (
-                    <button key={v} type="button" onClick={() => { setCastingType(v); setGoldDetail(""); }}
-                      style={{ flex: "1 1 auto", minHeight: 52, padding: "0 10px", borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: "pointer", border: castingType === v ? "none" : "1.5px solid #d1d5db", background: castingType === v ? "#111827" : "white", color: castingType === v ? "white" : "#374151" }}>
-                      {v}
-                    </button>
-                  ))}
-                </div>
-                {castingType === "금주물" && (
-                  <select value={goldDetail} onChange={(e) => setGoldDetail(e.target.value as any)} style={{ ...selectStyle, marginTop: 10 }}>
-                    <option value="">세부 옵션 선택</option>
-                    <option value="14K_골드">14K 골드</option>
-                    <option value="14K_화이트">14K 화이트</option>
-                    <option value="14K_핑크">14K 핑크</option>
-                    <option value="18K_골드">18K 골드</option>
-                    <option value="18K_화이트">18K 화이트</option>
-                    <option value="18K_핑크">18K 핑크</option>
-                    <option value="25K">25K</option>
-                    <option value="백금">백금</option>
-                  </select>
-                )}
-              </div>
+              {/* ── 출력 옵션 ── */}
+              <div style={{ padding: "14px 24px 16px", borderBottom: "1px solid #f3f4f6" }}>
+                <div style={sectionTitle}>출력 옵션</div>
 
-              {/* 확대축소여부 */}
-              <div style={fieldWrap}>
-                <label style={labelStyle}>확대축소여부</label>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  {(["", "확대", "축소"] as const).map((v) => (
-                    <button key={v} type="button" onClick={() => setScaleType(v)}
-                      style={{
-                        flex: "1 1 auto", minHeight: 52, padding: "0 10px", borderRadius: 12, fontSize: 18, fontWeight: 800, cursor: "pointer",
-                        border: scaleType === v ? "none" : "1.5px solid #d1d5db",
-                        background: scaleType === v ? "#111827" : "white",
-                        color: scaleType === v ? "white" : "#374151",
-                      }}>
-                      {v === "" ? "없음" : v}
-                    </button>
-                  ))}
-                  {scaleType !== "" && (
-                    <select value={scalePercent} onChange={(e) => setScalePercent(e.target.value)}
-                      style={{ height: 52, borderRadius: 12, border: "1.5px solid #d1d5db", padding: "0 12px", fontSize: 18, background: "white", cursor: "pointer", flexShrink: 0 }}>
-                      {Array.from({ length: 11 }, (_, i) => (
-                        <option key={i} value={String(i)}>{i}%</option>
-                      ))}
+                {/* 출력형태 */}
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>출력형태 <span style={{ color: "#ef4444" }}>*</span></label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {(["CPX", "일반"] as const).map((v) => (
+                      <button key={v} type="button" onClick={() => setPrintType(v)}
+                        style={{ flex: 1, height: 40, borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", border: printType === v ? "none" : "1.5px solid #d1d5db", background: printType === v ? "#111827" : "white", color: printType === v ? "white" : "#374151" }}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 주물여부 */}
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>주물여부 <span style={{ color: "#ef4444" }}>*</span></label>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {(["수지상태", "은주물", "금주물"] as const).map((v) => (
+                      <button key={v} type="button" onClick={() => { setCastingType(v); setGoldDetail(""); }}
+                        style={{ flex: "1 1 auto", height: 40, padding: "0 10px", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer", border: castingType === v ? "none" : "1.5px solid #d1d5db", background: castingType === v ? "#111827" : "white", color: castingType === v ? "white" : "#374151" }}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                  {castingType === "금주물" && (
+                    <select value={goldDetail} onChange={(e) => setGoldDetail(e.target.value as any)} style={{ ...selectStyle, marginTop: 8 }}>
+                      <option value="">세부 옵션 선택</option>
+                      <option value="14K_골드">14K 골드</option>
+                      <option value="14K_화이트">14K 화이트</option>
+                      <option value="14K_핑크">14K 핑크</option>
+                      <option value="18K_골드">18K 골드</option>
+                      <option value="18K_화이트">18K 화이트</option>
+                      <option value="18K_핑크">18K 핑크</option>
+                      <option value="25K">25K</option>
+                      <option value="백금">백금</option>
                     </select>
                   )}
                 </div>
+
+                {/* 확대축소여부 */}
+                <div style={{ ...fieldWrap, marginBottom: 0 }}>
+                  <label style={labelStyle}>확대축소여부</label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    {(["", "확대", "축소"] as const).map((v) => (
+                      <button key={v} type="button" onClick={() => setScaleType(v)}
+                        style={{
+                          flex: "1 1 auto", height: 40, padding: "0 10px", borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: "pointer",
+                          border: scaleType === v ? "none" : "1.5px solid #d1d5db",
+                          background: scaleType === v ? "#111827" : "white",
+                          color: scaleType === v ? "white" : "#374151",
+                        }}>
+                        {v === "" ? "없음" : v}
+                      </button>
+                    ))}
+                    {scaleType !== "" && (
+                      <select value={scalePercent} onChange={(e) => setScalePercent(e.target.value)}
+                        style={{ height: 40, borderRadius: 10, border: "1.5px solid #d1d5db", padding: "0 12px", fontSize: 14, background: "white", cursor: "pointer", flexShrink: 0 }}>
+                        {Array.from({ length: 11 }, (_, i) => (
+                          <option key={i} value={String(i)}>{i}%</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              {/* 추가 내용 */}
-              <div style={{ height: 1, background: "#e5e7eb", margin: "4px 0 18px" }} />
-              <div style={fieldWrap}>
-                <label style={labelStyle}>추가 내용</label>
+              {/* ── 추가 내용 ── */}
+              <div style={{ padding: "14px 24px 16px", borderBottom: "1px solid #f3f4f6", background: "#f9fafb" }}>
+                <div style={sectionTitle}>추가 내용</div>
                 <textarea
                   value={extraNote}
                   onChange={(e) => setExtraNote(e.target.value)}
                   placeholder="출력 시 참고할 내용을 입력해주세요."
                   rows={3}
-                  style={{ width: "100%", borderRadius: 12, border: "1.5px solid #d1d5db", padding: "12px 14px", fontSize: 18, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6 }}
+                  style={{ width: "100%", borderRadius: 10, border: "1.5px solid #e5e7eb", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6 }}
                 />
               </div>
 
-              {/* 파일 선택 */}
-              <div style={{ height: 1, background: "#e5e7eb", margin: "4px 0 18px" }} />
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#374151", marginBottom: 12 }}>파일 선택</div>
-              {filesLoading ? (
-                <p style={{ fontSize: 16, color: "#9ca3af" }}>파일 목록을 불러오는 중...</p>
-              ) : modelFiles.length === 0 ? (
-                <p style={{ fontSize: 16, color: "#9ca3af" }}>파일이 없습니다.</p>
-              ) : (
-                <div style={{ display: "grid", gap: 10 }}>
-                  {modelFiles.map((f) => {
-                    const checked = selectedPaths.has(f.path);
-                    return (
-                      <label key={f.path} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 14, border: checked ? "2px solid #111827" : "1.5px solid #e5e7eb", background: checked ? "#f8fafc" : "white", cursor: "pointer" }}>
-                        <input type="checkbox" checked={checked} onChange={() => toggleFile(f.path)} style={{ width: 20, height: 20, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 900, padding: "3px 9px", borderRadius: 6, background: f.isMain ? "#111827" : "#6366f1", color: "white", flexShrink: 0 }}>
-                          {f.isMain ? "대표" : "추가"}
-                        </span>
-                        <span style={{ fontSize: 16, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+              {/* ── 파일 선택 ── */}
+              <div style={{ padding: "14px 24px 20px" }}>
+                <div style={sectionTitle}>파일 선택</div>
+                {filesLoading ? (
+                  <p style={{ fontSize: 14, color: "#9ca3af" }}>파일 목록을 불러오는 중...</p>
+                ) : modelFiles.length === 0 ? (
+                  <p style={{ fontSize: 14, color: "#9ca3af" }}>파일이 없습니다.</p>
+                ) : (
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {modelFiles.map((f) => {
+                      const checked = selectedPaths.has(f.path);
+                      return (
+                        <label key={f.path} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: checked ? "2px solid #111827" : "1.5px solid #e5e7eb", background: checked ? "#f8fafc" : "white", cursor: "pointer" }}>
+                          <input type="checkbox" checked={checked} onChange={() => toggleFile(f.path)} style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 800, padding: "2px 8px", borderRadius: 6, background: f.isMain ? "#111827" : "#6366f1", color: "white", flexShrink: 0 }}>
+                            {f.isMain ? "대표" : "추가"}
+                          </span>
+                          <span style={{ fontSize: 14, color: "#374151", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 하단 버튼 */}
