@@ -314,6 +314,22 @@ function SendToPrinterContent() {
           padding: 12px 20px 20px; z-index: 50;
         }
         @media (max-width: 768px) { .stp-bottom { bottom: 72px; } }
+        .stp-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1px 1fr;
+          gap: 0;
+          align-items: start;
+        }
+        .stp-divider {
+          background: #f3f4f6;
+          align-self: stretch;
+        }
+        @media (max-width: 768px) {
+          .stp-form-grid {
+            grid-template-columns: 1fr;
+          }
+          .stp-divider { display: none; }
+        }
       `}</style>
 
       {/* 상단 헤더 */}
@@ -399,10 +415,13 @@ function SendToPrinterContent() {
       {/* ── 폼 화면 ── */}
       {step === "form" && (
         <main style={{
-          maxWidth: 560, margin: "0 auto",
+          maxWidth: 1000, margin: "0 auto",
           padding: "0 0 160px",
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}>
+          <div className="stp-form-grid">
+          {/* ── 왼쪽: 출력소 / 템플릿 / 보내는 사람 ── */}
+          <div>
 
           {/* 출력소 */}
           <div style={{ ...section("#f9fafb") }}>
@@ -535,6 +554,14 @@ function SendToPrinterContent() {
             </div>
           </div>
 
+          </div>{/* 왼쪽 컬럼 끝 */}
+
+          {/* 구분선 */}
+          <div className="stp-divider" />
+
+          {/* ── 오른쪽: 출력 옵션 / 추가 내용 / 파일 선택 ── */}
+          <div>
+
           {/* 출력 옵션 */}
           <div style={section()}>
             <div style={sectionTitle}>출력 옵션</div>
@@ -634,13 +661,15 @@ function SendToPrinterContent() {
                 })}
               </div>
             )}
-          </div>
+          </div>{/* 파일 선택 div 끝 */}
+          </div>{/* 오른쪽 컬럼 끝 */}
+          </div>{/* stp-form-grid 끝 */}
         </main>
       )}
 
       {/* 하단 고정 버튼 */}
       <div className="stp-bottom">
-        <div style={{ maxWidth: 560, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
           {step === "confirm" ? (
             <>
               <button type="button" onClick={() => setStep("form")}
