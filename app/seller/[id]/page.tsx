@@ -686,7 +686,8 @@ export default function SellerPage() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "start",
-            gap: 16,
+            rowGap: 4,
+            columnGap: 16,
             flexWrap: "wrap",
           }}
         >

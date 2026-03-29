@@ -265,7 +265,7 @@ export default function SalesPage() {
                 : chartWrap.gridTemplateColumns,
           }}
         >
-          {chartData.map((day) => (
+          {chartData.map((day, idx) => (
             <div key={day.label} style={chartItem}>
               <div style={chartValue}>
                 {day.revenue > 0 ? `${day.revenue.toLocaleString("ko-KR")}원` : "-"}
@@ -276,7 +276,7 @@ export default function SalesPage() {
                   height: `${Math.max((day.revenue / maxRevenue) * 180, day.revenue > 0 ? 14 : 8)}px`,
                 }}
               />
-              <div style={chartLabel}>{day.label}</div>
+              <div style={chartLabel}>{idx % 2 === 0 ? day.label : ""}</div>
               <div style={chartSub}>{day.count}건</div>
             </div>
           ))}
@@ -464,7 +464,7 @@ const sectionHint: React.CSSProperties = {
 const chartWrap: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(10, minmax(0, 1fr))",
-  gap: 12,
+  gap: 6,
   alignItems: "end",
   minHeight: 260,
 };
@@ -486,9 +486,10 @@ const chartBar: React.CSSProperties = {
 };
 
 const chartLabel: React.CSSProperties = {
-  fontSize: 13,
+  fontSize: 10,
   fontWeight: 800,
   color: "#111827",
+  whiteSpace: "nowrap",
 };
 
 const chartSub: React.CSSProperties = {

@@ -42,6 +42,7 @@ const inputStyle: React.CSSProperties = {
   padding: "0 14px",
   fontSize: 15,
   outline: "none",
+  boxSizing: "border-box",
 };
 
 const textareaStyle: React.CSSProperties = {
@@ -63,6 +64,9 @@ const uploadBoxStyle: React.CSSProperties = {
   background: "#f8fafc",
   display: "grid",
   gap: 10,
+  width: "100%",
+  boxSizing: "border-box",
+  overflowX: "hidden",
 };
 
 const helperTextStyle: React.CSSProperties = {
@@ -557,9 +561,12 @@ export default function EditModelPage() {
       style={{
         maxWidth: 980,
         margin: "0 auto",
-        padding: "36px 20px 60px",
+        padding: "24px 16px 60px",
         fontFamily:
           'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        width: "100%",
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <div style={{ marginBottom: 24 }}>
@@ -593,8 +600,11 @@ export default function EditModelPage() {
           border: "1px solid #e5e7eb",
           borderRadius: 24,
           background: "white",
-          padding: 24,
+          padding: 16,
           boxShadow: "0 10px 30px rgba(15,23,42,0.04)",
+          width: "100%",
+          boxSizing: "border-box",
+          overflowX: "hidden",
         }}
       >
         <Field label="모델 제목">
@@ -681,6 +691,7 @@ export default function EditModelPage() {
               type="file"
               accept="image/*"
               onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+              style={{ maxWidth: "100%", width: "100%" }}
             />
 
             {thumbnailFile && (
@@ -696,8 +707,10 @@ export default function EditModelPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-              gap: 14,
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: 10,
+              width: "100%",
+              boxSizing: "border-box",
             }}
           >
             {existingImages.length === 0 ? (
@@ -767,6 +780,7 @@ export default function EditModelPage() {
               accept="image/*"
               multiple
               onChange={(e) => handleDetailImages(e.target.files)}
+              style={{ maxWidth: "100%", width: "100%" }}
             />
 
             {detailImageFiles.length > 0 && (
@@ -802,6 +816,7 @@ export default function EditModelPage() {
               type="file"
               accept=".stl,.obj,.3dm,.glb,.gltf,.zip"
               onChange={(e) => setModelFile(e.target.files?.[0] || null)}
+              style={{ maxWidth: "100%", width: "100%" }}
             />
 
             {modelFile && (
@@ -884,6 +899,7 @@ export default function EditModelPage() {
               accept=".stl,.obj,.3dm,.glb,.gltf,.zip,.pdf"
               multiple
               onChange={(e) => handleExtraFiles(e.target.files)}
+              style={{ maxWidth: "100%", width: "100%" }}
             />
 
             {extraFiles.length > 0 && (
@@ -930,9 +946,7 @@ export default function EditModelPage() {
         <div
           style={{
             display: "flex",
-            justifyContent: "flex-end",
             gap: 10,
-            flexWrap: "wrap",
             marginTop: 8,
           }}
         >
@@ -940,14 +954,15 @@ export default function EditModelPage() {
             type="button"
             onClick={() => router.push("/my-models")}
             style={{
-              height: 46,
-              padding: "0 16px",
+              flex: 1,
+              height: 50,
               borderRadius: 14,
               border: "1px solid #d1d5db",
               background: "white",
               color: "#111827",
               fontWeight: 900,
               cursor: "pointer",
+              fontSize: 15,
             }}
           >
             취소
@@ -957,14 +972,15 @@ export default function EditModelPage() {
             type="submit"
             disabled={saving}
             style={{
-              height: 46,
-              padding: "0 18px",
+              flex: 1,
+              height: 50,
               borderRadius: 14,
               border: "none",
               background: "#111827",
               color: "white",
               fontWeight: 900,
               cursor: "pointer",
+              fontSize: 15,
             }}
           >
             {saving ? "저장 중..." : "수정 완료"}
