@@ -83,7 +83,7 @@ export default function QuickViewModal({
                   marginTop: 5,
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 12,
                   textDecoration: "none",
                   color: "#111827",
                 }}
@@ -92,8 +92,8 @@ export default function QuickViewModal({
                   src={seller.avatar_url || "/default-avatar.png"}
                   alt={seller.nickname || "seller"}
                   style={{
-                    width: 40,
-                    height: 40,
+                    width: 52,
+                    height: 52,
                     borderRadius: "50%",
                     objectFit: "cover",
                     border: "1px solid #e5e7eb",
@@ -101,10 +101,10 @@ export default function QuickViewModal({
                   }}
                 />
                 <div>
-                  <div style={{ fontWeight: 800 }}>
+                  <div style={{ fontWeight: 800, fontSize: 16 }}>
                     {seller.nickname || "판매자"}
                   </div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                  <div style={{ fontSize: 14, color: "#6b7280" }}>
                     판매자 페이지 이동
                   </div>
                 </div>
@@ -116,14 +116,15 @@ export default function QuickViewModal({
               onClick={onToggleFavorite}
               disabled={favoriteLoading}
               style={{
-                marginTop: 10,
+                marginTop: 12,
                 width: "100%",
-                height: 46,
-                borderRadius: 14,
+                height: 60,
+                borderRadius: 16,
                 border: liked ? "none" : "1px solid #d1d5db",
                 background: liked ? "#ef4444" : "white",
                 color: liked ? "white" : "#111827",
                 fontWeight: 900,
+                fontSize: 18,
                 cursor: "pointer",
               }}
             >
@@ -134,10 +135,11 @@ export default function QuickViewModal({
           <div>
             <h3
               style={{
-                margin: "5px 0 0",
-                fontSize: 30,
+                margin: "14px 0 0",
+                fontSize: 36,
                 fontWeight: 900,
                 color: "#111827",
+                lineHeight: 1.2,
               }}
             >
               {model.title}
@@ -147,10 +149,10 @@ export default function QuickViewModal({
               style={{
                 margin: "14px 0 0",
                 color: "#6b7280",
-                fontSize: 14,
+                fontSize: 16,
                 lineHeight: 1.7,
                 whiteSpace: "pre-wrap",
-                minHeight: 80,
+                minHeight: 60,
               }}
             >
               {model.description || "제품 설명이 없습니다."}
@@ -161,9 +163,9 @@ export default function QuickViewModal({
             <div
               style={{
                 textAlign: "right",
-                fontSize: 30,
+                fontSize: 40,
                 fontWeight: 900,
-                marginBottom: 15,
+                marginBottom: 16,
               }}
             >
               {model.price.toLocaleString("ko-KR")}원
@@ -180,7 +182,7 @@ export default function QuickViewModal({
               <Link
                 href={`/models/${model.id}`}
                 style={{
-                  height: 50,
+                  height: 60,
                   borderRadius: 16,
                   background: "#111827",
                   color: "white",
@@ -189,6 +191,7 @@ export default function QuickViewModal({
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: 900,
+                  fontSize: 18,
                 }}
               >
                 상세로 이동
@@ -198,36 +201,18 @@ export default function QuickViewModal({
                 type="button"
                 onClick={onClose}
                 style={{
-                  height: 50,
+                  height: 60,
                   borderRadius: 16,
                   border: "1px solid #d1d5db",
                   background: "white",
                   color: "#111827",
                   fontWeight: 800,
+                  fontSize: 18,
                   cursor: "pointer",
                 }}
               >
                 닫기
               </button>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginTop: 6,
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  color: "#6b7280",
-                  fontSize: 13,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                • ESC 키로 닫기 가능
-              </p>
             </div>
           </div>
         </div>

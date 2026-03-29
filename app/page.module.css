@@ -612,7 +612,7 @@
 
   .modalCard {
     border-radius: 24px 24px 0 0;
-    max-height: 90vh;
+    height: 92vh;
     overflow-y: auto;
   }
 
@@ -627,8 +627,8 @@
   .modalViewerPane,
   .modalViewerInner,
   .modalPreviewImage {
-    min-height: 240px !important;
-    height: 240px !important;
+    min-height: 48vh !important;
+    height: 48vh !important;
   }
 
   /* 카테고리 가로 스크롤 + 정렬 드롭다운 한 줄 유지 */

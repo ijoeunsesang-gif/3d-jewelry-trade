@@ -261,8 +261,8 @@ export default function ModelViewer({ url }: Props) {
 
 function getPrettyToggleButtonStyle(active: boolean): React.CSSProperties {
   return {
-    height: 38,
-    padding: "0 14px",
+    height: 52,
+    padding: "0 18px",
     borderRadius: 999,
     border: active
       ? "1px solid rgba(34,197,94,0.95)"
@@ -271,7 +271,7 @@ function getPrettyToggleButtonStyle(active: boolean): React.CSSProperties {
       ? "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)"
       : "rgba(15, 23, 42, 0.72)",
     color: "white",
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: 800,
     cursor: "pointer",
     backdropFilter: "blur(8px)",
@@ -289,13 +289,13 @@ function getPrettyToggleButtonStyle(active: boolean): React.CSSProperties {
 }
 
 const prettyResetButtonStyle: React.CSSProperties = {
-  height: 38,
-  padding: "0 14px",
+  height: 52,
+  padding: "0 18px",
   borderRadius: 999,
   border: "1px solid rgba(255,255,255,0.14)",
   background: "rgba(30, 41, 59, 0.82)",
   color: "white",
-  fontSize: 12,
+  fontSize: 16,
   fontWeight: 800,
   cursor: "pointer",
   backdropFilter: "blur(8px)",
@@ -311,8 +311,8 @@ const prettyResetButtonStyle: React.CSSProperties = {
 
 function dotStyle(active: boolean): React.CSSProperties {
   return {
-    width: 8,
-    height: 8,
+    width: 10,
+    height: 10,
     borderRadius: 999,
     background: active ? "white" : "rgba(255,255,255,0.72)",
     boxShadow: active ? "0 0 10px rgba(255,255,255,0.75)" : "none",

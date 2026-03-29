@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 // 점검은 true 종료는 false. 삭제하면 점검종료처리.
 const MAINTENANCE_MODE = false;
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (!MAINTENANCE_MODE) return NextResponse.next();
 
   const { pathname } = request.nextUrl;
