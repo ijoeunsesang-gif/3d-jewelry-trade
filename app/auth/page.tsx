@@ -93,6 +93,10 @@ export default function AuthPage() {
   };
 
   const handleGoogleLogin = async () => {
+    console.log("[OAuth] Starting Google login...", {
+      origin: window.location.origin,
+      userAgent: navigator.userAgent,
+    });
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -101,11 +105,20 @@ export default function AuthPage() {
       },
     });
     if (error) {
+      console.error("[OAuth] signInWithOAuth error:", {
+        message: error.message,
+        name: error.name,
+        status: (error as any).status,
+      });
       showError(translateAuthError(error.message));
       return;
     }
     if (data?.url) {
+      console.log("[OAuth] Redirecting to Google OAuth URL...");
       window.location.href = data.url;
+    } else {
+      console.error("[OAuth] No redirect URL returned from Supabase");
+      showError("소셜 로그인 URL을 가져오지 못했습니다. 다시 시도해주세요.");
     }
   };
 

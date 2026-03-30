@@ -13,24 +13,46 @@ function OAuthCallbackClient() {
     const next = searchParams.get("next") ?? "/";
 
     if (!code) {
-      console.error("[OAuth] Missing auth code in callback URL");
+      console.error("[OAuth] Missing auth code in callback URL", {
+        url: window.location.href,
+        searchParams: Object.fromEntries(searchParams.entries()),
+      });
       showError("인증 코드가 없습니다. 다시 시도해주세요.");
       setTimeout(() => { window.location.href = "/auth"; }, 2000);
       return;
     }
 
-    console.log("[OAuth] Exchanging code for session...");
+    console.log("[OAuth] Exchanging code for session...", {
+      codeLength: code.length,
+      next,
+      userAgent: navigator.userAgent,
+      cookies: document.cookie ? "exists" : "empty",
+    });
+
     supabase.auth
       .exchangeCodeForSession(code)
       .then(async ({ data, error }) => {
         if (error) {
-          console.error("[OAuth] exchangeCodeForSession error:", error.message, error);
+          console.error("[OAuth] exchangeCodeForSession failed:", {
+            message: error.message,
+            status: (error as any).status,
+            name: error.name,
+            stack: (error as any).stack,
+            cause: (error as any).cause,
+            // code_verifier 디버깅용: 현재 cookie 키 확인
+            cookieKeys: document.cookie
+              .split(";")
+              .map((c) => c.trim().split("=")[0])
+              .filter((k) => k.includes("supabase") || k.includes("code")),
+          });
           showError("소셜 로그인에 실패했습니다. 다시 시도해주세요.");
           setTimeout(() => { window.location.href = "/auth"; }, 2000);
           return;
         }
 
         const user = data.session?.user;
+        console.log("[OAuth] Session obtained:", { userId: user?.id, email: user?.email });
+
         if (user) {
           // 처음 소셜 로그인 시 프로필 생성
           const { data: existing } = await supabase
@@ -40,7 +62,7 @@ function OAuthCallbackClient() {
             .single();
 
           if (!existing) {
-            await supabase.from("profiles").insert({
+            const { error: profileError } = await supabase.from("profiles").insert({
               id: user.id,
               nickname:
                 user.user_metadata?.full_name ||
@@ -49,6 +71,9 @@ function OAuthCallbackClient() {
                 "user",
               avatar_url: user.user_metadata?.avatar_url ?? null,
             });
+            if (profileError) {
+              console.error("[OAuth] Profile creation failed:", profileError);
+            }
           }
         }
 
