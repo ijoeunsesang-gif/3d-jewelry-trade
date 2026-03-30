@@ -11,8 +11,9 @@ const baseStyle = {
   boxShadow: "0 4px 16px rgba(15,23,42,0.08)",
 };
 
-export const showSuccess = (message: string) =>
+export const showSuccess = (message: string, duration = 5000) =>
   toast.success(message, {
+    duration,
     style: {
       ...baseStyle,
       borderColor: "#bbf7d0",
@@ -23,8 +24,9 @@ export const showSuccess = (message: string) =>
     },
   });
 
-export const showError = (message: string) =>
+export const showError = (message: string, duration = 5000) =>
   toast.error(message, {
+    duration,
     style: {
       ...baseStyle,
       borderColor: "#fecaca",

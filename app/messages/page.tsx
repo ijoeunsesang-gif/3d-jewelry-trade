@@ -331,9 +331,10 @@ function MessagesContent() {
                     width: "100%",
                     minHeight: 90,
                     border: "none",
-                    borderBottom: "1px solid #f8fafc",
+                    borderBottom: "1px solid #f3f4f6",
+                    borderLeft: selectedConversationId === conv.id ? "3px solid #111827" : "3px solid transparent",
                     background:
-                      selectedConversationId === conv.id ? "#f8fafc" : "white",
+                      selectedConversationId === conv.id ? "#e5e7eb" : "white",
                     display: "flex",
                     alignItems: "center",
                     gap: 12,

@@ -13,18 +13,20 @@ function OAuthCallbackClient() {
     const next = searchParams.get("next") ?? "/";
 
     if (!code) {
+      console.error("[OAuth] Missing auth code in callback URL");
       showError("인증 코드가 없습니다. 다시 시도해주세요.");
-      window.location.href = "/auth";
+      setTimeout(() => { window.location.href = "/auth"; }, 2000);
       return;
     }
 
+    console.log("[OAuth] Exchanging code for session...");
     supabase.auth
       .exchangeCodeForSession(code)
       .then(async ({ data, error }) => {
         if (error) {
-          console.error("OAuth callback error:", error);
+          console.error("[OAuth] exchangeCodeForSession error:", error.message, error);
           showError("소셜 로그인에 실패했습니다. 다시 시도해주세요.");
-          window.location.href = "/auth";
+          setTimeout(() => { window.location.href = "/auth"; }, 2000);
           return;
         }
 
@@ -50,8 +52,9 @@ function OAuthCallbackClient() {
           }
         }
 
+        console.log("[OAuth] Login successful, redirecting to:", next);
         showSuccess("로그인되었습니다.");
-        window.location.href = next;
+        setTimeout(() => { window.location.href = next; }, 1500);
       });
   }, [searchParams]);
 
