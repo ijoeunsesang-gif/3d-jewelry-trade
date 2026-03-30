@@ -1095,12 +1095,52 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                       background: "white",
                     }}
                   >
+                    <div
+                      style={{
+                        width: "100%",
+                        aspectRatio: "1 / 1",
+                        background: "#f3f4f6",
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt={item.title}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                        />
+                      ) : (
+                        <svg
+                          width="48"
+                          height="48"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#d1d5db"
+                          strokeWidth="1.5"
+                        >
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                      )}
+                    </div>
                     <div style={{ padding: 14 }}>
                       <div
                         style={{
-                          fontSize: 18,
-                          fontWeight: 900,
+                          fontSize: 15,
+                          fontWeight: 800,
                           color: "#111827",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
                         }}
                       >
                         {item.title}
@@ -1109,21 +1149,10 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                       <div
                         style={{
                           marginTop: 8,
-                          fontSize: 13,
-                          color: "#6b7280",
-                          minHeight: 38,
-                        }}
-                      >
-                        {(item.description || "").slice(0, 42)}
-                      </div>
-
-                      <div
-                        style={{
-                          marginTop: 12,
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: 900,
                           color: "#111827",
-                          textAlign: "right"
+                          textAlign: "right",
                         }}
                       >
                         {item.price.toLocaleString("ko-KR")}원

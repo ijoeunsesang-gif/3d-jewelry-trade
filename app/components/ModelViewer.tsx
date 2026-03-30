@@ -1,31 +1,46 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
-import {
-  OrbitControls,
-  Bounds,
-  Environment,
-  useBounds,
-} from "@react-three/drei";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { TrackballControls, Environment } from "@react-three/drei";
 import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 
-type Props = {
-  url: string;
-};
+type Props = { url: string };
 
-type SceneProps = {
+type ModelProps = {
   url: string;
-  ext: string;
   controlsRef: React.MutableRefObject<any>;
+  onFitted: (pos: THREE.Vector3) => void;
 };
 
-function STLModel({ url, controlsRef }: { url: string; controlsRef: React.MutableRefObject<any> }) {
+/** 모델 중심을 origin으로 맞추고 카메라를 bounding sphere 기반으로 배치 */
+function fitCameraToRadius(
+  camera: THREE.PerspectiveCamera,
+  controls: any,
+  radius: number
+) {
+  const fov = (camera.fov * Math.PI) / 180;
+  const distance = (radius / Math.sin(fov / 2)) * 1.25;
+
+  const dir = new THREE.Vector3(0.6, 0.5, 0.8).normalize();
+  camera.position.copy(dir.multiplyScalar(distance));
+  camera.up.set(0, 1, 0);
+  camera.lookAt(0, 0, 0);
+  camera.near = distance * 0.01;
+  camera.far = distance * 100;
+  camera.updateProjectionMatrix();
+
+  controls.target.set(0, 0, 0);
+  controls.minDistance = radius * 0.3;
+  controls.maxDistance = radius * 30;
+  controls.update();
+}
+
+function STLModel({ url, controlsRef, onFitted }: ModelProps) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const bounds = useBounds();
+  const { camera } = useThree();
 
   useEffect(() => {
     let active = true;
@@ -39,38 +54,31 @@ function STLModel({ url, controlsRef }: { url: string; controlsRef: React.Mutabl
         setGeometry(loaded);
       },
       undefined,
-      (error) => { console.error("STL 로드 실패:", error); }
+      (error) => console.error("STL 로드 실패:", error)
     );
     return () => { active = false; };
   }, [url]);
 
   useEffect(() => {
-    if (!geometry || !meshRef.current) return;
-    const mesh = meshRef.current;
-    requestAnimationFrame(() => {
-      const box = new THREE.Box3().setFromObject(mesh);
-      const center = box.getCenter(new THREE.Vector3());
-      if (controlsRef.current) {
-        controlsRef.current.target.copy(center);
-        controlsRef.current.update();
-      }
-      bounds.refresh(mesh).fit();
-    });
+    if (!geometry || !controlsRef.current) return;
+    geometry.computeBoundingSphere();
+    const radius = geometry.boundingSphere?.radius ?? 5;
+    fitCameraToRadius(camera as THREE.PerspectiveCamera, controlsRef.current, radius);
+    onFitted(camera.position.clone());
   }, [geometry]);
 
   if (!geometry) return null;
 
   return (
-    <mesh ref={meshRef} geometry={geometry} castShadow receiveShadow>
+    <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial color="#bcc2c9" metalness={0.18} roughness={0.62} />
     </mesh>
   );
 }
 
-function OBJModel({ url, controlsRef }: { url: string; controlsRef: React.MutableRefObject<any> }) {
+function OBJModel({ url, controlsRef, onFitted }: ModelProps) {
   const [object, setObject] = useState<THREE.Group | null>(null);
-  const groupRef = useRef<THREE.Group>(null);
-  const bounds = useBounds();
+  const { camera } = useThree();
 
   useEffect(() => {
     let active = true;
@@ -85,7 +93,9 @@ function OBJModel({ url, controlsRef }: { url: string; controlsRef: React.Mutabl
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             mesh.material = new THREE.MeshStandardMaterial({
-              color: "#bcc2c9", metalness: 0.18, roughness: 0.62,
+              color: "#bcc2c9",
+              metalness: 0.18,
+              roughness: 0.62,
             });
           }
         });
@@ -95,45 +105,77 @@ function OBJModel({ url, controlsRef }: { url: string; controlsRef: React.Mutabl
         setObject(loaded);
       },
       undefined,
-      (error) => { console.error("OBJ 로드 실패:", error); }
+      (error) => console.error("OBJ 로드 실패:", error)
     );
     return () => { active = false; };
   }, [url]);
 
   useEffect(() => {
-    if (!object || !groupRef.current) return;
-    const group = groupRef.current;
-    requestAnimationFrame(() => {
-      const box = new THREE.Box3().setFromObject(group);
-      const center = box.getCenter(new THREE.Vector3());
-      if (controlsRef.current) {
-        controlsRef.current.target.copy(center);
-        controlsRef.current.update();
-      }
-      bounds.refresh(group).fit();
-    });
+    if (!object || !controlsRef.current) return;
+    const box = new THREE.Box3().setFromObject(object);
+    const size = box.getSize(new THREE.Vector3());
+    const radius = size.length() / 2;
+    fitCameraToRadius(camera as THREE.PerspectiveCamera, controlsRef.current, radius);
+    onFitted(camera.position.clone());
   }, [object]);
 
   if (!object) return null;
 
-  return <primitive ref={groupRef} object={object} />;
+  return <primitive object={object} />;
 }
 
-function Scene({ url, ext, controlsRef }: SceneProps) {
-  if (ext === "stl") return <STLModel url={url} controlsRef={controlsRef} />;
-  if (ext === "obj") return <OBJModel url={url} controlsRef={controlsRef} />;
+// 자동회전: TrackballControls에는 autoRotate prop이 없으므로
+// 쿼터니언으로 카메라를 Y축 기준으로 직접 회전시킴
+const _rotAxis = new THREE.Vector3(0, 1, 0);
+const _rotQuat = new THREE.Quaternion();
+
+function AutoRotate({
+  enabled,
+  controlsRef,
+}: {
+  enabled: boolean;
+  controlsRef: React.MutableRefObject<any>;
+}) {
+  const { camera } = useThree();
+
+  useFrame((_, delta) => {
+    if (!enabled || !controlsRef.current) return;
+    const target = controlsRef.current.target as THREE.Vector3;
+    const angle = 0.5 * delta; // ~0.5 rad/s
+
+    _rotQuat.setFromAxisAngle(_rotAxis, angle);
+
+    // 카메라 위치를 target 중심으로 Y축 회전
+    const offset = camera.position.clone().sub(target);
+    offset.applyQuaternion(_rotQuat);
+    camera.position.copy(target).add(offset);
+
+    // 카메라 방향도 함께 회전
+    camera.quaternion.premultiply(_rotQuat);
+  });
+
   return null;
 }
 
-function CameraReset({ resetSignal, controlsRef }: { resetSignal: number; controlsRef: React.MutableRefObject<any> }) {
-  const bounds = useBounds();
+function CameraReset({
+  resetSignal,
+  controlsRef,
+  savedPosRef,
+}: {
+  resetSignal: number;
+  controlsRef: React.MutableRefObject<any>;
+  savedPosRef: React.MutableRefObject<THREE.Vector3 | null>;
+}) {
+  const { camera } = useThree();
 
   useEffect(() => {
-    if (resetSignal > 0) {
-      requestAnimationFrame(() => {
-        bounds.refresh().fit();
-      });
-    }
+    if (resetSignal === 0) return;
+    if (!controlsRef.current || !savedPosRef.current) return;
+    camera.position.copy(savedPosRef.current);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(0, 0, 0);
+    controlsRef.current.target.set(0, 0, 0);
+    controlsRef.current.update();
   }, [resetSignal]);
 
   return null;
@@ -141,6 +183,7 @@ function CameraReset({ resetSignal, controlsRef }: { resetSignal: number; contro
 
 export default function ModelViewer({ url }: Props) {
   const controlsRef = useRef<any>(null);
+  const savedPosRef = useRef<THREE.Vector3 | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [resetSignal, setResetSignal] = useState(0);
 
@@ -177,13 +220,7 @@ export default function ModelViewer({ url }: Props) {
   }
 
   return (
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-      }}
-    >
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div
         style={{
           position: "absolute",
@@ -216,7 +253,7 @@ export default function ModelViewer({ url }: Props) {
       </div>
 
       <Canvas
-        camera={{ position: [-5, 10, 3], fov: 40 }}
+        camera={{ position: [0, 0, 10], fov: 40 }}
         dpr={1}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         shadows
@@ -224,35 +261,47 @@ export default function ModelViewer({ url }: Props) {
         <color attach="background" args={["#1b1c1f"]} />
 
         <ambientLight intensity={0.9} />
-
-        <directionalLight
-          position={[6, 8, 6]}
-          intensity={1.6}
-          castShadow
-        />
-
+        <directionalLight position={[6, 8, 6]} intensity={1.6} castShadow />
         <directionalLight position={[-5, 4, -4]} intensity={0.7} />
         <directionalLight position={[0, -3, 5]} intensity={0.45} />
-
         <hemisphereLight intensity={0.55} groundColor="#2a2c31" />
 
         <Suspense fallback={null}>
-          <Bounds fit clip observe margin={2.0}>
-            <Scene url={url} ext={ext} controlsRef={controlsRef} />
-          </Bounds>
+          {ext === "stl" && (
+            <STLModel
+              url={url}
+              controlsRef={controlsRef}
+              onFitted={(pos) => { savedPosRef.current = pos; }}
+            />
+          )}
+          {ext === "obj" && (
+            <OBJModel
+              url={url}
+              controlsRef={controlsRef}
+              onFitted={(pos) => { savedPosRef.current = pos; }}
+            />
+          )}
           <Environment preset="studio" />
         </Suspense>
 
-        <CameraReset resetSignal={resetSignal} controlsRef={controlsRef} />
+        <AutoRotate enabled={autoRotate} controlsRef={controlsRef} />
 
-        <OrbitControls
+        <CameraReset
+          resetSignal={resetSignal}
+          controlsRef={controlsRef}
+          savedPosRef={savedPosRef}
+        />
+
+        {/* TrackballControls: 쿼터니언 기반 회전 — 상하좌우 360도 짐벌락 없음 */}
+        <TrackballControls
           ref={controlsRef}
           makeDefault
-          enablePan={false}
-          minDistance={1.2}
-          maxDistance={20}
-          autoRotate={autoRotate}
-          autoRotateSpeed={0.8}
+          rotateSpeed={2.5}
+          zoomSpeed={1.2}
+          panSpeed={0.6}
+          noPan={false}
+          staticMoving={false}
+          dynamicDampingFactor={0.15}
         />
       </Canvas>
     </div>
