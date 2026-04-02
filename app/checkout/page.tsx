@@ -22,6 +22,7 @@ function CheckoutContent() {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [widgetReady, setWidgetReady] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const widgetsRef = useRef<any>(null);
   const widgetInitRef = useRef(false);
@@ -82,6 +83,15 @@ function CheckoutContent() {
 
   const initWidgets = async (amount: number) => {
     const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
+
+    // 디버깅: clientKey 로드 여부 확인
+    console.log(
+      "[TossPayments] clientKey:",
+      clientKey
+        ? `설정됨 (${clientKey.substring(0, 10)}...)`
+        : "❌ undefined — NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY 환경변수 미설정"
+    );
+
     if (!clientKey) {
       showError("결제 설정이 올바르지 않습니다.");
       return;
@@ -103,6 +113,7 @@ function CheckoutContent() {
       const tossPayments = (window as any).TossPayments(clientKey);
       const widgets = tossPayments.widgets({ customerKey: "ANONYMOUS" });
 
+      // setAmount 완료 후 renderPaymentMethods / renderAgreement 실행
       await widgets.setAmount({ currency: "KRW", value: amount });
 
       await Promise.all([
@@ -117,8 +128,11 @@ function CheckoutContent() {
       ]);
 
       widgetsRef.current = widgets;
+      setWidgetReady(true);
     } catch (error) {
       console.error("결제 위젯 초기화 실패:", error);
+      // 실패 시 재시도 허용
+      widgetInitRef.current = false;
       showError("결제 위젯을 불러오는 데 실패했습니다. 페이지를 새로고침해주세요.");
     }
   };
@@ -137,7 +151,7 @@ function CheckoutContent() {
       return;
     }
     if (!widgetsRef.current) {
-      showError("결제 위젯이 준비 중입니다. 잠시 후 다시 시도해주세요.");
+      showError("결제 위젯이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
 
@@ -482,22 +496,26 @@ function CheckoutContent() {
 
             <button
               onClick={handleCheckout}
-              disabled={paying}
+              disabled={paying || !widgetReady}
               style={{
                 width: "100%",
                 height: 54,
                 borderRadius: 16,
                 border: "none",
-                background: paying ? "#9ca3af" : "#111827",
+                background: paying || !widgetReady ? "#9ca3af" : "#111827",
                 color: "white",
                 fontSize: 16,
                 fontWeight: 900,
-                cursor: paying ? "default" : "pointer",
+                cursor: paying || !widgetReady ? "default" : "pointer",
                 marginBottom: 10,
                 transition: "background 0.15s",
               }}
             >
-              {paying ? "결제 처리 중..." : "결제 완료하기"}
+              {paying
+                ? "결제 처리 중..."
+                : !widgetReady
+                ? "결제 수단 로딩 중..."
+                : "결제 완료하기"}
             </button>
 
             <Link
