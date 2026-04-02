@@ -20,7 +20,10 @@
       "Bash(find E:3d-jewelry-tradenode_modulesnextdist -type f -name *proxy*)",
       "Bash(grep -r export.*NextRequest E:3d-jewelry-tradenode_modulesnextdist --include=*.d.ts)",
       "Bash(find E:3d-jewelry-tradenode_modulesnext -name index.d.ts -path */server/*)",
-      "Bash(find E:3d-jewelry-tradenode_modulesnextdist -type f -name *.d.ts -path *middleware*)"
+      "Bash(find E:3d-jewelry-tradenode_modulesnextdist -type f -name *.d.ts -path *middleware*)",
+      "Bash(xargs grep:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm search:*)"
     ]
   }
 }

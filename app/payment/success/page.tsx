@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { supabase } from "../../lib/supabase";
 
 type OrderItem = {
   id: string;
@@ -11,38 +13,183 @@ type OrderItem = {
   category: string;
 };
 
-type LastOrder = {
+type PendingPayment = {
   items: OrderItem[];
   totalPrice: number;
   buyerName: string;
   buyerEmail: string;
-  orderedAt: string;
-  paymentId?: string;
-  payMethod?: string;
+  orderId: string;
+  payMethod: string;
 };
 
 const PAY_METHOD_LABEL: Record<string, string> = {
-  KAKAOPAY: "카카오페이",
-  NAVERPAY: "네이버페이",
-  TOSSPAY: "토스페이",
-  SAMSUNGPAY: "삼성페이",
   CARD: "신용/체크카드",
   TRANSFER: "계좌이체",
+  TOSSPAY: "토스페이",
+  KAKAOPAY: "카카오페이",
+  NAVERPAY: "네이버페이",
 };
 
-export default function SuccessPage() {
-  const [order, setOrder] = useState<LastOrder | null>(null);
+type Status = "loading" | "success" | "error";
+
+function PaymentSuccessContent() {
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState<Status>("loading");
+  const [order, setOrder] = useState<PendingPayment | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const raw = localStorage.getItem("lastOrder");
-    if (raw) {
+    confirmPayment();
+  }, []);
+
+  const confirmPayment = async () => {
+    const paymentKey = searchParams.get("paymentKey");
+    const orderId = searchParams.get("orderId");
+    const amountStr = searchParams.get("amount");
+
+    if (!paymentKey || !orderId || !amountStr) {
+      setErrorMessage("결제 정보가 올바르지 않습니다.");
+      setStatus("error");
+      return;
+    }
+
+    const amount = Number(amountStr);
+    const pending = (() => {
       try {
-        setOrder(JSON.parse(raw));
+        return JSON.parse(localStorage.getItem("pendingPayment") || "null") as PendingPayment | null;
       } catch {
-        // ignore
+        return null;
+      }
+    })();
+
+    if (!pending) {
+      setErrorMessage("주문 정보를 찾을 수 없습니다.");
+      setStatus("error");
+      return;
+    }
+
+    // 금액 검증
+    if (pending.totalPrice !== amount) {
+      setErrorMessage("결제 금액이 일치하지 않습니다.");
+      setStatus("error");
+      return;
+    }
+
+    // 서버 결제 승인
+    const confirmRes = await fetch("/api/payment/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentKey, orderId, amount }),
+    });
+
+    const confirmData = await confirmRes.json();
+
+    if (!confirmData.success) {
+      setErrorMessage(`결제 승인 실패: ${confirmData.message}`);
+      setStatus("error");
+      return;
+    }
+
+    // 구매 내역 Supabase 저장
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const purchaseRows = pending.items.map((item) => ({
+        user_id: session.user.id,
+        model_id: item.id,
+        price: item.price,
+      }));
+
+      const { error: dbError } = await supabase
+        .from("purchases")
+        .upsert(purchaseRows, { onConflict: "user_id,model_id", ignoreDuplicates: true });
+
+      if (dbError) {
+        console.error("구매 저장 실패:", dbError);
       }
     }
-  }, []);
+
+    // 완료 처리
+    localStorage.setItem(
+      "lastOrder",
+      JSON.stringify({ ...pending, paymentKey, orderedAt: new Date().toISOString() })
+    );
+    localStorage.removeItem("pendingPayment");
+    localStorage.removeItem("pendingOrder");
+    localStorage.removeItem("cart");
+    window.dispatchEvent(new Event("cart-updated"));
+
+    setOrder(pending);
+    setStatus("success");
+  };
+
+  if (status === "loading") {
+    return (
+      <main style={{ maxWidth: 600, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
+        <p style={{ color: "#6b7280", fontSize: 16 }}>결제를 승인하는 중...</p>
+      </main>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <main
+        style={{
+          maxWidth: 600,
+          margin: "80px auto",
+          padding: "0 20px",
+          fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        }}
+      >
+        <div
+          style={{
+            border: "1px solid #fecaca",
+            borderRadius: 24,
+            padding: 32,
+            background: "white",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 999,
+              background: "#fee2e2",
+              color: "#dc2626",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+              margin: "0 auto 18px",
+            }}
+          >
+            ✕
+          </div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#111827", marginBottom: 10 }}>
+            결제 오류
+          </h1>
+          <p style={{ color: "#6b7280", marginBottom: 24 }}>{errorMessage}</p>
+          <Link
+            href="/checkout"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 48,
+              padding: "0 24px",
+              borderRadius: 14,
+              background: "#111827",
+              color: "white",
+              textDecoration: "none",
+              fontWeight: 800,
+            }}
+          >
+            다시 시도하기
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main
@@ -95,11 +242,9 @@ export default function SuccessPage() {
             <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
               이메일: <strong style={{ color: "#111827" }}>{order.buyerEmail}</strong>
             </p>
-            {order.payMethod && (
-              <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
-                결제 수단: <strong style={{ color: "#111827" }}>{PAY_METHOD_LABEL[order.payMethod] ?? order.payMethod}</strong>
-              </p>
-            )}
+            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
+              결제 수단: <strong style={{ color: "#111827" }}>{PAY_METHOD_LABEL[order.payMethod] ?? order.payMethod}</strong>
+            </p>
             <p style={{ fontSize: 16, color: "#6b7280" }}>
               총 결제금액:{" "}
               <strong style={{ color: "#111827" }}>
@@ -130,7 +275,6 @@ export default function SuccessPage() {
             <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
               구매한 상품
             </h2>
-
             <div style={{ display: "grid", gap: 14 }}>
               {order.items.map((item) => (
                 <article
@@ -177,7 +321,6 @@ export default function SuccessPage() {
             <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
               다음 단계
             </h2>
-
             <div style={{ display: "grid", gap: 12 }}>
               <Link
                 href="/library"
@@ -198,7 +341,6 @@ export default function SuccessPage() {
               >
                 내 다운로드 보기
               </Link>
-
               <Link
                 href="/"
                 style={{
@@ -222,5 +364,13 @@ export default function SuccessPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }

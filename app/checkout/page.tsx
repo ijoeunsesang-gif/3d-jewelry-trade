@@ -3,9 +3,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import * as PortOne from "@portone/browser-sdk/v2";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { supabase } from "../lib/supabase";
-import { showError, showInfo, showSuccess } from "../lib/toast";
+import { showError, showInfo } from "../lib/toast";
 
 type OrderItem = {
   id: string;
@@ -16,86 +16,15 @@ type OrderItem = {
   downloadUrl?: string;
 };
 
-type PayMethod =
-  | "KAKAOPAY"
-  | "NAVERPAY"
-  | "TOSSPAY"
-  | "SAMSUNGPAY"
-  | "CARD"
-  | "TRANSFER";
+type PayMethod = "CARD" | "TRANSFER" | "TOSSPAY" | "KAKAOPAY" | "NAVERPAY";
 
 const PAY_METHODS: { id: PayMethod; label: string; icon: string }[] = [
-  { id: "KAKAOPAY", label: "카카오페이", icon: "💛" },
-  { id: "NAVERPAY", label: "네이버페이", icon: "🟢" },
-  { id: "TOSSPAY", label: "토스페이", icon: "🔵" },
-  { id: "SAMSUNGPAY", label: "삼성페이", icon: "🔷" },
   { id: "CARD", label: "신용/체크카드", icon: "💳" },
   { id: "TRANSFER", label: "계좌이체", icon: "🏦" },
+  { id: "TOSSPAY", label: "토스페이", icon: "🔵" },
+  { id: "KAKAOPAY", label: "카카오페이", icon: "💛" },
+  { id: "NAVERPAY", label: "네이버페이", icon: "🟢" },
 ];
-
-const CHANNEL_KEY_MAP: Record<PayMethod, string | undefined> = {
-  KAKAOPAY: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_KAKAOPAY,
-  NAVERPAY: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_NAVERPAY,
-  TOSSPAY: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_TOSSPAY,
-  SAMSUNGPAY: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_SAMSUNGPAY,
-  CARD: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_CARD,
-  TRANSFER: process.env.NEXT_PUBLIC_PORTONE_CHANNEL_KEY_TRANSFER,
-};
-
-const isChannelConfigured = (method: PayMethod) => {
-  const key = CHANNEL_KEY_MAP[method];
-  return !!key && !key.startsWith("channel-key-xxxxxxxx");
-};
-
-const isStoreConfigured = () => {
-  const id = process.env.NEXT_PUBLIC_PORTONE_STORE_ID ?? "";
-  return !!id && !id.startsWith("store-xxxxxxxx");
-};
-
-function buildPaymentRequest(
-  method: PayMethod,
-  paymentId: string,
-  totalPrice: number,
-  buyerName: string,
-  buyerEmail: string,
-  orderName: string
-) {
-  const storeId = process.env.NEXT_PUBLIC_PORTONE_STORE_ID ?? "";
-  const channelKey = CHANNEL_KEY_MAP[method] ?? "";
-
-  const base = {
-    storeId,
-    channelKey,
-    paymentId,
-    orderName,
-    totalAmount: totalPrice,
-    currency: "CURRENCY_KRW" as const,
-    customer: {
-      fullName: buyerName,
-      email: buyerEmail,
-    },
-  };
-
-  if (method === "CARD") {
-    return { ...base, payMethod: "CARD" as const };
-  }
-  if (method === "TRANSFER") {
-    return { ...base, payMethod: "TRANSFER" as const };
-  }
-
-  const easyPayProviderMap: Record<string, string> = {
-    KAKAOPAY: "EASY_PAY_PROVIDER_KAKAOPAY",
-    NAVERPAY: "EASY_PAY_PROVIDER_NAVERPAY",
-    TOSSPAY: "EASY_PAY_PROVIDER_TOSSPAY",
-    SAMSUNGPAY: "EASY_PAY_PROVIDER_SAMSUNGPAY",
-  };
-
-  return {
-    ...base,
-    payMethod: "EASY_PAY" as const,
-    easyPay: { easyPayProvider: easyPayProviderMap[method] },
-  };
-}
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -105,12 +34,7 @@ function CheckoutContent() {
   const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<PayMethod>(() => {
-    // 설정된 첫 번째 결제수단을 기본값으로
-    const first = (["KAKAOPAY", "CARD", "TOSSPAY", "NAVERPAY", "TRANSFER", "SAMSUNGPAY"] as PayMethod[])
-      .find(isChannelConfigured);
-    return first ?? "KAKAOPAY";
-  });
+  const [selectedMethod, setSelectedMethod] = useState<PayMethod>("CARD");
 
   useEffect(() => {
     bootstrap();
@@ -160,97 +84,51 @@ function CheckoutContent() {
     if (!agree) { showError("구매 동의가 필요합니다."); return; }
     if (items.length === 0) { showError("결제할 상품이 없습니다."); return; }
 
-    if (!isStoreConfigured()) {
-      showError(".env.local의 NEXT_PUBLIC_PORTONE_STORE_ID를 설정해주세요.");
+    const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
+    if (!clientKey) {
+      showError(".env.local의 NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY를 설정해주세요.");
       return;
     }
 
-    if (!isChannelConfigured(selectedMethod)) {
-      showError(`선택한 결제수단(${PAY_METHODS.find(m => m.id === selectedMethod)?.label})의 채널 키가 설정되지 않았습니다.`);
-      return;
-    }
-
-    const paymentId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const orderId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const orderName =
       items.length === 1
         ? items[0].title
         : `${items[0].title} 외 ${items.length - 1}개`;
 
-    setPaying(true);
-    try {
-      const paymentRequest = buildPaymentRequest(
-        selectedMethod,
-        paymentId,
-        totalPrice,
-        buyerName.trim(),
-        buyerEmail.trim(),
-        orderName
-      );
-
-      const response = await PortOne.requestPayment(paymentRequest as Parameters<typeof PortOne.requestPayment>[0]);
-
-      if (!response || response.code) {
-        if (response?.code !== "USER_CANCEL") {
-          showError(`결제에 실패했습니다. (${response?.message ?? "알 수 없는 오류"})`);
-        }
-        return;
-      }
-
-      // 서버 사이드 결제 검증
-      const verifyRes = await fetch("/api/payment/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId, expectedAmount: totalPrice }),
-      });
-
-      const verifyData = await verifyRes.json();
-
-      if (!verifyData.success) {
-        showError(`결제 검증 실패: ${verifyData.message}`);
-        return;
-      }
-
-      // 구매 내역 Supabase 저장
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const purchaseRows = items.map((item) => ({
-          user_id: session.user.id,
-          model_id: item.id,
-          price: item.price,
-        }));
-
-        const { error: dbError } = await supabase
-          .from("purchases")
-          .upsert(purchaseRows, { onConflict: "user_id,model_id", ignoreDuplicates: true });
-
-        if (dbError) {
-          console.error("구매 저장 실패:", dbError);
-          showError("구매 저장에 실패했습니다. 고객센터에 문의해주세요.");
-          return;
-        }
-      }
-
-      // 성공 처리
-      const order = {
+    // 결제 성공 후 success 페이지에서 사용할 주문 정보 저장
+    localStorage.setItem(
+      "pendingPayment",
+      JSON.stringify({
         items,
         totalPrice,
         buyerName: buyerName.trim(),
         buyerEmail: buyerEmail.trim(),
-        orderedAt: new Date().toISOString(),
-        paymentId,
+        orderId,
         payMethod: selectedMethod,
-      };
+      })
+    );
 
-      localStorage.setItem("lastOrder", JSON.stringify(order));
-      localStorage.removeItem("pendingOrder");
-      localStorage.removeItem("cart");
-      window.dispatchEvent(new Event("cart-updated"));
+    setPaying(true);
+    try {
+      const tossPayments = await loadTossPayments(clientKey);
+      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
 
-      showSuccess("결제가 완료되었습니다!");
-      window.location.href = "/success";
-    } catch (error) {
-      console.error("결제 처리 오류:", error);
-      showError("결제 처리 중 오류가 발생했습니다.");
+      await payment.requestPayment({
+        method: selectedMethod,
+        amount: { currency: "KRW", value: totalPrice },
+        orderId,
+        orderName,
+        successUrl: `${window.location.origin}/payment/success`,
+        failUrl: `${window.location.origin}/payment/fail`,
+        customerEmail: buyerEmail.trim(),
+        customerName: buyerName.trim(),
+      } as unknown as Parameters<typeof payment.requestPayment>[0]);
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      if (err?.code !== "USER_CANCEL") {
+        showError(`결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`);
+      }
     } finally {
       setPaying(false);
     }
@@ -335,36 +213,20 @@ function CheckoutContent() {
               <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
                 결제 수단
               </h2>
-              {!isStoreConfigured() && (
-                <div style={{
-                  marginBottom: 14,
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  background: "#fef3c7",
-                  border: "1px solid #fcd34d",
-                  fontSize: 13,
-                  color: "#92400e",
-                  lineHeight: 1.5,
-                }}>
-                  ⚠️ <strong>포트원 미설정</strong> — .env.local에 STORE_ID와 CHANNEL_KEY를 입력해야 실제 결제가 가능합니다.
-                </div>
-              )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                 {PAY_METHODS.map((m) => {
-                  const configured = isChannelConfigured(m.id);
                   const selected = selectedMethod === m.id;
                   return (
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => configured && setSelectedMethod(m.id)}
-                      title={!configured ? "채널 키 미설정 — .env.local 확인" : undefined}
+                      onClick={() => setSelectedMethod(m.id)}
                       style={{
                         height: 62,
                         borderRadius: 14,
                         border: selected ? "2px solid #111827" : "1px solid #e5e7eb",
-                        background: !configured ? "#f9fafb" : selected ? "#f9fafb" : "white",
-                        cursor: configured ? "pointer" : "not-allowed",
+                        background: selected ? "#f9fafb" : "white",
+                        cursor: "pointer",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
@@ -372,17 +234,12 @@ function CheckoutContent() {
                         gap: 4,
                         fontWeight: selected ? 900 : 700,
                         fontSize: 12,
-                        color: !configured ? "#d1d5db" : selected ? "#111827" : "#6b7280",
+                        color: selected ? "#111827" : "#6b7280",
                         transition: "all 0.15s",
-                        opacity: configured ? 1 : 0.5,
-                        position: "relative",
                       }}
                     >
                       <span style={{ fontSize: 20 }}>{m.icon}</span>
                       {m.label}
-                      {!configured && (
-                        <span style={{ fontSize: 9, color: "#9ca3af", position: "absolute", bottom: 5 }}>미설정</span>
-                      )}
                     </button>
                   );
                 })}
