@@ -1,9 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { supabase } from "../lib/supabase";
 import { showError, showInfo } from "../lib/toast";
 
@@ -16,34 +15,40 @@ type OrderItem = {
   downloadUrl?: string;
 };
 
-type PayMethod = "CARD" | "TRANSFER" | "TOSSPAY" | "KAKAOPAY" | "NAVERPAY";
-
-const PAY_METHODS: { id: PayMethod; label: string; icon: string }[] = [
-  { id: "CARD", label: "신용/체크카드", icon: "💳" },
-  { id: "TRANSFER", label: "계좌이체", icon: "🏦" },
-  { id: "TOSSPAY", label: "토스페이", icon: "🔵" },
-  { id: "KAKAOPAY", label: "카카오페이", icon: "💛" },
-  { id: "NAVERPAY", label: "네이버페이", icon: "🟢" },
-];
-
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const [items, setItems] = useState<OrderItem[]>([]);
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
-  const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<PayMethod>("CARD");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const widgetsRef = useRef<any>(null);
+  const widgetInitRef = useRef(false);
+
+  const totalPrice = useMemo(
+    () => items.reduce((sum, item) => sum + item.price, 0),
+    [items]
+  );
 
   useEffect(() => {
     bootstrap();
   }, []);
 
+  // 아이템 로드 완료 후 위젯 초기화
+  useEffect(() => {
+    if (!loading && items.length > 0 && !widgetInitRef.current) {
+      widgetInitRef.current = true;
+      initWidgets(items.reduce((sum, item) => sum + item.price, 0));
+    }
+  }, [loading, items]);
+
   const bootstrap = async () => {
     try {
       const mode = searchParams.get("mode");
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       if (!session?.user) {
         showInfo("로그인이 필요합니다.");
@@ -54,7 +59,9 @@ function CheckoutContent() {
       setBuyerEmail(session.user.email || "");
 
       if (mode === "direct") {
-        const pendingOrder = JSON.parse(localStorage.getItem("pendingOrder") || "null");
+        const pendingOrder = JSON.parse(
+          localStorage.getItem("pendingOrder") || "null"
+        );
         if (pendingOrder?.items?.length) {
           setItems(pendingOrder.items);
         } else {
@@ -73,30 +80,75 @@ function CheckoutContent() {
     }
   };
 
-  const totalPrice = useMemo(
-    () => items.reduce((sum, item) => sum + item.price, 0),
-    [items]
-  );
-
-  const handleCheckout = async () => {
-    if (!buyerName.trim()) { showInfo("이름을 입력해주세요."); return; }
-    if (!buyerEmail.trim()) { showInfo("이메일을 입력해주세요."); return; }
-    if (!agree) { showError("구매 동의가 필요합니다."); return; }
-    if (items.length === 0) { showError("결제할 상품이 없습니다."); return; }
-
+  const initWidgets = async (amount: number) => {
     const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
     if (!clientKey) {
-      showError(".env.local의 NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY를 설정해주세요.");
+      showError("결제 설정이 올바르지 않습니다.");
       return;
     }
 
-    const orderId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      // CDN 스크립트가 아직 로드되지 않은 경우에만 삽입
+      if (!(window as { TossPayments?: unknown }).TossPayments) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://js.tosspayments.com/v2/standard";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("TossPayments SDK 로드 실패"));
+          document.head.appendChild(script);
+        });
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tossPayments = (window as any).TossPayments(clientKey);
+      const widgets = tossPayments.widgets({ customerKey: "ANONYMOUS" });
+
+      await widgets.setAmount({ currency: "KRW", value: amount });
+
+      await Promise.all([
+        widgets.renderPaymentMethods({
+          selector: "#payment-method",
+          variantKey: "DEFAULT",
+        }),
+        widgets.renderAgreement({
+          selector: "#agreement",
+          variantKey: "AGREEMENT",
+        }),
+      ]);
+
+      widgetsRef.current = widgets;
+    } catch (error) {
+      console.error("결제 위젯 초기화 실패:", error);
+      showError("결제 위젯을 불러오는 데 실패했습니다. 페이지를 새로고침해주세요.");
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (!buyerName.trim()) {
+      showInfo("이름을 입력해주세요.");
+      return;
+    }
+    if (!buyerEmail.trim()) {
+      showInfo("이메일을 입력해주세요.");
+      return;
+    }
+    if (items.length === 0) {
+      showError("결제할 상품이 없습니다.");
+      return;
+    }
+    if (!widgetsRef.current) {
+      showError("결제 위젯이 준비 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    const orderId = `order-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
     const orderName =
       items.length === 1
         ? items[0].title
         : `${items[0].title} 외 ${items.length - 1}개`;
 
-    // 결제 성공 후 success 페이지에서 사용할 주문 정보 저장
     localStorage.setItem(
       "pendingPayment",
       JSON.stringify({
@@ -105,29 +157,25 @@ function CheckoutContent() {
         buyerName: buyerName.trim(),
         buyerEmail: buyerEmail.trim(),
         orderId,
-        payMethod: selectedMethod,
       })
     );
 
     setPaying(true);
     try {
-      const tossPayments = await loadTossPayments(clientKey);
-      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-
-      await payment.requestPayment({
-        method: selectedMethod,
-        amount: { currency: "KRW", value: totalPrice },
+      await widgetsRef.current.requestPayment({
         orderId,
         orderName,
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: buyerEmail.trim(),
         customerName: buyerName.trim(),
-      } as unknown as Parameters<typeof payment.requestPayment>[0]);
+      });
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "USER_CANCEL") {
-        showError(`결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`);
+        showError(
+          `결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`
+        );
       }
     } finally {
       setPaying(false);
@@ -136,7 +184,10 @@ function CheckoutContent() {
 
   if (loading) {
     return (
-      <main className="cart-checkout-main" style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}>
+      <main
+        className="cart-checkout-main"
+        style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}
+      >
         <p>결제 정보를 불러오는 중...</p>
       </main>
     );
@@ -149,22 +200,46 @@ function CheckoutContent() {
         maxWidth: 1100,
         margin: "40px auto",
         padding: "0 20px",
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        fontFamily:
+          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      <h1 style={{ fontSize: 34, fontWeight: 900, color: "#111827", marginBottom: 24 }}>
+      <h1
+        style={{
+          fontSize: 34,
+          fontWeight: 900,
+          color: "#111827",
+          marginBottom: 24,
+        }}
+      >
         결제하기
       </h1>
 
       {items.length === 0 ? (
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-          <p style={{ color: "#6b7280", marginBottom: 16 }}>결제할 상품이 없습니다.</p>
+        <div
+          style={{
+            border: "1px solid #e5e7eb",
+            borderRadius: 24,
+            padding: 32,
+            background: "white",
+          }}
+        >
+          <p style={{ color: "#6b7280", marginBottom: 16 }}>
+            결제할 상품이 없습니다.
+          </p>
           <Link
             href="/cart"
             style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              height: 48, padding: "0 18px", borderRadius: 14,
-              background: "#111827", color: "white", textDecoration: "none", fontWeight: 800,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 48,
+              padding: "0 18px",
+              borderRadius: 14,
+              background: "#111827",
+              color: "white",
+              textDecoration: "none",
+              fontWeight: 800,
             }}
           >
             장바구니로 이동
@@ -180,75 +255,98 @@ function CheckoutContent() {
             alignItems: "start",
           }}
         >
+          {/* 왼쪽: 구매자 정보 + 주문 상품 + 결제위젯 */}
           <section style={{ display: "grid", gap: 16 }}>
             {/* 구매자 정보 */}
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
-              <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 24,
+                padding: 24,
+                background: "white",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 22,
+                  fontWeight: 900,
+                  marginBottom: 18,
+                  color: "#111827",
+                }}
+              >
                 구매자 정보
               </h2>
               <div style={{ display: "grid", gap: 14 }}>
                 <div>
-                  <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>이름</label>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 6,
+                      fontWeight: 700,
+                    }}
+                  >
+                    이름
+                  </label>
                   <input
                     value={buyerName}
                     onChange={(e) => setBuyerName(e.target.value)}
                     placeholder="이름 입력"
-                    style={{ width: "100%", height: 48, borderRadius: 14, border: "1px solid #d1d5db", padding: "0 14px", fontSize: 15, boxSizing: "border-box" }}
+                    style={{
+                      width: "100%",
+                      height: 48,
+                      borderRadius: 14,
+                      border: "1px solid #d1d5db",
+                      padding: "0 14px",
+                      fontSize: 15,
+                      boxSizing: "border-box",
+                    }}
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>이메일</label>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 6,
+                      fontWeight: 700,
+                    }}
+                  >
+                    이메일
+                  </label>
                   <input
                     value={buyerEmail}
                     onChange={(e) => setBuyerEmail(e.target.value)}
                     placeholder="이메일 입력"
-                    style={{ width: "100%", height: 48, borderRadius: 14, border: "1px solid #d1d5db", padding: "0 14px", fontSize: 15, boxSizing: "border-box" }}
+                    style={{
+                      width: "100%",
+                      height: 48,
+                      borderRadius: 14,
+                      border: "1px solid #d1d5db",
+                      padding: "0 14px",
+                      fontSize: 15,
+                      boxSizing: "border-box",
+                    }}
                   />
                 </div>
               </div>
             </div>
 
-            {/* 결제 수단 */}
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
-              <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
-                결제 수단
-              </h2>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                {PAY_METHODS.map((m) => {
-                  const selected = selectedMethod === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => setSelectedMethod(m.id)}
-                      style={{
-                        height: 62,
-                        borderRadius: 14,
-                        border: selected ? "2px solid #111827" : "1px solid #e5e7eb",
-                        background: selected ? "#f9fafb" : "white",
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: 4,
-                        fontWeight: selected ? 900 : 700,
-                        fontSize: 12,
-                        color: selected ? "#111827" : "#6b7280",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      <span style={{ fontSize: 20 }}>{m.icon}</span>
-                      {m.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* 주문 상품 */}
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
-              <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 24,
+                padding: 24,
+                background: "white",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 22,
+                  fontWeight: 900,
+                  marginBottom: 18,
+                  color: "#111827",
+                }}
+              >
                 주문 상품
               </h2>
               <div style={{ display: "grid", gap: 14 }}>
@@ -268,24 +366,69 @@ function CheckoutContent() {
                     <img
                       src={item.thumbUrl}
                       alt={item.title}
-                      style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }}
+                      style={{
+                        width: 90,
+                        height: 70,
+                        objectFit: "cover",
+                        borderRadius: 12,
+                        border: "1px solid #e5e7eb",
+                      }}
                     />
                     <div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 4 }}>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 800,
+                          color: "#111827",
+                          marginBottom: 4,
+                        }}
+                      >
                         {item.title}
                       </div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>{item.category}</div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>
+                        {item.category}
+                      </div>
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>
+                    <div
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 900,
+                        color: "#111827",
+                      }}
+                    >
                       {item.price.toLocaleString("ko-KR")}원
                     </div>
                   </article>
                 ))}
               </div>
             </div>
+
+            {/* 토스페이먼츠 결제위젯 - 결제 수단 */}
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 24,
+                padding: 24,
+                background: "white",
+              }}
+            >
+              <div id="payment-method" />
+            </div>
+
+            {/* 토스페이먼츠 결제위젯 - 이용약관 동의 */}
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 24,
+                padding: 24,
+                background: "white",
+              }}
+            >
+              <div id="agreement" />
+            </div>
           </section>
 
-          {/* 결제 요약 */}
+          {/* 오른쪽: 결제 요약 + 결제 버튼 */}
           <aside
             style={{
               border: "1px solid #e5e7eb",
@@ -296,18 +439,28 @@ function CheckoutContent() {
               top: 24,
             }}
           >
-            <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
+            <h2
+              style={{
+                fontSize: 24,
+                fontWeight: 900,
+                marginBottom: 18,
+                color: "#111827",
+              }}
+            >
               결제 요약
             </h2>
 
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 10,
+                fontSize: 15,
+                color: "#6b7280",
+              }}
+            >
               <span>상품 수</span>
               <span>{items.length}개</span>
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 15, color: "#6b7280" }}>
-              <span>결제 수단</span>
-              <span>{PAY_METHODS.find((m) => m.id === selectedMethod)?.label}</span>
             </div>
 
             <div
@@ -326,27 +479,6 @@ function CheckoutContent() {
               <span>총 결제금액</span>
               <span>{totalPrice.toLocaleString("ko-KR")}원</span>
             </div>
-
-            <label
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "flex-start",
-                marginBottom: 18,
-                fontSize: 13,
-                color: "#4b5563",
-                lineHeight: 1.5,
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={agree}
-                onChange={(e) => setAgree(e.target.checked)}
-                style={{ marginTop: 3 }}
-              />
-              디지털 상품 특성상 결제 후 단순 변심에 의한 환불이 제한될 수 있음에 동의합니다.
-            </label>
 
             <button
               onClick={handleCheckout}
@@ -395,7 +527,19 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>}>
+    <Suspense
+      fallback={
+        <main
+          style={{
+            padding: "60px 20px",
+            textAlign: "center",
+            color: "#6b7280",
+          }}
+        >
+          불러오는 중...
+        </main>
+      }
+    >
       <CheckoutContent />
     </Suspense>
   );

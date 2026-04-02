@@ -19,15 +19,7 @@ type PendingPayment = {
   buyerName: string;
   buyerEmail: string;
   orderId: string;
-  payMethod: string;
-};
-
-const PAY_METHOD_LABEL: Record<string, string> = {
-  CARD: "신용/체크카드",
-  TRANSFER: "계좌이체",
-  TOSSPAY: "토스페이",
-  KAKAOPAY: "카카오페이",
-  NAVERPAY: "네이버페이",
+  payMethod?: string;
 };
 
 type Status = "loading" | "success" | "error";
@@ -241,9 +233,6 @@ function PaymentSuccessContent() {
             </p>
             <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
               이메일: <strong style={{ color: "#111827" }}>{order.buyerEmail}</strong>
-            </p>
-            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
-              결제 수단: <strong style={{ color: "#111827" }}>{PAY_METHOD_LABEL[order.payMethod] ?? order.payMethod}</strong>
             </p>
             <p style={{ fontSize: 16, color: "#6b7280" }}>
               총 결제금액:{" "}
