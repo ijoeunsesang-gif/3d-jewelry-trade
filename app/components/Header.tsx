@@ -90,9 +90,9 @@ export default function Header() {
   };
 
   const checkUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    setUserEmail(user?.email || "");
+    const { data: { user } } = await supabase.auth.getUser();
+    // 카카오는 이메일 미제공 → id 존재 여부로 로그인 판단
+    setUserEmail(user?.email || (user?.id ? "kakao_user" : ""));
     if (user?.id) {
       const { data: profile } = await supabase
         .from("profiles").select("avatar_url, nickname").eq("id", user.id).maybeSingle();
