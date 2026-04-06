@@ -32,6 +32,7 @@ function OAuthCallbackClient() {
             user.user_metadata?.name ||
             user.email?.split("@")[0] ||
             "user",
+          email: user.email ?? null,
           avatar_url: user.user_metadata?.avatar_url ?? null,
         });
         if (profileError) {
