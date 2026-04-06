@@ -32,6 +32,19 @@ export default function Header() {
   useEffect(() => {
     initHeader();
 
+    // 로그인/로그아웃 시 헤더 실시간 갱신
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          await checkUser();
+        } else if (event === "SIGNED_OUT") {
+          setUserEmail("");
+          setNickname("");
+          setAvatarUrl("");
+        }
+      }
+    );
+
     const onStorage = () => updateCartCount();
     const onCartUpdated = () => updateCartCount();
     const onFavoritesUpdated = () => fetchFavoriteCount();
@@ -56,6 +69,7 @@ export default function Header() {
     document.addEventListener("mousedown", onDocClick);
 
     return () => {
+      authSubscription.unsubscribe();
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("cart-updated", onCartUpdated);
       window.removeEventListener("favorites-updated", onFavoritesUpdated);
