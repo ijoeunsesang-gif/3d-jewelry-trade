@@ -57,8 +57,8 @@ const hybridStorage = {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    flowType: "pkce",
-    detectSessionInUrl: false, // client 페이지에서 명시적으로 exchangeCodeForSession 호출 → 자동 exchange 비활성화
+    flowType: "implicit",
+    detectSessionInUrl: true, // implicit flow: URL hash의 access_token을 자동으로 파싱해서 세션 저장
     storage: typeof window !== "undefined" ? hybridStorage : undefined,
   },
 });

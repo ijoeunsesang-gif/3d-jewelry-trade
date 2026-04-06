@@ -96,18 +96,13 @@ export default function AuthPage() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        redirectTo: "https://fvhotaxjdacfulxjahon.supabase.co/auth/v1/callback",
+        scopes: "profile_nickname",
+        queryParams: {
+          scope: "profile_nickname",
+        },
       },
     });
-    if (error) {
-      showError(translateAuthError(error.message));
-      return;
-    }
-    if (data?.url) {
-      window.location.href = data.url;
-    } else {
-      showError("소셜 로그인 URL을 가져오지 못했습니다. 다시 시도해주세요.");
-    }
+    if (error) showError(translateAuthError(error.message));
   };
 
   const handleGoogleLogin = async () => {
