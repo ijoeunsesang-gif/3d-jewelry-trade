@@ -117,7 +117,7 @@ export default function LibraryPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: 0 }}>내 다운로드</h1>
-              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매한 3D 모델을 안전하게 다시 다운로드할 수 있습니다.</p>
+              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매한 3D 모델을 기간 제한없이 안전하게 다시 다운로드할 수 있습니다.</p>
             </div>
             <div style={{ padding: "8px 14px", borderRadius: 999, background: "#f3f4f6", color: "#111827", fontWeight: 800, fontSize: 13 }}>총 {items.length}개</div>
           </div>
