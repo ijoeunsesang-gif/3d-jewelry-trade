@@ -100,6 +100,7 @@ export default function AuthPage() {
         queryParams: {
           scope: "profile_nickname",
         },
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
     if (error) showError(translateAuthError(error.message));
