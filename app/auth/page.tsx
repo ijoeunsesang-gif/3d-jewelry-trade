@@ -92,6 +92,24 @@ export default function AuthPage() {
     }
   };
 
+  const handleKakaoLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: {
+        redirectTo: "https://fvhotaxjdacfulxjahon.supabase.co/auth/v1/callback",
+      },
+    });
+    if (error) {
+      showError(translateAuthError(error.message));
+      return;
+    }
+    if (data?.url) {
+      window.location.href = data.url;
+    } else {
+      showError("소셜 로그인 URL을 가져오지 못했습니다. 다시 시도해주세요.");
+    }
+  };
+
   const handleGoogleLogin = async () => {
     console.log("[OAuth] Starting Google login...", {
       origin: window.location.origin,
@@ -309,6 +327,34 @@ export default function AuthPage() {
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
             </svg>
             Google로 {mode === "login" ? "로그인" : "가입"}
+          </button>
+
+          {/* 카카오 소셜 로그인 */}
+          <button
+            onClick={handleKakaoLogin}
+            style={{
+              height: 52,
+              borderRadius: 16,
+              border: "none",
+              background: "#FEE500",
+              color: "#3C1E1E",
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            {/* 카카오 로고 SVG */}
+            <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                fill="#3C1E1E"
+                d="M12 3C6.477 3 2 6.477 2 10.8c0 2.7 1.7 5.08 4.27 6.48l-1.09 3.98c-.1.37.31.67.63.46L10.5 19.1A11.2 11.2 0 0 0 12 19.2c5.523 0 10-3.477 10-7.8S17.523 3 12 3Z"
+              />
+            </svg>
+            카카오로 {mode === "login" ? "로그인" : "가입"}
           </button>
 
           <button
