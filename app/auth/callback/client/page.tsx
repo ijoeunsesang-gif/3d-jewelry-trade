@@ -57,9 +57,11 @@ function OAuthCallbackClient() {
       });
     } else {
       // implicit flow (카카오 등): onAuthStateChange로 세션 수신 대기
+      let handled = false;
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          if (session) {
+          if (session && !handled) {
+            handled = true;
             await handleSession(session);
             subscription.unsubscribe();
           }
