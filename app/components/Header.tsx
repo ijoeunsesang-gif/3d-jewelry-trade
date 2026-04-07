@@ -20,6 +20,7 @@ export default function Header() {
   const [messageCount, setMessageCount] = useState(0);
   const [myOpen, setMyOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
@@ -48,6 +49,7 @@ export default function Header() {
           setUserEmail("");
           setNickname("");
           setAvatarUrl("");
+          setIsLoading(false);
         }
       }
     );
@@ -109,6 +111,7 @@ export default function Header() {
       setAvatarUrl("");
       setNickname("");
     }
+    setIsLoading(false);
   };
 
   const updateCartCount = () => {
@@ -293,7 +296,9 @@ export default function Header() {
 
               <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
 
-              {userEmail ? (
+              {isLoading ? (
+                <div style={{ width: 72, height: 36, borderRadius: 8, background: "#f3f4f6" }} />
+              ) : userEmail ? (
                 <div
                   ref={desktopMyRef}
                   style={{ position: "relative" }}
@@ -364,7 +369,9 @@ export default function Header() {
               </Link>
 
               {/* MY 버튼 또는 로그인 */}
-              {userEmail ? (
+              {isLoading ? (
+                <div style={{ width: 60, height: 34, borderRadius: 8, background: "#f3f4f6", margin: "0 4px" }} />
+              ) : userEmail ? (
                 <div ref={mobileMyRef} style={{
                   position: "relative", display: "flex", alignItems: "center",
                 }}>
