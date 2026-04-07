@@ -41,7 +41,8 @@ function OAuthCallbackClient() {
       }
 
       showSuccess("로그인되었습니다.");
-      setTimeout(() => { window.location.href = next; }, 1500);
+      await supabase.auth.getSession();
+      setTimeout(() => { window.location.href = next; }, 500);
     };
 
     if (code) {
