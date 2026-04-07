@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase";
@@ -29,89 +29,100 @@ function PaymentSuccessContent() {
   const [status, setStatus] = useState<Status>("loading");
   const [order, setOrder] = useState<PendingPayment | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     confirmPayment();
   }, []);
 
   const confirmPayment = async () => {
-    const paymentKey = searchParams.get("paymentKey");
-    const orderId = searchParams.get("orderId");
-    const amountStr = searchParams.get("amount");
+    try {
+      const paymentKey = searchParams.get("paymentKey");
+      const orderId = searchParams.get("orderId");
+      const amountStr = searchParams.get("amount");
 
-    if (!paymentKey || !orderId || !amountStr) {
-      setErrorMessage("결제 정보가 올바르지 않습니다.");
-      setStatus("error");
-      return;
-    }
-
-    const amount = Number(amountStr);
-    const pending = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("pendingPayment") || "null") as PendingPayment | null;
-      } catch {
-        return null;
+      if (!paymentKey || !orderId || !amountStr) {
+        setErrorMessage("결제 정보가 올바르지 않습니다.");
+        setStatus("error");
+        return;
       }
-    })();
 
-    if (!pending) {
-      setErrorMessage("주문 정보를 찾을 수 없습니다.");
-      setStatus("error");
-      return;
-    }
+      const amount = Number(amountStr);
+      const pending = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("pendingPayment") || "null") as PendingPayment | null;
+        } catch {
+          return null;
+        }
+      })();
 
-    // 금액 검증
-    if (pending.totalPrice !== amount) {
-      setErrorMessage("결제 금액이 일치하지 않습니다.");
-      setStatus("error");
-      return;
-    }
-
-    // 서버 결제 승인
-    const confirmRes = await fetch("/api/payment/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paymentKey, orderId, amount }),
-    });
-
-    const confirmData = await confirmRes.json();
-
-    if (!confirmData.success) {
-      setErrorMessage(`결제 승인 실패: ${confirmData.message}`);
-      setStatus("error");
-      return;
-    }
-
-    // 구매 내역 Supabase 저장
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const purchaseRows = pending.items.map((item) => ({
-        user_id: session.user.id,
-        model_id: item.id,
-        price: item.price,
-      }));
-
-      const { error: dbError } = await supabase
-        .from("purchases")
-        .upsert(purchaseRows, { onConflict: "user_id,model_id", ignoreDuplicates: true });
-
-      if (dbError) {
-        console.error("구매 저장 실패:", dbError);
+      if (!pending) {
+        setErrorMessage("주문 정보를 찾을 수 없습니다.");
+        setStatus("error");
+        return;
       }
+
+      // 금액 검증
+      if (pending.totalPrice !== amount) {
+        setErrorMessage("결제 금액이 일치하지 않습니다.");
+        setStatus("error");
+        return;
+      }
+
+      // Supabase 세션을 먼저 확보해 락 경합 방지
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // 서버 결제 승인
+      const confirmRes = await fetch("/api/payment/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentKey, orderId, amount }),
+      });
+
+      const confirmData = await confirmRes.json();
+
+      if (!confirmData.success) {
+        setErrorMessage(`결제 승인 실패: ${confirmData.message}`);
+        setStatus("error");
+        return;
+      }
+
+      // 구매 내역 Supabase 저장
+      if (session?.user) {
+        const purchaseRows = pending.items.map((item) => ({
+          user_id: session.user.id,
+          model_id: item.id,
+          price: item.price,
+        }));
+
+        const { error: dbError } = await supabase
+          .from("purchases")
+          .upsert(purchaseRows, { onConflict: "user_id,model_id", ignoreDuplicates: true });
+
+        if (dbError) {
+          console.error("구매 저장 실패:", dbError);
+        }
+      }
+
+      // 완료 처리
+      localStorage.setItem(
+        "lastOrder",
+        JSON.stringify({ ...pending, paymentKey, orderedAt: new Date().toISOString() })
+      );
+      localStorage.removeItem("pendingPayment");
+      localStorage.removeItem("pendingOrder");
+      localStorage.removeItem("cart");
+      window.dispatchEvent(new Event("cart-updated"));
+
+      setOrder(pending);
+      setStatus("success");
+    } catch (err) {
+      console.error("결제 승인 중 오류:", err);
+      setErrorMessage("결제 처리 중 오류가 발생했습니다. 고객센터에 문의해주세요.");
+      setStatus("error");
     }
-
-    // 완료 처리
-    localStorage.setItem(
-      "lastOrder",
-      JSON.stringify({ ...pending, paymentKey, orderedAt: new Date().toISOString() })
-    );
-    localStorage.removeItem("pendingPayment");
-    localStorage.removeItem("pendingOrder");
-    localStorage.removeItem("cart");
-    window.dispatchEvent(new Event("cart-updated"));
-
-    setOrder(pending);
-    setStatus("success");
   };
 
   if (status === "loading") {
