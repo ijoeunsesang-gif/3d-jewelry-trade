@@ -63,7 +63,23 @@ function OAuthCallbackClient() {
       let timeout: ReturnType<typeof setTimeout> | null = null;
 
       const startImplicitFlow = async () => {
-        // 마운트 전에 이미 세션이 파싱된 경우 먼저 확인
+        // 1. URL hash에서 access_token 직접 파싱 (카카오 implicit flow)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const access_token = hashParams.get("access_token");
+        const refresh_token = hashParams.get("refresh_token") || "";
+
+        if (access_token) {
+          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+          if (!error) {
+            handled = true;
+            const { data: { session } } = await supabase.auth.getSession();
+            await handleSession(session!);
+            return;
+          }
+          console.error("[OAuth] setSession failed");
+        }
+
+        // 2. hash 없으면 이미 파싱된 세션 확인
         const { data: { session: existingSession } } = await supabase.auth.getSession();
         if (existingSession && !handled) {
           handled = true;
@@ -71,7 +87,7 @@ function OAuthCallbackClient() {
           return;
         }
 
-        // 아직 세션 없으면 onAuthStateChange로 대기
+        // 3. 아직 세션 없으면 onAuthStateChange로 대기
         const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (session && !handled) {
