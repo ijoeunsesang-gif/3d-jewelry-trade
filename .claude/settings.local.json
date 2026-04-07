@@ -23,7 +23,9 @@
       "Bash(find E:3d-jewelry-tradenode_modulesnextdist -type f -name *.d.ts -path *middleware*)",
       "Bash(xargs grep:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npm search:*)"
+      "Bash(npm search:*)",
+      "Bash(ls E:/3d-jewelry-trade/*.ts)",
+      "Bash(ls E:/3d-jewelry-trade/middleware*)"
     ]
   }
 }
