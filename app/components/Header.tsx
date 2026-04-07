@@ -29,6 +29,13 @@ export default function Header() {
     setMyOpen(false);
   }, [pathname]);
 
+  // OAuth 리다이렉트 후 세션이 이미 존재하는 경우를 위한 초기 세션 확인
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) checkUser();
+    });
+  }, []);
+
   useEffect(() => {
     initHeader();
 
