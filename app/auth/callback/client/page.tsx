@@ -57,27 +57,45 @@ function OAuthCallbackClient() {
         await handleSession(data.session);
       });
     } else {
-      // implicit flow (카카오 등): onAuthStateChange로 세션 수신 대기
+      // implicit flow (카카오 등): URL hash에서 세션 파싱
       let handled = false;
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (session && !handled) {
-            handled = true;
-            await handleSession(session);
-            subscription.unsubscribe();
-          }
-        }
-      );
+      let subscription: { unsubscribe: () => void } | null = null;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
 
-      // 10초 후에도 세션 없으면 로그인 페이지로
-      const timeout = setTimeout(() => {
-        subscription.unsubscribe();
-        router.push("/auth");
-      }, 10000);
+      const startImplicitFlow = async () => {
+        // 마운트 전에 이미 세션이 파싱된 경우 먼저 확인
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        if (existingSession && !handled) {
+          handled = true;
+          await handleSession(existingSession);
+          return;
+        }
+
+        // 아직 세션 없으면 onAuthStateChange로 대기
+        const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (session && !handled) {
+              handled = true;
+              await handleSession(session);
+              sub.unsubscribe();
+            }
+          }
+        );
+        subscription = sub;
+
+        // 10초 후에도 세션 없으면 로그인 페이지로
+        timeout = setTimeout(() => {
+          sub.unsubscribe();
+          router.push("/auth");
+        }, 10000);
+      };
+
+      startImplicitFlow();
 
       return () => {
-        subscription.unsubscribe();
-        clearTimeout(timeout);
+        handled = true;
+        subscription?.unsubscribe();
+        if (timeout) clearTimeout(timeout);
       };
     }
   }, [searchParams]);
