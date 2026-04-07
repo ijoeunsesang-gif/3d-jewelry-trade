@@ -21,7 +21,7 @@ const ITEMS_PER_PAGE = 20;
 export default function Home() {
   const [search, setSearch] = useState("");
   const [models, setModels] = useState<ModelItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [sortBy, setSortBy] = useState<SortType>("latest");

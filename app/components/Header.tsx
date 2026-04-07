@@ -20,7 +20,7 @@ export default function Header() {
   const [messageCount, setMessageCount] = useState(0);
   const [myOpen, setMyOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
@@ -99,19 +99,22 @@ export default function Header() {
   };
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    // 카카오는 이메일 미제공 → id 존재 여부로 로그인 판단
-    setUserEmail(user?.email || (user?.id ? "kakao_user" : ""));
-    if (user?.id) {
-      const { data: profile } = await supabase
-        .from("profiles").select("avatar_url, nickname").eq("id", user.id).maybeSingle();
-      setAvatarUrl(profile?.avatar_url || "");
-      setNickname(profile?.nickname || "");
-    } else {
-      setAvatarUrl("");
-      setNickname("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      // 카카오는 이메일 미제공 → id 존재 여부로 로그인 판단
+      setUserEmail(user?.email || (user?.id ? "kakao_user" : ""));
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles").select("avatar_url, nickname").eq("id", user.id).maybeSingle();
+        setAvatarUrl(profile?.avatar_url || "");
+        setNickname(profile?.nickname || "");
+      } else {
+        setAvatarUrl("");
+        setNickname("");
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const updateCartCount = () => {
