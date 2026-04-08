@@ -298,7 +298,7 @@ function SendToPrinterContent() {
       showSuccess(
         `${printerLabel}\n로 파일을 전송했습니다.`,
         5000,
-        { whiteSpace: "pre-line", textAlign: "right" }
+        { whiteSpace: "pre-line", textAlign: "left" }
       );
       if (data.oversizedFiles?.length > 0) {
         showInfo(`${data.oversizedFiles.length}개 파일은 40MB 초과로 링크로 전송됐습니다.`);

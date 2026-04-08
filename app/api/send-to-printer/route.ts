@@ -213,7 +213,7 @@ export async function POST(req: NextRequest) {
       html: `
         <div style="font-family: system-ui, sans-serif; max-width: 580px; margin: 0 auto; padding: 32px 24px; color: #111827;">
           <h2 style="font-size: 22px; font-weight: 900; margin: 0 0 6px;">3D 출력 파일 전달</h2>
-          <p style="color: #6b7280; margin: 0 0 24px; font-size: 14px;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
+          <p style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
 
           <table style="width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
             ${infoHtml}
