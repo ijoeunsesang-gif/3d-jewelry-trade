@@ -58,6 +58,11 @@ body {
   .hide-mobile { display: none !important; }
 }
 
+/* ── PWA 설치 버튼 (모바일 숨김) ── */
+@media (max-width: 768px) {
+  .pwa-install-btn { display: none !important; }
+}
+
 /* ── 헤더 네비 hover ── */
 .header-nav-item:hover {
   background: #fdf6e3 !important;

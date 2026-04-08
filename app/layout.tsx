@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import PwaInstallPrompt from "@/app/components/PwaInstallPrompt";
+import PwaInstallButton from "@/app/components/PwaInstallButton";
 import { Toaster } from "react-hot-toast";
 
 export const viewport: Viewport = {
@@ -41,6 +42,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <PwaInstallPrompt />
+        <PwaInstallButton />
         <Toaster
           position="top-center"
           containerStyle={{ top: 80 }}
