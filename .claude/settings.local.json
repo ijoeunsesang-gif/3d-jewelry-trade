@@ -25,7 +25,20 @@
       "Bash(npm uninstall:*)",
       "Bash(npm search:*)",
       "Bash(ls E:/3d-jewelry-trade/*.ts)",
-      "Bash(ls E:/3d-jewelry-trade/middleware*)"
+      "Bash(ls E:/3d-jewelry-trade/middleware*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(where python:*)",
+      "Bash(where python3:*)",
+      "Bash(py --version)",
+      "Bash(/c/Users/JJ/AppData/Local/Microsoft/WindowsApps/python.exe:*)",
+      "Read(//c/Users/JJ/AppData/Local/Programs/**)",
+      "Bash(ls /c/Python*)",
+      "Read(//c/Users/JJ/miniconda3/**)",
+      "Read(//c/Users/JJ/anaconda3/**)",
+      "Bash(node -e \"require\\('sharp'\\); console.log\\('sharp OK'\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(curl:*)"
     ]
   }
 }
