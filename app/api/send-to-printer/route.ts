@@ -167,33 +167,37 @@ export async function POST(req: NextRequest) {
 
     const infoHtml = infoRows.map((r) => `
       <tr>
-        <td style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: #f8fafc; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.label}</td>
-        <td style="padding: 8px 14px; font-size: 13px; color: #111827; font-weight: 800; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.value}</td>
+        <td align="left" style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: #f8fafc; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.label}</td>
+        <td align="left" style="padding: 8px 14px; font-size: 13px; color: #111827; font-weight: 800; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.value}</td>
       </tr>`).join("");
 
     const attachedListHtml = emailAttachments.length > 0
-      ? `<div style="margin-bottom: 24px;">
-          <div style="font-size: 13px; font-weight: 800; color: #374151; margin-bottom: 10px;">첨부파일 (${emailAttachments.length}개)</div>
+      ? `<table align="left" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+          <tr><td align="left" style="text-align: left; font-size: 13px; font-weight: 800; color: #374151; padding-bottom: 10px;">첨부파일 (${emailAttachments.length}개)</td></tr>
           ${emailAttachments.map((f) => `
-            <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e5e7eb; margin-bottom: 6px;">
-              <span style="font-size: 11px; font-weight: 900; padding: 2px 6px; border-radius: 4px; background: ${f.isMain ? "#111827" : "#4f46e5"}; color: white;">${f.isMain ? "대표" : "추가"}</span>
-              <span style="font-size: 13px; color: #374151; font-weight: 700;">${f.filename}</span>
-            </div>`).join("")}
-        </div>`
+          <tr><td align="left" style="text-align: left; padding-bottom: 6px;">
+            <table cellpadding="0" cellspacing="0" style="border-radius: 8px; background: #f8fafc; border: 1px solid #e5e7eb;">
+              <tr>
+                <td align="left" style="text-align: left; padding: 8px 12px; font-size: 13px; color: #374151; font-weight: 700;">
+                  <span style="font-size: 11px; font-weight: 900; padding: 2px 6px; border-radius: 4px; background: ${f.isMain ? "#111827" : "#4f46e5"}; color: white; margin-right: 8px;">${f.isMain ? "대표" : "추가"}</span>${f.filename}
+                </td>
+              </tr>
+            </table>
+          </td></tr>`).join("")}
+        </table>`
       : "";
 
     const linkFilesHtml = linkFiles.length > 0
-      ? `<div style="margin-bottom: 24px;">
-          <div style="font-size: 13px; font-weight: 800; color: #374151; margin-bottom: 4px;">링크 파일 (${linkFiles.length}개 · 24시간 유효)</div>
-          <div style="font-size: 12px; color: #ef4444; margin-bottom: 10px;">※ 파일 크기 초과로 링크로 전달됩니다.</div>
+      ? `<table align="left" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+          <tr><td align="left" style="text-align: left; font-size: 13px; font-weight: 800; color: #374151; padding-bottom: 4px;">링크 파일 (${linkFiles.length}개 · 24시간 유효)</td></tr>
+          <tr><td align="left" style="text-align: left; font-size: 12px; color: #ef4444; padding-bottom: 10px;">※ 파일 크기 초과로 링크로 전달됩니다.</td></tr>
           ${linkFiles.map((f) => `
-            <div style="margin-bottom: 8px;">
-              <a href="${f.url}" style="display: inline-flex; align-items: center; gap: 8px; background: ${f.isMain ? "#111827" : "#4f46e5"}; color: white; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 18px; border-radius: 10px;">
-                <span style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">${f.isMain ? "대표" : "추가"}</span>
-                ${f.name}
-              </a>
-            </div>`).join("")}
-        </div>`
+          <tr><td align="left" style="text-align: left; padding-bottom: 8px;">
+            <a href="${f.url}" style="display: inline-block; background: ${f.isMain ? "#111827" : "#4f46e5"}; color: white; text-decoration: none; font-weight: 700; font-size: 13px; padding: 10px 18px; border-radius: 10px;">
+              <span style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; margin-right: 8px;">${f.isMain ? "대표" : "추가"}</span>${f.name}
+            </a>
+          </td></tr>`).join("")}
+        </table>`
       : "";
 
     const fromAddress = process.env.RESEND_FROM_EMAIL;
@@ -211,19 +215,23 @@ export async function POST(req: NextRequest) {
       subject: `<${businessName}> 출력부탁드려요`,
       attachments: emailAttachments.map((f) => ({ filename: f.filename, content: f.content })),
       html: `
-        <div style="font-family: system-ui, sans-serif; max-width: 580px; margin: 0 auto; padding: 32px 24px; color: #111827; text-align: left;">
-          <h2 style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">3D 출력 파일 전달</h2>
-          <p style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
+        <table align="left" width="100%" cellpadding="0" cellspacing="0" style="font-family: system-ui, sans-serif; background: #ffffff;">
+          <tr>
+            <td align="left" style="text-align: left; padding: 32px 24px; color: #111827; max-width: 580px;">
+              <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">3D 출력 파일 전달</h2>
+              <p align="left" style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
 
-          <table style="width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
-            ${infoHtml}
-          </table>
+              <table align="left" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
+                ${infoHtml}
+              </table>
 
-          ${attachedListHtml}
-          ${linkFilesHtml}
+              ${attachedListHtml}
+              ${linkFilesHtml}
 
-          <p style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D Jewelry Trade 플랫폼에서 자동 발송되었습니다.</p>
-        </div>
+              <p align="left" style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D Jewelry Trade 플랫폼에서 자동 발송되었습니다.</p>
+            </td>
+          </tr>
+        </table>
       `,
     });
 
