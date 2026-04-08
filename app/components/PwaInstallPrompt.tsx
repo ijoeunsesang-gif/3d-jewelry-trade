@@ -93,9 +93,13 @@ export default function PwaInstallPrompt() {
             <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 2px" }}>
               아이폰
             </p>
-            <p style={{ fontSize: 13, color: "#374151", margin: 0 }}>
-              하단 공유버튼(□↑) →{" "}
-              <strong style={{ color: "#111827" }}>"홈 화면에 추가"</strong>
+            <p style={{ fontSize: 13, color: "#374151", margin: 0, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+              하단
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 50 50" fill="#007AFF" style={{ display: "inline", verticalAlign: "middle", flexShrink: 0 }}>
+                <path d="M25 2 L16 11 h6 v20 h6 V11 h6 Z"/>
+                <path d="M10 20 v22 h30 V20 H34 v4 h2 v14 H14 V24 h2 v-4 Z"/>
+              </svg>
+              버튼 → <strong style={{ color: "#111827" }}>"홈 화면에 추가"</strong>
             </p>
           </div>
         </div>
