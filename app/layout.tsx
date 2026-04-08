@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
+import PwaInstallPrompt from "@/app/components/PwaInstallPrompt";
 import { Toaster } from "react-hot-toast";
 
 export const viewport: Viewport = {
@@ -39,6 +40,7 @@ export default function RootLayout({
         <Header />
         {children}
         <Footer />
+        <PwaInstallPrompt />
         <Toaster
           position="top-center"
           containerStyle={{ top: 80 }}
