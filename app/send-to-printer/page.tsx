@@ -291,7 +291,15 @@ function SendToPrinterContent() {
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "전송에 실패했습니다."); return; }
-      showSuccess(`${printerEmail.trim()}으로 파일을 전송했습니다.`);
+      const printerName = printers.find((p) => p.id === selectedPrinterId)?.name;
+      const printerLabel = printerName
+        ? `${printerName} (${printerEmail.trim()})`
+        : printerEmail.trim();
+      showSuccess(
+        `${printerLabel}\n로 파일을 전송했습니다.`,
+        5000,
+        { whiteSpace: "pre-line", textAlign: "right" }
+      );
       if (data.oversizedFiles?.length > 0) {
         showInfo(`${data.oversizedFiles.length}개 파일은 40MB 초과로 링크로 전송됐습니다.`);
       }
@@ -499,7 +507,7 @@ function SendToPrinterContent() {
                   {templateFormMode === "edit" ? "템플릿 편집" : "새 템플릿 추가"}
                 </div>
                 <input value={tplFormName} onChange={(e) => setTplFormName(e.target.value)} placeholder="템플릿 이름" style={{ ...inputStyle, marginBottom: 8 }} />
-                <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호명 (출력소명)" style={{ ...inputStyle, marginBottom: 8 }} />
+                <input value={tplFormBusinessName} onChange={(e) => setTplFormBusinessName(e.target.value)} placeholder="상호명 (성함)" style={{ ...inputStyle, marginBottom: 8 }} />
                 <input value={tplFormPhoneNumber}
                   onChange={(e) => { const f = formatPhone(e.target.value); setTplFormPhoneNumber(f); if (tplPhoneError && isValidPhone(f)) setTplPhoneError(false); }}
                   onBlur={() => { if (tplFormPhoneNumber && !isValidPhone(tplFormPhoneNumber)) setTplPhoneError(true); }}

@@ -56,7 +56,7 @@ function MyInfoEditContent() {
   const [notes, setNotes] = useState("");
 
   const handleSave = () => {
-    if (!businessName.trim()) { showError("상호명(출력소명)을 입력해주세요."); return; }
+    if (!businessName.trim()) { showError("상호명(성함)을 입력해주세요."); return; }
     if (!phone.trim()) { showError("연락처를 입력해주세요."); return; }
     if (!isValidPhone(phone)) { setPhoneError(true); showError("올바른 전화번호를 입력해주세요."); return; }
 
@@ -130,7 +130,7 @@ function MyInfoEditContent() {
         </p>
 
         <div style={{ marginBottom: 18 }}>
-          <label style={labelStyle}>상호명 (출력소명) <span style={{ color: "#ef4444" }}>*</span></label>
+          <label style={labelStyle}>상호명 (성함)<span style={{ color: "#ef4444" }}>*</span></label>
           <input
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}

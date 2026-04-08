@@ -1,3 +1,4 @@
+import React from "react";
 import toast from "react-hot-toast";
 
 const baseStyle = {
@@ -9,14 +10,17 @@ const baseStyle = {
   fontSize: "14px",
   padding: "10px 16px",
   boxShadow: "0 4px 16px rgba(15,23,42,0.08)",
+  direction: "ltr" as const,
+  unicodeBidi: "plaintext" as const,
 };
 
-export const showSuccess = (message: string, duration = 5000) =>
+export const showSuccess = (message: string, duration = 5000, styleOverride?: React.CSSProperties) =>
   toast.success(message, {
     duration,
     style: {
       ...baseStyle,
       borderColor: "#bbf7d0",
+      ...styleOverride,
     },
     iconTheme: {
       primary: "#16a34a",

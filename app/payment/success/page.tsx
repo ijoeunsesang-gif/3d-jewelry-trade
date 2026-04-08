@@ -195,175 +195,236 @@ function PaymentSuccessContent() {
   }
 
   return (
-    <main
-      style={{
-        maxWidth: 1100,
-        margin: "40px auto",
-        padding: "0 20px",
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
-    >
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 28,
-          padding: 32,
-          background: "white",
-          marginBottom: 24,
-        }}
-      >
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 999,
-            background: "#dcfce7",
-            color: "#166534",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 34,
-            marginBottom: 18,
-          }}
-        >
-          ✓
+    <>
+      <style>{`
+        .ps-main {
+          max-width: 1100px;
+          margin: 40px auto;
+          padding: 0 20px;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+          box-sizing: border-box;
+          width: 100%;
+        }
+        .ps-header {
+          border: 1px solid #e5e7eb;
+          border-radius: 28px;
+          padding: 32px;
+          background: white;
+          margin-bottom: 24px;
+        }
+        .ps-title {
+          font-size: 36px;
+          font-weight: 900;
+          margin-bottom: 12px;
+          color: #111827;
+          word-break: keep-all;
+          overflow-wrap: break-word;
+        }
+        .ps-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr);
+          gap: 24px;
+          align-items: start;
+        }
+        .ps-aside {
+          border: 1px solid #e5e7eb;
+          border-radius: 24px;
+          padding: 24px;
+          background: white;
+          position: sticky;
+          top: 24px;
+        }
+        .ps-item {
+          display: grid;
+          grid-template-columns: 80px minmax(0, 1fr) auto;
+          gap: 12px;
+          align-items: center;
+          border: 1px solid #f3f4f6;
+          border-radius: 18px;
+          padding: 12px;
+        }
+        .ps-item-thumb {
+          width: 80px;
+          height: 64px;
+          object-fit: cover;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+          flex-shrink: 0;
+        }
+        .ps-item-title {
+          font-size: 16px;
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 4px;
+          word-break: keep-all;
+          overflow-wrap: break-word;
+        }
+        .ps-item-price {
+          font-size: 15px;
+          font-weight: 900;
+          color: #111827;
+          white-space: nowrap;
+        }
+        @media (max-width: 640px) {
+          .ps-main {
+            margin: 20px auto;
+            padding: 0 16px;
+          }
+          .ps-header {
+            padding: 20px 16px;
+            border-radius: 20px;
+          }
+          .ps-title {
+            font-size: 24px;
+          }
+          .ps-grid {
+            grid-template-columns: 1fr;
+          }
+          .ps-aside {
+            position: static;
+            border-radius: 20px;
+            padding: 20px 16px;
+          }
+          .ps-item {
+            grid-template-columns: 72px minmax(0, 1fr);
+            grid-template-rows: auto auto;
+          }
+          .ps-item-thumb {
+            width: 72px;
+            height: 56px;
+            grid-row: 1 / 3;
+          }
+          .ps-item-price {
+            font-size: 14px;
+          }
+        }
+      `}</style>
+      <main className="ps-main">
+        <div className="ps-header">
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 999,
+              background: "#dcfce7",
+              color: "#166534",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 34,
+              marginBottom: 18,
+            }}
+          >
+            ✓
+          </div>
+
+          <h1 className="ps-title">구매가 완료되었습니다.</h1>
+
+          <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 8 }}>
+            이제 내 다운로드에서 파일을 받을 수 있습니다.
+          </p>
+
+          {order && (
+            <>
+              <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
+                구매자: <strong style={{ color: "#111827" }}>{order.buyerName}</strong>
+              </p>
+              <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
+                이메일: <strong style={{ color: "#111827" }}>{order.buyerEmail}</strong>
+              </p>
+              <p style={{ fontSize: 16, color: "#6b7280" }}>
+                총 결제금액:{" "}
+                <strong style={{ color: "#111827" }}>
+                  {order.totalPrice.toLocaleString("ko-KR")}원
+                </strong>
+              </p>
+            </>
+          )}
         </div>
-
-        <h1 style={{ fontSize: 36, fontWeight: 900, marginBottom: 12, color: "#111827" }}>
-          구매가 완료되었습니다.
-        </h1>
-
-        <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 8 }}>
-          이제 내 다운로드에서 파일을 받을 수 있습니다.
-        </p>
 
         {order && (
-          <>
-            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
-              구매자: <strong style={{ color: "#111827" }}>{order.buyerName}</strong>
-            </p>
-            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 4 }}>
-              이메일: <strong style={{ color: "#111827" }}>{order.buyerEmail}</strong>
-            </p>
-            <p style={{ fontSize: 16, color: "#6b7280" }}>
-              총 결제금액:{" "}
-              <strong style={{ color: "#111827" }}>
-                {order.totalPrice.toLocaleString("ko-KR")}원
-              </strong>
-            </p>
-          </>
-        )}
-      </div>
+          <div className="ps-grid">
+            <section
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 24,
+                padding: 24,
+                background: "white",
+              }}
+            >
+              <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
+                구매한 상품
+              </h2>
+              <div style={{ display: "grid", gap: 14 }}>
+                {order.items.map((item) => (
+                  <article key={item.id} className="ps-item">
+                    <img
+                      src={item.thumbUrl}
+                      alt={item.title}
+                      className="ps-item-thumb"
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ps-item-title">{item.title}</div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>{item.category}</div>
+                    </div>
+                    <div className="ps-item-price">
+                      {item.price.toLocaleString("ko-KR")}원
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
 
-      {order && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.5fr) minmax(300px, 0.8fr)",
-            gap: 24,
-            alignItems: "start",
-          }}
-        >
-          <section
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 24,
-              padding: 24,
-              background: "white",
-            }}
-          >
-            <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
-              구매한 상품
-            </h2>
-            <div style={{ display: "grid", gap: 14 }}>
-              {order.items.map((item) => (
-                <article
-                  key={item.id}
+            <aside className="ps-aside">
+              <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
+                다음 단계
+              </h2>
+              <div style={{ display: "grid", gap: 12 }}>
+                <Link
+                  href="/library"
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "100px minmax(0, 1fr) auto",
-                    gap: 14,
+                    display: "flex",
                     alignItems: "center",
-                    border: "1px solid #f3f4f6",
-                    borderRadius: 18,
-                    padding: 12,
+                    justifyContent: "center",
+                    width: "100%",
+                    height: 52,
+                    borderRadius: 16,
+                    border: "none",
+                    background: "#111827",
+                    color: "white",
+                    fontSize: 15,
+                    fontWeight: 900,
+                    textDecoration: "none",
+                    boxSizing: "border-box",
                   }}
                 >
-                  <img
-                    src={item.thumbUrl}
-                    alt={item.title}
-                    style={{ width: 100, height: 76, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }}
-                  />
-                  <div>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 4 }}>
-                      {item.title}
-                    </div>
-                    <div style={{ fontSize: 13, color: "#6b7280" }}>{item.category}</div>
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>
-                    {item.price.toLocaleString("ko-KR")}원
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <aside
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 24,
-              padding: 24,
-              background: "white",
-              position: "sticky",
-              top: 24,
-            }}
-          >
-            <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>
-              다음 단계
-            </h2>
-            <div style={{ display: "grid", gap: 12 }}>
-              <Link
-                href="/library"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "100%",
-                  height: 52,
-                  borderRadius: 16,
-                  border: "none",
-                  background: "#111827",
-                  color: "white",
-                  fontSize: 15,
-                  fontWeight: 900,
-                  textDecoration: "none",
-                }}
-              >
-                내 다운로드 보기
-              </Link>
-              <Link
-                href="/"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "100%",
-                  height: 50,
-                  borderRadius: 16,
-                  border: "1px solid #d1d5db",
-                  background: "white",
-                  color: "#111827",
-                  textDecoration: "none",
-                  fontWeight: 800,
-                }}
-              >
-                홈으로 이동
-              </Link>
-            </div>
-          </aside>
-        </div>
-      )}
-    </main>
+                  내 다운로드 보기
+                </Link>
+                <Link
+                  href="/"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "100%",
+                    height: 50,
+                    borderRadius: 16,
+                    border: "1px solid #d1d5db",
+                    background: "white",
+                    color: "#111827",
+                    textDecoration: "none",
+                    fontWeight: 800,
+                    boxSizing: "border-box",
+                  }}
+                >
+                  홈으로 이동
+                </Link>
+              </div>
+            </aside>
+          </div>
+        )}
+      </main>
+    </>
   );
 }
 
