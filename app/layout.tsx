@@ -1,4 +1,4 @@
-import type { Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
@@ -7,6 +7,18 @@ import { Toaster } from "react-hot-toast";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#C9A84C",
+};
+
+export const metadata: Metadata = {
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "3D마켓",
+  },
+  icons: {
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({
@@ -42,6 +54,11 @@ export default function RootLayout({
               padding: "10px 16px",
               boxShadow: "0 4px 16px rgba(15,23,42,0.08)",
             },
+          }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js'); }`,
           }}
         />
       </body>
