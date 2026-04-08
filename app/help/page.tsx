@@ -163,6 +163,12 @@ const SECTIONS = [
     ],
   },
   {
+    id: "install",
+    label: "앱 설치",
+    icon: "📱",
+    steps: [],
+  },
+  {
     id: "inquiry",
     label: "문의하기",
     icon: "💬",
@@ -192,16 +198,33 @@ const SECTIONS = [
 ];
 
 /* ── 섹션별 강조색 ── */
-const SECTION_COLORS = ["#3b82f6","#f59e0b","#8b5cf6","#10b981","#f97316","#ec4899"];
-const SECTION_BG    = ["#eff6ff","#fffbeb","#f5f3ff","#ecfdf5","#fff7ed","#fdf2f8"];
+const SECTION_COLORS = ["#3b82f6","#f59e0b","#8b5cf6","#10b981","#c9a84c","#f97316","#ec4899"];
+const SECTION_BG    = ["#eff6ff","#fffbeb","#f5f3ff","#ecfdf5","#fdf8ec","#fff7ed","#fdf2f8"];
+
+const INSTALL_SECTION_ID = "install";
+
+const IOS_STEPS = [
+  { icon: "🌐", label: "Safari로 접속", desc: "반드시 Safari 브라우저를 사용해야 합니다." },
+  { icon: "□↑", label: "하단 공유 버튼 탭", desc: "화면 하단 가운데의 공유 버튼(□↑)을 누르세요." },
+  { icon: "➕", label: "\"홈 화면에 추가\" 선택", desc: "공유 메뉴에서 스크롤하여 \"홈 화면에 추가\"를 찾아 누르세요." },
+  { icon: "✅", label: "\"추가\" 클릭", desc: "우측 상단 \"추가\" 버튼을 눌러 완료하세요." },
+];
+
+const ANDROID_STEPS = [
+  { icon: "🌐", label: "Chrome으로 접속", desc: "반드시 Chrome 브라우저를 사용해야 합니다." },
+  { icon: "⋮", label: "우측 상단 메뉴 탭", desc: "주소창 오른쪽 끝 메뉴(⋮) 버튼을 누르세요." },
+  { icon: "➕", label: "\"홈 화면에 추가\" 선택", desc: "메뉴에서 \"홈 화면에 추가\"를 누르세요." },
+];
 
 export default function HelpPage() {
   const [activeSection, setActiveSection] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
+  const [installTab, setInstallTab] = useState<"ios" | "android">("ios");
 
   const section   = SECTIONS[activeSection];
-  const step      = section.steps[activeStep];
+  const isInstall = section.id === INSTALL_SECTION_ID;
+  const step      = !isInstall ? section.steps[activeStep] : null;
   const totalSteps = section.steps.length;
   const accent    = SECTION_COLORS[activeSection];
   const accentBg  = SECTION_BG[activeSection];
@@ -283,268 +306,501 @@ export default function HelpPage() {
         })}
       </div>
 
-      {/* ── STEP 진행 바 ── */}
-      <div style={{
-        marginTop: 20,
-        background: "white",
-        borderRadius: 20,
-        padding: "18px 20px",
-        border: "1px solid #e5e7eb",
-      }}>
-        {/* 바 */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {section.steps.map((_, idx) => (
+      {/* ── STEP 진행 바 (install 섹션 제외) ── */}
+      {!isInstall && (
+        <div style={{
+          marginTop: 20,
+          background: "white",
+          borderRadius: 20,
+          padding: "18px 20px",
+          border: "1px solid #e5e7eb",
+        }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {section.steps.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => goToStep(idx)}
+                style={{
+                  flex: 1, height: 12,
+                  borderRadius: 999, border: "none", padding: 0,
+                  cursor: "pointer",
+                  background: idx === activeStep ? accent
+                    : idx < activeStep ? "#9ca3af" : "#e5e7eb",
+                  transition: "background 0.25s ease",
+                }}
+                aria-label={"STEP " + (idx + 1)}
+              />
+            ))}
+          </div>
+          <div style={{
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+            <span style={{
+              fontSize: 15, fontWeight: 800, color: "#111827",
+              background: accentBg,
+              padding: "4px 12px", borderRadius: 999,
+              border: "1px solid " + accent + "44",
+            }}>
+              STEP {activeStep + 1} / {totalSteps}
+            </span>
+            <span style={{ fontSize: 15, color: "#6b7280", fontWeight: 600 }}>
+              {step!.title}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── 앱 설치 탭 UI ── */}
+      {isInstall && (
+        <div style={{ marginTop: 20 }}>
+          {/* 헤더 */}
+          <div style={{
+            background: "#111827",
+            borderRadius: "24px 24px 0 0",
+            padding: "28px 24px 24px",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+          }}>
+            <div style={{
+              width: 72, height: 72,
+              borderRadius: 20,
+              background: "#c9a84c",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 36,
+              flexShrink: 0,
+              boxShadow: "0 4px 16px rgba(201,168,76,0.4)",
+            }}>
+              📱
+            </div>
+            <div>
+              <div style={{
+                display: "inline-flex", alignItems: "center",
+                height: 28, padding: "0 12px",
+                borderRadius: 999,
+                background: "#c9a84c",
+                color: "#111827", fontSize: 13, fontWeight: 900,
+                marginBottom: 8,
+                letterSpacing: "0.06em",
+              }}>
+                PWA
+              </div>
+              <h2 style={{ margin: 0, fontSize: 26, fontWeight: 900, color: "white", lineHeight: 1.25 }}>
+                앱으로 설치하기
+              </h2>
+              <p style={{ margin: "6px 0 0", fontSize: 15, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
+                홈 화면에 추가하면 앱처럼 빠르게 실행할 수 있어요
+              </p>
+            </div>
+          </div>
+
+          {/* 탭 선택 */}
+          <div style={{
+            background: "#1f2937",
+            padding: "0 24px",
+            display: "flex",
+            gap: 0,
+          }}>
+            {([
+              { key: "ios", label: "iPhone", emoji: "🍎" },
+              { key: "android", label: "Android", emoji: "🤖" },
+            ] as const).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setInstallTab(t.key)}
+                style={{
+                  flex: 1,
+                  height: 56,
+                  border: "none",
+                  borderBottom: installTab === t.key ? "3px solid #c9a84c" : "3px solid transparent",
+                  background: "transparent",
+                  color: installTab === t.key ? "#c9a84c" : "rgba(255,255,255,0.45)",
+                  fontWeight: 900,
+                  fontSize: 17,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  transition: "all 0.15s ease",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                <span style={{ fontSize: 22 }}>{t.emoji}</span>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 탭 콘텐츠 */}
+          <div style={{
+            background: "white",
+            borderRadius: "0 0 24px 24px",
+            border: "1px solid #e5e7eb",
+            borderTop: "none",
+            padding: "28px 24px 32px",
+          }}>
+            {installTab === "ios" ? (
+              <>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  marginBottom: 24,
+                  padding: "14px 18px",
+                  borderRadius: 14,
+                  background: "#fdf8ec",
+                  border: "1px solid #c9a84c44",
+                }}>
+                  <span style={{ fontSize: 20 }}>⚠️</span>
+                  <span style={{ fontSize: 15, color: "#78350f", fontWeight: 700 }}>
+                    반드시 <strong>Safari</strong> 브라우저에서만 설치 가능합니다.
+                  </span>
+                </div>
+                {IOS_STEPS.map((s, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "flex-start", gap: 16,
+                    marginBottom: i < IOS_STEPS.length - 1 ? 20 : 0,
+                  }}>
+                    <div style={{
+                      flexShrink: 0,
+                      width: 44, height: 44,
+                      borderRadius: 14,
+                      background: "#111827",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                    }}>
+                      <span style={{
+                        fontSize: i === 1 ? 13 : 20,
+                        color: "#c9a84c",
+                        fontWeight: 900,
+                        letterSpacing: "-0.5px",
+                      }}>{s.icon}</span>
+                    </div>
+                    <div style={{ paddingTop: 4 }}>
+                      <div style={{
+                        display: "inline-flex", alignItems: "center",
+                        height: 22, padding: "0 10px",
+                        borderRadius: 999,
+                        background: "#c9a84c",
+                        color: "white", fontSize: 12, fontWeight: 900,
+                        marginBottom: 6,
+                      }}>
+                        {i + 1}단계
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 4 }}>
+                        {s.label}
+                      </div>
+                      <div style={{ fontSize: 15, color: "#6b7280", fontWeight: 500, lineHeight: 1.6 }}>
+                        {s.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  marginBottom: 24,
+                  padding: "14px 18px",
+                  borderRadius: 14,
+                  background: "#fdf8ec",
+                  border: "1px solid #c9a84c44",
+                }}>
+                  <span style={{ fontSize: 20 }}>⚠️</span>
+                  <span style={{ fontSize: 15, color: "#78350f", fontWeight: 700 }}>
+                    반드시 <strong>Chrome</strong> 브라우저에서만 설치 가능합니다.
+                  </span>
+                </div>
+                {ANDROID_STEPS.map((s, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "flex-start", gap: 16,
+                    marginBottom: i < ANDROID_STEPS.length - 1 ? 20 : 0,
+                  }}>
+                    <div style={{
+                      flexShrink: 0,
+                      width: 44, height: 44,
+                      borderRadius: 14,
+                      background: "#111827",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                    }}>
+                      <span style={{
+                        fontSize: i === 1 ? 18 : 20,
+                        color: "#c9a84c",
+                        fontWeight: 900,
+                      }}>{s.icon}</span>
+                    </div>
+                    <div style={{ paddingTop: 4 }}>
+                      <div style={{
+                        display: "inline-flex", alignItems: "center",
+                        height: 22, padding: "0 10px",
+                        borderRadius: 999,
+                        background: "#c9a84c",
+                        color: "white", fontSize: 12, fontWeight: 900,
+                        marginBottom: 6,
+                      }}>
+                        {i + 1}단계
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 4 }}>
+                        {s.label}
+                      </div>
+                      <div style={{ fontSize: 15, color: "#6b7280", fontWeight: 500, lineHeight: 1.6 }}>
+                        {s.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* 완료 안내 */}
+            <div style={{
+              marginTop: 28,
+              padding: "20px 20px",
+              borderRadius: 18,
+              background: "#111827",
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+            }}>
+              <span style={{ fontSize: 32, flexShrink: 0 }}>🎉</span>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: "#c9a84c", marginBottom: 4 }}>
+                  설치 완료!
+                </div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", fontWeight: 500, lineHeight: 1.6 }}>
+                  홈 화면 아이콘을 탭하면 앱처럼 바로 실행됩니다.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 카드 (install 섹션 제외) ── */}
+      {!isInstall && (
+        <div
+          key={animKey}
+          style={{
+            marginTop: 14,
+            border: "1px solid #e5e7eb",
+            borderRadius: 28,
+            background: "white",
+            overflow: "hidden",
+            animation: "helpFadeIn 0.28s ease",
+          }}
+        >
+          {/* 카드 헤더 (컬러 배경) */}
+          <div style={{
+            background: accentBg,
+            borderBottom: "1px solid " + accent + "33",
+            padding: "24px 24px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+          }}>
+            <div style={{
+              width: 76, height: 76,
+              borderRadius: 22,
+              background: "white",
+              border: "2px solid " + accent + "44",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 38,
+              flexShrink: 0,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+            }}>
+              {step!.image}
+            </div>
+            <div>
+              <div style={{
+                display: "inline-flex", alignItems: "center",
+                height: 32, padding: "0 14px",
+                borderRadius: 999,
+                background: accent,
+                color: "white", fontSize: 14, fontWeight: 900,
+                marginBottom: 8,
+                letterSpacing: "0.04em",
+              }}>
+                STEP {activeStep + 1}
+              </div>
+              <h2 style={{
+                margin: 0,
+                fontSize: 26,
+                fontWeight: 900,
+                color: "#111827",
+                lineHeight: 1.25,
+              }}>
+                {step!.title}
+              </h2>
+            </div>
+          </div>
+
+          {/* 카드 본문 */}
+          <div style={{ padding: "28px 24px 32px" }}>
+            <p style={{
+              margin: 0,
+              fontSize: 19,
+              color: "#1f2937",
+              lineHeight: 2.0,
+              whiteSpace: "pre-line",
+              fontWeight: 500,
+            }}>
+              {step!.body}
+            </p>
+
+            {/* 팁 박스 */}
+            {step!.tip && (
+              <div style={{
+                marginTop: 24,
+                padding: "18px 20px",
+                borderRadius: 18,
+                background: "#fffbeb",
+                border: "2px solid #fcd34d",
+                fontSize: 18,
+                color: "#78350f",
+                fontWeight: 700,
+                lineHeight: 1.7,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+              }}>
+                <span style={{ fontSize: 22, lineHeight: 1.4, flexShrink: 0 }}>💡</span>
+                <span>{step!.tip.replace("💡 ", "")}</span>
+              </div>
+            )}
+
+            {/* 바로가기 버튼 */}
+            {step!.link && (
+              <Link
+                href={step!.link.href}
+                style={{
+                  display: "inline-flex", alignItems: "center",
+                  marginTop: 20,
+                  minHeight: 56, padding: "0 26px",
+                  borderRadius: 16,
+                  background: "#ecfdf5",
+                  border: "2px solid #6ee7b7",
+                  color: "#065f46",
+                  fontWeight: 800,
+                  fontSize: 18,
+                  textDecoration: "none",
+                  gap: 6,
+                }}
+              >
+                {step!.link.label}
+              </Link>
+            )}
+
+            {/* ── 이전 / 다음 버튼 ── */}
+            <div style={{
+              marginTop: 32,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+            }}>
+              <button
+                type="button"
+                onClick={() => activeStep > 0 && goToStep(activeStep - 1)}
+                disabled={activeStep === 0}
+                style={{
+                  minHeight: 60,
+                  borderRadius: 18,
+                  border: "2px solid " + (activeStep === 0 ? "#e5e7eb" : "#d1d5db"),
+                  background: activeStep === 0 ? "#f9fafb" : "white",
+                  color: activeStep === 0 ? "#d1d5db" : "#111827",
+                  fontWeight: 900,
+                  fontSize: 18,
+                  cursor: activeStep === 0 ? "default" : "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                ← 이전
+              </button>
+
+              {activeStep < totalSteps - 1 ? (
+                <button
+                  type="button"
+                  onClick={() => goToStep(activeStep + 1)}
+                  style={{
+                    minHeight: 60,
+                    borderRadius: 18,
+                    border: "none",
+                    background: accent,
+                    color: "white",
+                    fontWeight: 900,
+                    fontSize: 18,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.14)",
+                  }}
+                >
+                  다음 →
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = activeSection + 1;
+                    goToSection(next < SECTIONS.length ? next : 0);
+                  }}
+                  style={{
+                    minHeight: 60,
+                    borderRadius: 18,
+                    border: "none",
+                    background: "#16a34a",
+                    color: "white",
+                    fontWeight: 900,
+                    fontSize: 17,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 14px rgba(0,0,0,0.14)",
+                    lineHeight: 1.3,
+                    padding: "0 12px",
+                  }}
+                >
+                  {activeSection < SECTIONS.length - 1
+                    ? SECTIONS[activeSection + 1].icon + " " + SECTIONS[activeSection + 1].label + " →"
+                    : "처음으로 돌아가기"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 도트 네비 (install 섹션 제외) ── */}
+      {!isInstall && (
+        <div style={{
+          marginTop: 18,
+          display: "flex",
+          gap: 10,
+          justifyContent: "center",
+          alignItems: "center",
+        }}>
+          {section.steps.map((s, idx) => (
             <button
               key={idx}
               type="button"
               onClick={() => goToStep(idx)}
+              title={s.title}
               style={{
-                flex: 1, height: 12,
-                borderRadius: 999, border: "none", padding: 0,
+                width: idx === activeStep ? 36 : 14,
+                height: 14,
+                borderRadius: 999,
+                border: "none",
+                background: idx === activeStep ? accent : "#d1d5db",
                 cursor: "pointer",
-                background: idx === activeStep ? accent
-                  : idx < activeStep ? "#9ca3af" : "#e5e7eb",
-                transition: "background 0.25s ease",
+                padding: 0,
+                transition: "all 0.22s ease",
               }}
-              aria-label={"STEP " + (idx + 1)}
             />
           ))}
         </div>
-        {/* STEP 레이블 */}
-        <div style={{
-          marginTop: 10,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}>
-          <span style={{
-            fontSize: 15, fontWeight: 800, color: "#111827",
-            background: accentBg,
-            padding: "4px 12px", borderRadius: 999,
-            border: "1px solid " + accent + "44",
-          }}>
-            STEP {activeStep + 1} / {totalSteps}
-          </span>
-          <span style={{ fontSize: 15, color: "#6b7280", fontWeight: 600 }}>
-            {step.title}
-          </span>
-        </div>
-      </div>
-
-      {/* ── STEP 카드 ── */}
-      <div
-        key={animKey}
-        style={{
-          marginTop: 14,
-          border: "1px solid #e5e7eb",
-          borderRadius: 28,
-          background: "white",
-          overflow: "hidden",
-          animation: "helpFadeIn 0.28s ease",
-        }}
-      >
-        {/* 카드 헤더 (컬러 배경) */}
-        <div style={{
-          background: accentBg,
-          borderBottom: "1px solid " + accent + "33",
-          padding: "24px 24px 20px",
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-        }}>
-          <div style={{
-            width: 76, height: 76,
-            borderRadius: 22,
-            background: "white",
-            border: "2px solid " + accent + "44",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 38,
-            flexShrink: 0,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-          }}>
-            {step.image}
-          </div>
-          <div>
-            <div style={{
-              display: "inline-flex", alignItems: "center",
-              height: 32, padding: "0 14px",
-              borderRadius: 999,
-              background: accent,
-              color: "white", fontSize: 14, fontWeight: 900,
-              marginBottom: 8,
-              letterSpacing: "0.04em",
-            }}>
-              STEP {activeStep + 1}
-            </div>
-            <h2 style={{
-              margin: 0,
-              fontSize: 26,
-              fontWeight: 900,
-              color: "#111827",
-              lineHeight: 1.25,
-            }}>
-              {step.title}
-            </h2>
-          </div>
-        </div>
-
-        {/* 카드 본문 */}
-        <div style={{ padding: "28px 24px 32px" }}>
-          <p style={{
-            margin: 0,
-            fontSize: 19,
-            color: "#1f2937",
-            lineHeight: 2.0,
-            whiteSpace: "pre-line",
-            fontWeight: 500,
-          }}>
-            {step.body}
-          </p>
-
-          {/* 팁 박스 */}
-          {step.tip && (
-            <div style={{
-              marginTop: 24,
-              padding: "18px 20px",
-              borderRadius: 18,
-              background: "#fffbeb",
-              border: "2px solid #fcd34d",
-              fontSize: 18,
-              color: "#78350f",
-              fontWeight: 700,
-              lineHeight: 1.7,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-            }}>
-              <span style={{ fontSize: 22, lineHeight: 1.4, flexShrink: 0 }}>💡</span>
-              <span>{step.tip.replace("💡 ", "")}</span>
-            </div>
-          )}
-
-          {/* 바로가기 버튼 */}
-          {step.link && (
-            <Link
-              href={step.link.href}
-              style={{
-                display: "inline-flex", alignItems: "center",
-                marginTop: 20,
-                minHeight: 56, padding: "0 26px",
-                borderRadius: 16,
-                background: "#ecfdf5",
-                border: "2px solid #6ee7b7",
-                color: "#065f46",
-                fontWeight: 800,
-                fontSize: 18,
-                textDecoration: "none",
-                gap: 6,
-              }}
-            >
-              {step.link.label}
-            </Link>
-          )}
-
-          {/* ── 이전 / 다음 버튼 ── */}
-          <div style={{
-            marginTop: 32,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 12,
-          }}>
-            <button
-              type="button"
-              onClick={() => activeStep > 0 && goToStep(activeStep - 1)}
-              disabled={activeStep === 0}
-              style={{
-                minHeight: 60,
-                borderRadius: 18,
-                border: "2px solid " + (activeStep === 0 ? "#e5e7eb" : "#d1d5db"),
-                background: activeStep === 0 ? "#f9fafb" : "white",
-                color: activeStep === 0 ? "#d1d5db" : "#111827",
-                fontWeight: 900,
-                fontSize: 18,
-                cursor: activeStep === 0 ? "default" : "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              ← 이전
-            </button>
-
-            {activeStep < totalSteps - 1 ? (
-              <button
-                type="button"
-                onClick={() => goToStep(activeStep + 1)}
-                style={{
-                  minHeight: 60,
-                  borderRadius: 18,
-                  border: "none",
-                  background: accent,
-                  color: "white",
-                  fontWeight: 900,
-                  fontSize: 18,
-                  cursor: "pointer",
-                  boxShadow: "0 4px 14px rgba(0,0,0,0.14)",
-                }}
-              >
-                다음 →
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  const next = activeSection + 1;
-                  goToSection(next < SECTIONS.length ? next : 0);
-                }}
-                style={{
-                  minHeight: 60,
-                  borderRadius: 18,
-                  border: "none",
-                  background: "#16a34a",
-                  color: "white",
-                  fontWeight: 900,
-                  fontSize: 17,
-                  cursor: "pointer",
-                  boxShadow: "0 4px 14px rgba(0,0,0,0.14)",
-                  lineHeight: 1.3,
-                  padding: "0 12px",
-                }}
-              >
-                {activeSection < SECTIONS.length - 1
-                  ? SECTIONS[activeSection + 1].icon + " " + SECTIONS[activeSection + 1].label + " →"
-                  : "처음으로 돌아가기"}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── 도트 네비 ── */}
-      <div style={{
-        marginTop: 18,
-        display: "flex",
-        gap: 10,
-        justifyContent: "center",
-        alignItems: "center",
-      }}>
-        {section.steps.map((s, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => goToStep(idx)}
-            title={s.title}
-            style={{
-              width: idx === activeStep ? 36 : 14,
-              height: 14,
-              borderRadius: 999,
-              border: "none",
-              background: idx === activeStep ? accent : "#d1d5db",
-              cursor: "pointer",
-              padding: 0,
-              transition: "all 0.22s ease",
-            }}
-          />
-        ))}
-      </div>
+      )}
 
       {/* ── 하단 고객센터 CTA ── */}
       <div style={{
