@@ -167,8 +167,8 @@ export async function POST(req: NextRequest) {
 
     const infoHtml = infoRows.map((r) => `
       <tr>
-        <td style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: #f8fafc; border-bottom: 1px solid #f3f4f6;">${r.label}</td>
-        <td style="padding: 8px 14px; font-size: 13px; color: #111827; font-weight: 800; border-bottom: 1px solid #f3f4f6;">${r.value}</td>
+        <td style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: #f8fafc; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.label}</td>
+        <td style="padding: 8px 14px; font-size: 13px; color: #111827; font-weight: 800; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.value}</td>
       </tr>`).join("");
 
     const attachedListHtml = emailAttachments.length > 0
@@ -211,8 +211,8 @@ export async function POST(req: NextRequest) {
       subject: `<${businessName}> 출력부탁드려요`,
       attachments: emailAttachments.map((f) => ({ filename: f.filename, content: f.content })),
       html: `
-        <div style="font-family: system-ui, sans-serif; max-width: 580px; margin: 0 auto; padding: 32px 24px; color: #111827;">
-          <h2 style="font-size: 22px; font-weight: 900; margin: 0 0 6px;">3D 출력 파일 전달</h2>
+        <div style="font-family: system-ui, sans-serif; max-width: 580px; margin: 0 auto; padding: 32px 24px; color: #111827; text-align: left;">
+          <h2 style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">3D 출력 파일 전달</h2>
           <p style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
 
           <table style="width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
           ${attachedListHtml}
           ${linkFilesHtml}
 
-          <p style="font-size: 12px; color: #9ca3af; margin: 20px 0 0;">본 메일은 3D Jewelry Trade 플랫폼에서 자동 발송되었습니다.</p>
+          <p style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D Jewelry Trade 플랫폼에서 자동 발송되었습니다.</p>
         </div>
       `,
     });
