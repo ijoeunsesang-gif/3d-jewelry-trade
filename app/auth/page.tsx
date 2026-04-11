@@ -96,14 +96,19 @@ export default function AuthPage() {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        scopes: "profile_nickname",
-        queryParams: {
-          scope: "profile_nickname",
-        },
         redirectTo: `${window.location.origin}/auth/callback`,
+        skipBrowserRedirect: true,
       },
     });
-    if (error) showError(translateAuthError(error.message));
+    if (error) {
+      showError(translateAuthError(error.message));
+      return;
+    }
+    if (data?.url) {
+      window.location.href = data.url;
+    } else {
+      showError("카카오 로그인 URL을 가져오지 못했습니다. 다시 시도해주세요.");
+    }
   };
 
   const handleGoogleLogin = async () => {
