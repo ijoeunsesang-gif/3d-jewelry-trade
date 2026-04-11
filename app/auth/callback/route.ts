@@ -42,5 +42,6 @@ export async function GET(request: NextRequest) {
   }
 
   // Set-Cookie 헤더가 포함된 redirect 응답 반환 → 브라우저에 세션 쿠키 저장
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
   return response
 }
