@@ -147,19 +147,22 @@ export default function Home() {
   const fetchModels = async () => {
     try {
       setLoading(true);
+      console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
       const { data, error } = await supabase
         .from("models")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(200);
 
+      console.log("[fetchModels] 결과 - data 개수:", data?.length ?? null, "| error:", error);
       if (error) {
-        console.error("모델 불러오기 실패:", error);
+        console.error("[fetchModels] 에러 상세:", JSON.stringify(error));
         return;
       }
+      console.log("[fetchModels] 첫 번째 row 샘플:", data?.[0] ?? "없음");
       setModels(data || []);
     } catch (error) {
-      console.error("모델 불러오기 오류:", error);
+      console.error("[fetchModels] catch 오류:", error);
     } finally {
       setLoading(false);
     }
