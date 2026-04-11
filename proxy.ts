@@ -6,8 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 const MAINTENANCE_MODE = false;
 
 export async function proxy(request: NextRequest) {
-  const res = NextResponse.next()
-
   // 점검 모드 처리
   if (MAINTENANCE_MODE) {
     const { pathname } = request.nextUrl;
@@ -20,24 +18,38 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Supabase 세션을 쿠키에 유지 (SSR 세션 유실 방지)
+  let supabaseResponse = NextResponse.next({ request })
+
+  // Supabase 세션 쿠키 갱신 (getUser()로 토큰 만료 시 자동 갱신)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cookies) => cookies.forEach(({ name, value, options }) =>
-          res.cookies.set(name, value, options)
-        ),
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
       },
     }
   )
-  await supabase.auth.getSession()
 
-  return res
+  // 반드시 getUser() 호출해야 세션이 갱신됨
+  await supabase.auth.getUser()
+
+  return supabaseResponse
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
