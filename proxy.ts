@@ -28,13 +28,11 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          // 1. request 쿠키 업데이트 (다음 미들웨어/핸들러에서 읽을 수 있도록)
-          cookiesToSet.forEach(({ name, value, options }) =>
+          if (cookiesToSet.length === 0) return
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          // 2. 새 response 생성 (업데이트된 request 포함)
           supabaseResponse = NextResponse.next({ request })
-          // 3. response에 Set-Cookie 헤더 설정 (브라우저에 쿠키 저장)
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -46,7 +44,11 @@ export async function proxy(request: NextRequest) {
   // 세션 확인 후 없으면 refresh 시도
   // ※ getSession()은 쿠키를 그대로 읽으므로 네트워크 호출 없이 빠름
   //   단, 만료된 토큰도 반환할 수 있으므로 refreshSession()으로 보완
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch (e) {
+    // 세션 갱신 실패해도 쿠키 삭제 안 함
+  }
 
   return supabaseResponse
 }
