@@ -43,11 +43,13 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // getUser()는 반드시 호출해야 함:
-  // - 만료된 access token을 refresh token으로 자동 갱신
-  // - 갱신된 토큰을 setAll을 통해 쿠키에 저장
-  // ※ getUser()와 return 사이에 다른 코드를 두지 말 것 (공식 가이드 주의사항)
-  await supabase.auth.getUser()
+  // 세션 확인 후 없으면 refresh 시도
+  // ※ getSession()은 쿠키를 그대로 읽으므로 네트워크 호출 없이 빠름
+  //   단, 만료된 토큰도 반환할 수 있으므로 refreshSession()으로 보완
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    await supabase.auth.refreshSession()
+  }
 
   return supabaseResponse
 }

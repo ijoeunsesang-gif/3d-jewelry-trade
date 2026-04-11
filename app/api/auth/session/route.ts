@@ -33,5 +33,13 @@ export async function POST(request: Request) {
 
   const { error } = await supabase.auth.setSession({ access_token, refresh_token })
   if (error) return NextResponse.json({ error: error.message }, { status: 401 })
+
+  // setSession 후 refreshSession 호출 → 최신 토큰으로 쿠키 갱신
+  const { error: refreshError } = await supabase.auth.refreshSession()
+  if (refreshError) {
+    console.error('[session API] refreshSession failed:', refreshError.message)
+    // refresh 실패해도 setSession으로 저장된 쿠키는 유효하므로 성공 반환
+  }
+
   return response
 }
