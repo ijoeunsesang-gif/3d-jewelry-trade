@@ -18,7 +18,14 @@ export async function POST(request: Request) {
         getAll() { return cookieStore.getAll() },
         setAll(c) {
           c.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options))
+            response.cookies.set(name, value, {
+              ...options,
+              maxAge: 60 * 60 * 24 * 7, // 7일
+              httpOnly: true,
+              secure: true,
+              sameSite: 'lax',
+              path: '/',
+            }))
         }
       }
     }
