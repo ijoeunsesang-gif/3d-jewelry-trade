@@ -1,14 +1,21 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import { showError, showSuccess } from "../../../lib/toast";
 
+// Next.js 라우터가 hash를 strip하기 전에 모듈 로드 시점에 즉시 캡처
+// useEffect 안에서 읽으면 빠른 환경에서 이미 사라져 있음
+const INITIAL_HASH = typeof window !== "undefined" ? window.location.hash : "";
+
 function OAuthCallbackClient() {
   const searchParams = useSearchParams();
+  const handled = useRef(false);
 
   useEffect(() => {
+    if (handled.current) return;
+
     const code = searchParams.get("code");
     const next = searchParams.get("next") ?? "/";
 
@@ -53,6 +60,7 @@ function OAuthCallbackClient() {
 
     if (code) {
       // PKCE flow (Google 등): code → session 교환
+      handled.current = true;
       supabase.auth.exchangeCodeForSession(code).then(async ({ data, error }) => {
         if (error) {
           console.error("[OAuth] exchangeCodeForSession failed:", error.message);
@@ -63,16 +71,19 @@ function OAuthCallbackClient() {
         await handleSession(data.session);
       });
     } else {
-      // Implicit flow (카카오): URL hash에서 access_token 파싱
+      // Implicit flow (카카오): 모듈 로드 시 캡처한 hash 사용
       const startImplicitFlow = async () => {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        handled.current = true;
+        const hashParams = new URLSearchParams(INITIAL_HASH.substring(1));
         const access_token = hashParams.get("access_token");
         const refresh_token = hashParams.get("refresh_token") ?? "";
+
+        console.log("[Kakao] INITIAL_HASH:", INITIAL_HASH.substring(0, 40) || "(없음)");
 
         if (access_token) {
           const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
           if (error) {
-            console.error("[OAuth] setSession failed:", error.message);
+            console.error("[Kakao] setSession failed:", error.message);
             showError("카카오 로그인에 실패했습니다. 다시 시도해주세요.");
             setTimeout(() => navigateTo("/auth"), 2000);
             return;
@@ -88,12 +99,12 @@ function OAuthCallbackClient() {
           return;
         }
 
-        // 세션도 없으면 onAuthStateChange로 대기 (최대 8초)
-        let handled = false;
+        // onAuthStateChange로 대기 (최대 8초)
+        let done = false;
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            if (session && !handled) {
-              handled = true;
+            if (session && !done) {
+              done = true;
               subscription.unsubscribe();
               await handleSession(session);
             }
@@ -101,8 +112,8 @@ function OAuthCallbackClient() {
         );
 
         setTimeout(() => {
-          if (!handled) {
-            handled = true;
+          if (!done) {
+            done = true;
             subscription.unsubscribe();
             showError("로그인 시간이 초과되었습니다. 다시 시도해주세요.");
             navigateTo("/auth");
@@ -124,7 +135,7 @@ const Spinner = (
       alignItems: "center",
       justifyContent: "center",
       height: "60vh",
-      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontFamily: "system-ui, -apple-system, sans-serif",
       flexDirection: "column",
       gap: 16,
       color: "#6b7280",
