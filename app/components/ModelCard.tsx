@@ -28,10 +28,11 @@ type Props = {
   getThumbnailUrl: (item: ModelItem) => string;
 };
 
-function highlightText(text: string, keyword: string) {
-  if (!keyword.trim()) return text;
+function highlightText(text: string | null | undefined, keyword: string) {
+  const safeText = text ?? "";
+  if (!keyword.trim()) return safeText;
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  const parts = safeText.split(new RegExp(`(${escaped})`, "gi"));
   return parts.map((part, idx) =>
     part.toLowerCase() === keyword.toLowerCase() ? (
       <mark key={`${part}-${idx}`} className={styles.mark}>
@@ -263,7 +264,7 @@ export default function ModelCard({
               textAlign: "right",
             }}
           >
-            {item.price.toLocaleString("ko-KR")}원
+            {(item.price ?? 0).toLocaleString("ko-KR")}원
           </div>
 
           <div
