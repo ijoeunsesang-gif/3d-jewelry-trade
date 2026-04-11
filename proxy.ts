@@ -46,10 +46,7 @@ export async function proxy(request: NextRequest) {
   // 세션 확인 후 없으면 refresh 시도
   // ※ getSession()은 쿠키를 그대로 읽으므로 네트워크 호출 없이 빠름
   //   단, 만료된 토큰도 반환할 수 있으므로 refreshSession()으로 보완
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) {
-    await supabase.auth.refreshSession()
-  }
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
