@@ -6,14 +6,13 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 
-  // Implicit flow (카카오): 서버는 URL hash를 읽지 못하므로 클라이언트 페이지로 위임
+  // PKCE flow: 구글·카카오 모두 code로 처리
+  // code가 없으면 잘못된 접근
   if (!code) {
-    const redirectUrl = new URL('/auth/callback/client', request.url)
-    redirectUrl.searchParams.set('next', next)
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(new URL('/auth?error=no_code', request.url))
   }
 
-  // PKCE flow (Google): response를 먼저 생성하고 Set-Cookie를 직접 설정
+  // response를 먼저 생성하고 Set-Cookie를 직접 설정
   // ※ cookies()로 set 후 NextResponse.redirect()를 새로 생성하면 Set-Cookie 누락됨
   const response = NextResponse.redirect(new URL(next, request.url))
 
