@@ -1,21 +1,28 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 import { showError, showSuccess } from "../../../lib/toast";
 
 function OAuthCallbackClient() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   useEffect(() => {
     const code = searchParams.get("code");
     const next = searchParams.get("next") ?? "/";
 
+    const navigateTo = (path: string) => {
+      window.location.replace(path);
+    };
+
     const handleSession = async (session: any) => {
       const user = session?.user;
-      if (!user) return;
+      if (!user) {
+        showError("세션 정보를 가져올 수 없습니다.");
+        navigateTo("/auth");
+        return;
+      }
 
       // 처음 소셜 로그인 시 프로필 생성
       const { data: existing } = await supabase
@@ -41,8 +48,7 @@ function OAuthCallbackClient() {
       }
 
       showSuccess("로그인되었습니다.");
-      await supabase.auth.getSession();
-      setTimeout(() => { window.location.href = next; }, 500);
+      navigateTo(next);
     };
 
     if (code) {
@@ -51,68 +57,60 @@ function OAuthCallbackClient() {
         if (error) {
           console.error("[OAuth] exchangeCodeForSession failed:", error.message);
           showError("소셜 로그인에 실패했습니다. 다시 시도해주세요.");
-          setTimeout(() => { window.location.href = "/auth"; }, 2000);
+          setTimeout(() => navigateTo("/auth"), 2000);
           return;
         }
         await handleSession(data.session);
       });
     } else {
-      // implicit flow (카카오 등): URL hash에서 세션 파싱
-      let handled = false;
-      let subscription: { unsubscribe: () => void } | null = null;
-      let timeout: ReturnType<typeof setTimeout> | null = null;
-
+      // Implicit flow (카카오): URL hash에서 access_token 파싱
       const startImplicitFlow = async () => {
-        // 1. URL hash에서 access_token 직접 파싱 (카카오 implicit flow)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const access_token = hashParams.get("access_token");
-        const refresh_token = hashParams.get("refresh_token") || "";
+        const refresh_token = hashParams.get("refresh_token") ?? "";
 
         if (access_token) {
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-          if (!error) {
-            handled = true;
-            const { data: { session } } = await supabase.auth.getSession();
-            await handleSession(session!);
+          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+          if (error) {
+            console.error("[OAuth] setSession failed:", error.message);
+            showError("카카오 로그인에 실패했습니다. 다시 시도해주세요.");
+            setTimeout(() => navigateTo("/auth"), 2000);
             return;
           }
-          console.error("[OAuth] setSession failed");
+          await handleSession(data.session);
+          return;
         }
 
-        // 2. hash 없으면 이미 파싱된 세션 확인
+        // hash 없을 때: 이미 세션이 있는지 확인
         const { data: { session: existingSession } } = await supabase.auth.getSession();
-        if (existingSession && !handled) {
-          handled = true;
+        if (existingSession) {
           await handleSession(existingSession);
           return;
         }
 
-        // 3. 아직 세션 없으면 onAuthStateChange로 대기
-        const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
+        // 세션도 없으면 onAuthStateChange로 대기 (최대 8초)
+        let handled = false;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (session && !handled) {
               handled = true;
+              subscription.unsubscribe();
               await handleSession(session);
-              sub.unsubscribe();
             }
           }
         );
-        subscription = sub;
 
-        // 10초 후에도 세션 없으면 로그인 페이지로
-        timeout = setTimeout(() => {
-          sub.unsubscribe();
-          router.push("/auth");
-        }, 10000);
+        setTimeout(() => {
+          if (!handled) {
+            handled = true;
+            subscription.unsubscribe();
+            showError("로그인 시간이 초과되었습니다. 다시 시도해주세요.");
+            navigateTo("/auth");
+          }
+        }, 8000);
       };
 
       startImplicitFlow();
-
-      return () => {
-        handled = true;
-        subscription?.unsubscribe();
-        if (timeout) clearTimeout(timeout);
-      };
     }
   }, [searchParams]);
 

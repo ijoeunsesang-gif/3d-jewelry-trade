@@ -1,57 +1,57 @@
-const CACHE_NAME = 'jewelry-3d-market-v3';
+const CACHE_NAME = 'jewelry-3d-market-v4';
 
-// Next.js에 실제로 존재하는 정적 파일만 캐시
-const ASSETS = [
+const STATIC_ASSETS = [
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png'
 ];
 
-// 캐시에서 제외할 요청 패턴 (API, Supabase, 인증 등)
-const SKIP_CACHE = [
-  'supabase.co',
-  '/api/',
-  '/auth/',
-  'storage.googleapis.com',
-];
-
-// 설치: 정적 에셋 캐시 후 즉시 대기 건너뜀
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
-  self.skipWaiting(); // 새 SW 즉시 활성화 (waiting 단계 생략)
+  self.skipWaiting();
 });
 
-// 활성화: 구버전 캐시 삭제 → 모든 탭 제어 인수 → 탭 자동 갱신
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
       .then(keys =>
         Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
       )
-      .then(() => self.clients.claim()) // 열려있는 모든 탭을 새 SW가 즉시 제어
-      .then(() =>
-        self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      )
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
       .then(clients => {
-        // 새 SW로 교체됐음을 탭에 알려 자동 새로고침
-        clients.forEach(client => {
-          client.postMessage({ type: 'SW_UPDATED' });
-        });
+        clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
       })
   );
 });
 
-// fetch: API·Supabase는 완전 우회, 나머지는 네트워크 우선
 self.addEventListener('fetch', event => {
-  const url = event.request.url;
-
-  const shouldSkip = SKIP_CACHE.some(pattern => url.includes(pattern));
-  if (shouldSkip) return;
-
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+
+  // cross-origin 요청(Supabase, 외부 API 등)은 SW가 절대 개입하지 않음
+  if (url.origin !== self.location.origin) return;
+
+  // Next.js 내부·API·인증 경로는 항상 네트워크 직접 요청
+  if (
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/auth/')
+  ) return;
+
+  // 정적 에셋(manifest, 아이콘)만 캐시 우선 제공
+  if (STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cached => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  // 그 외 same-origin 요청: 네트워크 우선, 실패 시 캐시 폴백
   event.respondWith(
     fetch(event.request)
       .then(res => {
