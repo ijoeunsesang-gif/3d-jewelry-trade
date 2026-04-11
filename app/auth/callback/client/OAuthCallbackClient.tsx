@@ -90,6 +90,18 @@ export default function OAuthCallbackClient() {
             setTimeout(() => navigateTo("/auth"), 2000);
             return;
           }
+
+          // 서버 쿠키에도 세션 동기화 — 새로고침 시 SSR이 세션을 읽을 수 있도록
+          try {
+            await fetch("/api/auth/session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ access_token, refresh_token }),
+            });
+          } catch (e) {
+            console.error("[Kakao] 서버 세션 동기화 실패:", e);
+          }
+
           await handleSession(data.session);
           return;
         }
