@@ -134,6 +134,7 @@ export default function Header() {
     try {
       // 먼저 로컬 세션 즉시 확인 (네트워크 없음)
       const { data: { session } } = await supabase.auth.getSession();
+      console.log("[Header] getSession result:", JSON.stringify(session?.user?.id));
       if (session?.user) {
         const user = session.user;
         setUserEmail(user.email || (user.id ? "kakao_user" : ""));
