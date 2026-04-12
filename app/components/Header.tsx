@@ -38,50 +38,22 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        checkUser();
-        updateCartCount();
-        fetchFavoriteCount();
-        fetchMessageCount();
-        fetchNotificationCount();
-      } else {
-        setIsLoading(false);
+    checkUser();
+    updateCartCount();
+    fetchFavoriteCount();
+    fetchMessageCount();
+    fetchNotificationCount();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        await checkUser();
+      } else if (event === "SIGNED_OUT") {
+        setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
       }
     });
 
-    // onAuthStateChange가 INITIAL_SESSION을 포함해서 모든 상태 처리
-    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
-          if (session) {
-            await checkUser();
-            updateCartCount();
-            fetchFavoriteCount();
-            fetchMessageCount();
-            fetchNotificationCount();
-          } else {
-            setUserEmail("");
-            setNickname("");
-            setAvatarUrl("");
-            setIsLoading(false);
-          }
-        } else if (event === "SIGNED_OUT") {
-          setUserEmail("");
-          setNickname("");
-          setAvatarUrl("");
-          setIsLoading(false);
-        }
-      }
-    );
-
     const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (session) checkUser();
-          else { setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false); }
-        });
-      }
+      if (e.persisted) checkUser();
     };
     window.addEventListener("pageshow", onPageShow);
 
@@ -109,7 +81,7 @@ export default function Header() {
     document.addEventListener("mousedown", onDocClick);
 
     return () => {
-      authSubscription.unsubscribe();
+      subscription.unsubscribe();
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("cart-updated", onCartUpdated);
@@ -132,9 +104,7 @@ export default function Header() {
 
   const checkUser = async () => {
     try {
-      // 먼저 로컬 세션 즉시 확인 (네트워크 없음)
       const { data: { session } } = await supabase.auth.getSession();
-      console.log("[Header] getSession result:", JSON.stringify(session?.user?.id));
       if (session?.user) {
         const user = session.user;
         setUserEmail(user.email || (user.id ? "kakao_user" : ""));
