@@ -9,6 +9,7 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storageKey: 'sb-fvhotaxjdacfulxjahon-auth-token',
     }
   }
 )
