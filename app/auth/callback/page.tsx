@@ -1,37 +1,32 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 
 export default function CallbackPage() {
-  const [status, setStatus] = useState("처리 중...");
-
   useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      const code = new URLSearchParams(window.location.search).get("code");
+      if (!code) { window.location.href = "/auth?error=no_code"; return; }
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) window.location.href = "/auth?error=" + error.message;
+          else window.location.href = "/";
+        });
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+
     const code = new URLSearchParams(window.location.search).get("code");
-    console.log("[callback] code:", code);
-    if (!code) {
-      setStatus("코드 없음");
-      setTimeout(() => { window.location.href = "/auth?error=no_code"; }, 2000);
-      return;
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) window.location.href = "/auth?error=" + error.message;
+          else window.location.href = "/";
+        });
     }
-    supabase.auth.exchangeCodeForSession(code)
-      .then(({ data, error }) => {
-        console.log("[callback] data:", JSON.stringify(data?.session?.user?.id));
-        console.log("[callback] error:", error?.message);
-        if (error) {
-          setStatus("오류: " + error.message);
-          setTimeout(() => { window.location.href = "/auth?error=" + error.message; }, 3000);
-        } else {
-          setStatus("성공! 이동 중...");
-          window.location.href = "/";
-        }
-      })
-      .catch(e => {
-        console.error("[callback] catch:", e);
-        setStatus("예외: " + e.message);
-      });
+
+    return () => window.removeEventListener("pageshow", handlePageShow);
   }, []);
 
-  return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",flexDirection:"column",gap:16}}>
-    <div style={{fontSize:18}}>{status}</div>
-  </div>;
+  return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",fontSize:16}}>로그인 처리 중...</div>;
 }
