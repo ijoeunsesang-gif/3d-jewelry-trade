@@ -4,25 +4,21 @@ import { supabase } from "../../lib/supabase";
 
 export default function CallbackPage() {
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        subscription.unsubscribe();
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 500);
+    let attempts = 0;
+    const check = async () => {
+      attempts++;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        window.location.href = "/";
+        return;
       }
-    });
-
-    setTimeout(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          subscription.unsubscribe();
-          window.location.href = "/";
-        }
-      });
-    }, 3000);
-
-    return () => subscription.unsubscribe();
+      if (attempts < 20) {
+        setTimeout(check, 500);
+      } else {
+        window.location.href = "/auth?error=timeout";
+      }
+    };
+    setTimeout(check, 1000);
   }, []);
 
   return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",fontSize:16}}>로그인 처리 중...</div>;
