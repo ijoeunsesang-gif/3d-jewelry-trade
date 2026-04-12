@@ -4,28 +4,27 @@ import { supabase } from "../../lib/supabase";
 
 export default function CallbackPage() {
   useEffect(() => {
-    const handlePageShow = (e: PageTransitionEvent) => {
-      const code = new URLSearchParams(window.location.search).get("code");
-      if (!code) { window.location.href = "/auth?error=no_code"; return; }
-      supabase.auth.exchangeCodeForSession(code)
-        .then(({ error }) => {
-          if (error) window.location.href = "/auth?error=" + error.message;
-          else window.location.href = "/";
-        });
-    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        subscription.unsubscribe();
+        window.location.href = "/";
+      }
+      if (event === "SIGNED_OUT") {
+        subscription.unsubscribe();
+        window.location.href = "/auth?error=signed_out";
+      }
+    });
 
-    window.addEventListener("pageshow", handlePageShow);
+    setTimeout(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          subscription.unsubscribe();
+          window.location.href = "/";
+        }
+      });
+    }, 3000);
 
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code)
-        .then(({ error }) => {
-          if (error) window.location.href = "/auth?error=" + error.message;
-          else window.location.href = "/";
-        });
-    }
-
-    return () => window.removeEventListener("pageshow", handlePageShow);
+    return () => subscription.unsubscribe();
   }, []);
 
   return <div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",fontSize:16}}>로그인 처리 중...</div>;
