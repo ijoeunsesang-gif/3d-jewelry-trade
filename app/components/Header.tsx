@@ -20,7 +20,7 @@ export default function Header() {
   const [messageCount, setMessageCount] = useState(0);
   const [myOpen, setMyOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
