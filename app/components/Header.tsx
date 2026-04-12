@@ -38,20 +38,22 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    initHeader();
-
-    const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) {
-        initHeader();
-      }
-    };
-    window.addEventListener('pageshow', onPageShow);
-
-    // 로그인/로그아웃 시 헤더 실시간 갱신
+    // onAuthStateChange가 INITIAL_SESSION을 포함해서 모든 상태 처리
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          await checkUser();
+        if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
+          if (session) {
+            await checkUser();
+            updateCartCount();
+            fetchFavoriteCount();
+            fetchMessageCount();
+            fetchNotificationCount();
+          } else {
+            setUserEmail("");
+            setNickname("");
+            setAvatarUrl("");
+            setIsLoading(false);
+          }
         } else if (event === "SIGNED_OUT") {
           setUserEmail("");
           setNickname("");
@@ -60,6 +62,16 @@ export default function Header() {
         }
       }
     );
+
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session) checkUser();
+          else { setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false); }
+        });
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
 
     const onStorage = () => updateCartCount();
     const onCartUpdated = () => updateCartCount();
@@ -86,6 +98,7 @@ export default function Header() {
 
     return () => {
       authSubscription.unsubscribe();
+      window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("cart-updated", onCartUpdated);
       window.removeEventListener("favorites-updated", onFavoritesUpdated);
@@ -94,7 +107,6 @@ export default function Header() {
       window.removeEventListener("cart-reset", onCartReset);
       window.removeEventListener("notifications-reset", onNotificationsReset);
       document.removeEventListener("mousedown", onDocClick);
-      window.removeEventListener('pageshow', onPageShow);
     };
   }, []);
 
