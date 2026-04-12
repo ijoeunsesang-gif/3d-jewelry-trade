@@ -5,6 +5,7 @@ import Footer from "@/app/components/Footer";
 import PwaInstallPrompt from "@/app/components/PwaInstallPrompt";
 import PwaInstallButton from "@/app/components/PwaInstallButton";
 import { Toaster } from "react-hot-toast";
+import ServiceWorkerCleanup from "@/app/components/ServiceWorkerCleanup";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -38,6 +39,7 @@ export default function RootLayout({
             'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}
       >
+        <ServiceWorkerCleanup />
         <Header />
         {children}
         <Footer />
