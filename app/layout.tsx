@@ -62,32 +62,6 @@ export default function RootLayout({
             },
           }}
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js').then(function(reg) {
-    reg.addEventListener('updatefound', function() {
-      var newSW = reg.installing;
-      if (!newSW) return;
-      newSW.addEventListener('statechange', function() {
-        // 새 SW가 activated되면 페이지 자동 새로고침
-        if (newSW.state === 'activated') {
-          window.location.reload();
-        }
-      });
-    });
-  });
-  // SW로부터 SW_UPDATED 메시지를 받아도 새로고침
-  navigator.serviceWorker.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'SW_UPDATED') {
-      window.location.reload();
-    }
-  });
-}
-            `,
-          }}
-        />
       </body>
     </html>
   );
