@@ -100,15 +100,19 @@ export default function Header() {
 
   const checkUser = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      // 카카오는 이메일 미제공 → id 존재 여부로 로그인 판단
-      setUserEmail(user?.email || (user?.id ? "kakao_user" : ""));
-      if (user?.id) {
-        const { data: profile } = await supabase
-          .from("profiles").select("avatar_url, nickname").eq("id", user.id).maybeSingle();
-        setAvatarUrl(profile?.avatar_url || "");
-        setNickname(profile?.nickname || "");
+      // 먼저 로컬 세션 즉시 확인 (네트워크 없음)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const user = session.user;
+        setUserEmail(user.email || (user.id ? "kakao_user" : ""));
+        if (user.id) {
+          const { data: profile } = await supabase
+            .from("profiles").select("avatar_url, nickname").eq("id", user.id).maybeSingle();
+          setAvatarUrl(profile?.avatar_url || "");
+          setNickname(profile?.nickname || "");
+        }
       } else {
+        setUserEmail("");
         setAvatarUrl("");
         setNickname("");
       }
