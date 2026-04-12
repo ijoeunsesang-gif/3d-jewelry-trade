@@ -40,6 +40,13 @@ export default function Header() {
   useEffect(() => {
     initHeader();
 
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        initHeader();
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+
     // 로그인/로그아웃 시 헤더 실시간 갱신
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -87,6 +94,7 @@ export default function Header() {
       window.removeEventListener("cart-reset", onCartReset);
       window.removeEventListener("notifications-reset", onNotificationsReset);
       document.removeEventListener("mousedown", onDocClick);
+      window.removeEventListener('pageshow', onPageShow);
     };
   }, []);
 
