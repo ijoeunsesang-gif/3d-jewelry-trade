@@ -7,11 +7,9 @@ export default function CallbackPage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
         subscription.unsubscribe();
-        window.location.href = "/";
-      }
-      if (event === "SIGNED_OUT") {
-        subscription.unsubscribe();
-        window.location.href = "/auth?error=signed_out";
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 500);
       }
     });
 
