@@ -38,6 +38,18 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        checkUser();
+        updateCartCount();
+        fetchFavoriteCount();
+        fetchMessageCount();
+        fetchNotificationCount();
+      } else {
+        setIsLoading(false);
+      }
+    });
+
     // onAuthStateChange가 INITIAL_SESSION을 포함해서 모든 상태 처리
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
