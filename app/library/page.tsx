@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase-browser";
 import { showError, showInfo } from "../lib/toast";
 
 type PurchasedModel = {
@@ -23,7 +23,7 @@ type PurchasedModel = {
 
 const CATEGORIES = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "SET"];
 const CATEGORY_LABEL: Record<string, string> = {
-  ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", SET: "세트",
+  ALL: "?�체", RING: "�?, PENDANT: "?�던??, EARRING: "?�어�?, BRACELET: "브레?�슬�?, SET: "?�트",
 };
 
 
@@ -33,12 +33,11 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  // 검색 / 카테고리 필터
+  // 검??/ 카테고리 ?�터
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
 
-  // 페이지네이션
-  const [currentPage, setCurrentPage] = useState(1);
+  // ?�이지?�이??  const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => { fetchLibrary(); }, []);
@@ -46,7 +45,7 @@ export default function LibraryPage() {
   const fetchLibrary = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { showInfo("로그인이 필요합니다."); window.location.href = "/auth"; return; }
+      if (!session?.user) { showInfo("로그?�이 ?�요?�니??"); window.location.href = "/auth"; return; }
 
       const { data: purchases, error: purchaseError } = await supabase
         .from("purchases").select("model_id, created_at")
@@ -75,16 +74,16 @@ export default function LibraryPage() {
     try {
       setDownloadingId(item.id);
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) { showInfo("로그인이 필요합니다."); return; }
+      if (!session?.access_token) { showInfo("로그?�이 ?�요?�니??"); return; }
       const res = await fetch("/api/download", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ modelId: item.id }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || "다운로드 링크 생성에 실패했습니다."); return; }
+      if (!res.ok) { showError(data.error || "?�운로드 링크 ?�성???�패?�습?�다."); return; }
       window.open(data.signedUrl, "_blank");
-    } catch (e) { console.error(e); showError("다운로드 중 오류가 발생했습니다."); }
+    } catch (e) { console.error(e); showError("?�운로드 �??�류가 발생?�습?�다."); }
     finally { setDownloadingId(null); }
   };
 
@@ -105,28 +104,28 @@ export default function LibraryPage() {
   const pagedItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   if (loading) {
-    return <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>내 다운로드를 불러오는 중...</p></main>;
+    return <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>???�운로드�?불러?�는 �?..</p></main>;
   }
 
   return (
     <>
       <main style={{ maxWidth: 1200, margin: "40px auto", padding: "0 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
-        {/* 헤더 */}
+        {/* ?�더 */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
-              <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: 0 }}>내 다운로드</h1>
-              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매한 3D 모델을 구매일로부터 6개월 동안 안전하게 다시 다운로드할 수 있습니다.</p>
+              <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: 0 }}>???�운로드</h1>
+              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매??3D 모델??구매?�로부??6개월 ?�안 ?�전?�게 ?�시 ?�운로드?????�습?�다.</p>
             </div>
-            <div style={{ padding: "8px 14px", borderRadius: 999, background: "#f3f4f6", color: "#111827", fontWeight: 800, fontSize: 13 }}>총 {items.length}개</div>
+            <div style={{ padding: "8px 14px", borderRadius: 999, background: "#f3f4f6", color: "#111827", fontWeight: 800, fontSize: 13 }}>�?{items.length}�?/div>
           </div>
 
           <input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            placeholder="모델 이름으로 검색..."
+            placeholder="모델 ?�름?�로 검??.."
             style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none", marginBottom: 12 }}
           />
 
@@ -150,12 +149,12 @@ export default function LibraryPage() {
 
         {items.length === 0 ? (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 16 }}>아직 구매한 상품이 없습니다.</p>
-            <Link href="/" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>상품 보러가기</Link>
+            <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 16 }}>?�직 구매???�품???�습?�다.</p>
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>?�품 보러가�?/Link>
           </div>
         ) : filteredItems.length === 0 ? (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white", textAlign: "center" }}>
-            <p style={{ fontSize: 15, color: "#6b7280" }}>검색 결과가 없습니다.</p>
+            <p style={{ fontSize: 15, color: "#6b7280" }}>검??결과가 ?�습?�다.</p>
           </div>
         ) : (
           <div className="library-card-grid">
@@ -189,15 +188,15 @@ export default function LibraryPage() {
 
                   <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
                     <h2 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</h2>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}원</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}??/div>
                     {fileName && (
                       <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        📎 {fileName}
+                        ?�� {fileName}
                       </div>
                     )}
-                    <div style={{ fontSize: 12, color: "#9ca3af" }}>구매일 {purchaseDate}</div>
+                    <div style={{ fontSize: 12, color: "#9ca3af" }}>구매??{purchaseDate}</div>
                     <div style={{ fontSize: 12, color: isExpired ? "#ef4444" : "#9ca3af" }}>
-                      {isExpired ? `다운로드 기한 만료 (${expiresDateStr})` : `다운로드 기한 ${expiresDateStr}까지`}
+                      {isExpired ? `?�운로드 기한 만료 (${expiresDateStr})` : `?�운로드 기한 ${expiresDateStr}까�?`}
                     </div>
                   </div>
 
@@ -207,20 +206,20 @@ export default function LibraryPage() {
                       disabled={downloadingId === item.id || isExpired}
                       style={{ height: 40, borderRadius: 10, border: "none", background: isExpired ? "#9ca3af" : "#111827", color: "white", fontWeight: 900, cursor: (downloadingId === item.id || isExpired) ? "default" : "pointer", fontSize: 13 }}
                     >
-                      {downloadingId === item.id ? "생성 중..." : isExpired ? "기한 만료" : "다운로드"}
+                      {downloadingId === item.id ? "?�성 �?.." : isExpired ? "기한 만료" : "?�운로드"}
                     </button>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                       <button
                         onClick={() => router.push(`/send-to-printer?modelId=${item.id}`)}
                         style={{ height: 36, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 12 }}
                       >
-                        출력소 전송
+                        출력???�송
                       </button>
                       <Link
                         href={`/models/${item.id}`}
                         style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 36, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#111827", textDecoration: "none", fontWeight: 800, fontSize: 12 }}
                       >
-                        상세 보기
+                        ?�세 보기
                       </Link>
                     </div>
                   </div>
@@ -233,7 +232,7 @@ export default function LibraryPage() {
         {totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
             <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
-              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}>‹</button>
+              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}>??/button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button key={page} onClick={() => setCurrentPage(page)}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === page ? "none" : "1px solid #d1d5db", background: currentPage === page ? "#111827" : "white", color: currentPage === page ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>
@@ -241,7 +240,7 @@ export default function LibraryPage() {
               </button>
             ))}
             <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
-              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === totalPages ? 0.4 : 1 }}>›</button>
+              style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === totalPages ? 0.4 : 1 }}>??/button>
           </div>
         )}
       </main>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabase-browser";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {

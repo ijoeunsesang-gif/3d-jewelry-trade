@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase-browser";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import DescriptionTemplateSelector from "../components/DescriptionTemplateSelector";
 
@@ -61,21 +61,20 @@ export default function UploadPage() {
     e.preventDefault();
 
     try {
-      if (!title.trim()) { showInfo("모델명을 입력하세요."); return; }
-      if (!price.trim()) { showInfo("가격을 입력하세요."); return; }
-      if (!thumbnailFile) { showError("썸네일 이미지를 선택하세요."); return; }
-      if (!modelFile) { showError("출력(대표)파일을 선택하세요."); return; }
+      if (!title.trim()) { showInfo("모델명을 ?�력?�세??"); return; }
+      if (!price.trim()) { showInfo("가격을 ?�력?�세??"); return; }
+      if (!thumbnailFile) { showError("?�네???��?지�??�택?�세??"); return; }
+      if (!modelFile) { showError("출력(?�???�일???�택?�세??"); return; }
 
       setUploading(true);
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { showInfo("로그인이 필요합니다."); return; }
+      if (!session?.user) { showInfo("로그?�이 ?�요?�니??"); return; }
 
       const sellerId = session.user.id;
       const now = Date.now();
 
-      // 썸네일 업로드
-      const thumbExt = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      // ?�네???�로??      const thumbExt = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
       const thumbPath = `${sellerId}/${now}-thumb.${thumbExt}`;
 
       const { error: thumbUploadError } = await supabase.storage
@@ -83,14 +82,13 @@ export default function UploadPage() {
         .upload(thumbPath, thumbnailFile, { upsert: true });
 
       if (thumbUploadError) {
-        showError(`썸네일 업로드 실패: ${thumbUploadError.message}`);
+        showError(`?�네???�로???�패: ${thumbUploadError.message}`);
         return;
       }
 
       const thumbnailUrl = supabase.storage.from("thumbnails").getPublicUrl(thumbPath).data.publicUrl;
 
-      // 대표 모델 파일 업로드
-      const modelExt = modelFile.name.split(".").pop()?.toLowerCase() || "obj";
+      // ?�??모델 ?�일 ?�로??      const modelExt = modelFile.name.split(".").pop()?.toLowerCase() || "obj";
       const modelPath = `${sellerId}/${now}-model.${modelExt}`;
 
       const { error: modelUploadError } = await supabase.storage
@@ -98,12 +96,11 @@ export default function UploadPage() {
         .upload(modelPath, modelFile, { upsert: true });
 
       if (modelUploadError) {
-        showError(`모델 파일 업로드 실패: ${modelUploadError.message}`);
+        showError(`모델 ?�일 ?�로???�패: ${modelUploadError.message}`);
         return;
       }
 
-      // 모델 DB 저장
-      const { data: insertedModel, error: insertModelError } = await supabase
+      // 모델 DB ?�??      const { data: insertedModel, error: insertModelError } = await supabase
         .from("models")
         .insert({
           title,
@@ -120,13 +117,12 @@ export default function UploadPage() {
         .single();
 
       if (insertModelError || !insertedModel) {
-        console.error("모델 저장 실패:", insertModelError);
-        showError("모델 저장에 실패했습니다.");
+        console.error("모델 ?�???�패:", insertModelError);
+        showError("모델 ?�?�에 ?�패?�습?�다.");
         return;
       }
 
-      // 추가 이미지 업로드
-      if (detailImageFiles.length > 0) {
+      // 추�? ?��?지 ?�로??      if (detailImageFiles.length > 0) {
         const imageRows: any[] = [];
 
         for (let i = 0; i < detailImageFiles.length; i++) {
@@ -138,7 +134,7 @@ export default function UploadPage() {
             .from("thumbnails")
             .upload(path, file, { upsert: true });
 
-          if (error) { console.error("추가 이미지 업로드 실패:", error); continue; }
+          if (error) { console.error("추�? ?��?지 ?�로???�패:", error); continue; }
 
           const url = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
 
@@ -147,12 +143,11 @@ export default function UploadPage() {
 
         if (imageRows.length > 0) {
           const { error: imageInsertError } = await supabase.from("model_images").insert(imageRows);
-          if (imageInsertError) console.error("추가 이미지 저장 실패:", imageInsertError);
+          if (imageInsertError) console.error("추�? ?��?지 ?�???�패:", imageInsertError);
         }
       }
 
-      // 추가 파일 업로드
-      if (extraFiles.length > 0) {
+      // 추�? ?�일 ?�로??      if (extraFiles.length > 0) {
         const fileRows: any[] = [];
 
         for (let i = 0; i < extraFiles.length; i++) {
@@ -164,14 +159,14 @@ export default function UploadPage() {
             .from("models-private")
             .upload(path, file, { upsert: true });
 
-          if (error) { console.error("추가 파일 업로드 실패:", error); continue; }
+          if (error) { console.error("추�? ?�일 ?�로???�패:", error); continue; }
 
           const { data: signedData, error: signedError } = await supabase.storage
             .from("models-private")
             .createSignedUrl(path, 60 * 60 * 24 * 7);
 
           if (signedError || !signedData?.signedUrl) {
-            console.error("추가 파일 signed url 생성 실패:", signedError);
+            console.error("추�? ?�일 signed url ?�성 ?�패:", signedError);
             continue;
           }
 
@@ -187,15 +182,15 @@ export default function UploadPage() {
 
         if (fileRows.length > 0) {
           const { error: fileInsertError } = await supabase.from("model_files").insert(fileRows);
-          if (fileInsertError) console.error("추가 파일 DB 저장 실패:", fileInsertError);
+          if (fileInsertError) console.error("추�? ?�일 DB ?�???�패:", fileInsertError);
         }
       }
 
-      showSuccess("모델 업로드가 완료되었습니다.");
+      showSuccess("모델 ?�로?��? ?�료?�었?�니??");
       router.push("/my-models");
     } catch (error) {
-      console.error("업로드 오류:", error);
-      showError("업로드 중 오류가 발생했습니다.");
+      console.error("?�로???�류:", error);
+      showError("?�로??�??�류가 발생?�습?�다.");
     } finally {
       setUploading(false);
     }
@@ -212,10 +207,9 @@ export default function UploadPage() {
       }}
     >
       <h1 style={{ margin: 0, fontSize: 40, fontWeight: 900, color: "#111827" }}>
-        모델 업로드
-      </h1>
+        모델 ?�로??      </h1>
       <p style={{ margin: "10px 0 0", color: "#6b7280", fontSize: 15 }}>
-        썸네일 1장과 추가 이미지 최대 10장까지 업로드할 수 있습니다.
+        ?�네??1?�과 추�? ?��?지 최�? 10?�까지 ?�로?�할 ???�습?�다.
       </p>
 
       <form
@@ -231,7 +225,7 @@ export default function UploadPage() {
           gap: 18,
         }}
       >
-        <Field label="모델명">
+        <Field label="모델�?>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -253,7 +247,7 @@ export default function UploadPage() {
           </select>
         </Field>
 
-        <Field label="가격">
+        <Field label="가�?>
           <input
             value={price}
             onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
@@ -261,32 +255,32 @@ export default function UploadPage() {
           />
         </Field>
 
-        {/* 설명 + 공통 템플릿 컴포넌트 */}
-        <Field label="설명">
+        {/* ?�명 + 공통 ?�플�?컴포?�트 */}
+        <Field label="?�명">
           <DescriptionTemplateSelector
             description={description}
             onDescriptionChange={setDescription}
           />
         </Field>
 
-        <Field label="썸네일 이미지 *">
+        <Field label="?�네???��?지 *">
           <div style={uploadBoxStyle}>
-            <div style={helperTextStyle}>대표로 보여질 이미지를 1장 업로드하세요.</div>
+            <div style={helperTextStyle}>?�?�로 보여�??��?지�?1???�로?�하?�요.</div>
             <input
               type="file"
               accept="image/*"
               onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
             />
             {thumbnailFile && (
-              <div style={fileListStyle}>선택 파일: {thumbnailFile.name}</div>
+              <div style={fileListStyle}>?�택 ?�일: {thumbnailFile.name}</div>
             )}
           </div>
         </Field>
 
-        <Field label="추가 이미지 (최대 10장)">
+        <Field label="추�? ?��?지 (최�? 10??">
           <div style={uploadBoxStyle}>
             <div style={helperTextStyle}>
-              상세페이지에 들어갈 이미지를 여러 장 업로드할 수 있습니다.
+              ?�세?�이지???�어�??��?지�??�러 ???�로?�할 ???�습?�다.
             </div>
             <input
               type="file"
@@ -295,7 +289,7 @@ export default function UploadPage() {
               onChange={(e) => handleDetailImages(e.target.files)}
             />
             <div style={fileListStyle}>
-              <div>선택된 파일 수: {detailImageFiles.length}장</div>
+              <div>?�택???�일 ?? {detailImageFiles.length}??/div>
               {detailImageFiles.map((file, idx) => (
                 <div key={`${file.name}-${idx}`}>{idx + 1}. {file.name}</div>
               ))}
@@ -303,10 +297,10 @@ export default function UploadPage() {
           </div>
         </Field>
 
-        <Field label="출력(대표)파일 *">
+        <Field label="출력(?�???�일 *">
           <div style={uploadBoxStyle}>
             <div style={helperTextStyle}>
-              출력(대표)파일 1개를 업로드하세요. 예: STL, OBJ, 3DM
+              출력(?�???�일 1개�? ?�로?�하?�요. ?? STL, OBJ, 3DM
             </div>
             <input
               type="file"
@@ -314,16 +308,16 @@ export default function UploadPage() {
               onChange={(e) => setModelFile(e.target.files?.[0] || null)}
             />
             {modelFile && (
-              <div style={fileListStyle}>선택 파일: {modelFile.name}</div>
+              <div style={fileListStyle}>?�택 ?�일: {modelFile.name}</div>
             )}
           </div>
         </Field>
 
-        <Field label="추가 파일 (최대 10개)">
+        <Field label="추�? ?�일 (최�? 10�?">
           <div style={uploadBoxStyle}>
             <div style={helperTextStyle}>
-              출력(대표)파일 외에 보조 파일을 추가로 업로드할 수 있습니다.
-              예: STL, OBJ, 3DM, ZIP, PDF
+              출력(?�???�일 ?�에 보조 ?�일??추�?�??�로?�할 ???�습?�다.
+              ?? STL, OBJ, 3DM, ZIP, PDF
             </div>
             <input
               type="file"
@@ -335,8 +329,7 @@ export default function UploadPage() {
             {extraFiles.length > 0 && (
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
-                  선택된 파일 수: {extraFiles.length}개
-                </div>
+                  ?�택???�일 ?? {extraFiles.length}�?                </div>
                 {extraFiles.map((file, idx) => (
                   <div
                     key={`${file.name}-${idx}`}
@@ -362,7 +355,7 @@ export default function UploadPage() {
                         alignItems: "center", justifyContent: "center",
                         lineHeight: 1,
                       }}
-                      aria-label="파일 제거"
+                      aria-label="?�일 ?�거"
                     >
                       ×
                     </button>
@@ -382,7 +375,7 @@ export default function UploadPage() {
             fontWeight: 900, fontSize: 17, cursor: "pointer",
           }}
         >
-          {uploading ? "업로드 중..." : "업로드"}
+          {uploading ? "?�로??�?.." : "?�로??}
         </button>
       </form>
     </main>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase-browser";
 import { showError, showSuccess } from "../lib/toast";
 
 interface Inquiry {
@@ -54,7 +54,7 @@ export default function AdminPage() {
 
   const handleReply = async (id: string) => {
     const answer = (replyText[id] || "").trim();
-    if (!answer) { showError("답변 내용을 입력하세요."); return; }
+    if (!answer) { showError("?��? ?�용???�력?�세??"); return; }
     setSubmitting(id);
     try {
       const { error } = await supabase
@@ -62,11 +62,11 @@ export default function AdminPage() {
         .update({ answer, status: "answered", answered_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
-      showSuccess("답변이 등록되었습니다.");
+      showSuccess("?��????�록?�었?�니??");
       setReplyText((prev) => ({ ...prev, [id]: "" }));
       fetchInquiries();
     } catch {
-      showError("답변 저장 중 오류가 발생했습니다.");
+      showError("?��? ?�??�??�류가 발생?�습?�다.");
     } finally {
       setSubmitting(null);
     }
@@ -87,7 +87,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <main style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
-        <p style={{ color: "#6b7280", fontSize: 16 }}>권한 확인 중...</p>
+        <p style={{ color: "#6b7280", fontSize: 16 }}>권한 ?�인 �?..</p>
       </main>
     );
   }
@@ -101,10 +101,10 @@ export default function AdminPage() {
       padding: "36px 20px 80px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
-      <h1 style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#111827" }}>관리자 페이지</h1>
-      <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 15 }}>1:1 문의 관리</p>
+      <h1 style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#111827" }}>관리자 ?�이지</h1>
+      <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 15 }}>1:1 문의 관�?/p>
 
-      {/* 필터 */}
+      {/* ?�터 */}
       <div style={{ display: "flex", gap: 8, marginTop: 28, flexWrap: "wrap" }}>
         {(["all", "pending", "answered"] as const).map((f) => (
           <button
@@ -119,7 +119,7 @@ export default function AdminPage() {
               color: filter === f ? "white" : "#374151",
             }}
           >
-            {{ all: "전체", pending: "미답변", answered: "답변완료" }[f]}
+            {{ all: "?�체", pending: "미답변", answered: "?��??�료" }[f]}
             {f !== "all" && (
               <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.75 }}>
                 ({inquiries.filter((i) => i.status === f).length})
@@ -143,14 +143,14 @@ export default function AdminPage() {
             marginLeft: "auto",
           }}
         >
-          새로고침
+          ?�로고침
         </button>
       </div>
 
       {/* 문의 목록 */}
       <div style={{ display: "grid", gap: 12, marginTop: 20 }}>
         {filtered.length === 0 && (
-          <p style={{ color: "#9ca3af", fontSize: 15 }}>문의가 없습니다.</p>
+          <p style={{ color: "#9ca3af", fontSize: 15 }}>문의가 ?�습?�다.</p>
         )}
         {filtered.map((inq) => (
           <div
@@ -162,7 +162,7 @@ export default function AdminPage() {
               background: "white",
             }}
           >
-            {/* 헤더 */}
+            {/* ?�더 */}
             <button
               type="button"
               onClick={() => setExpanded(expanded === inq.id ? null : inq.id)}
@@ -181,7 +181,7 @@ export default function AdminPage() {
                     background: inq.status === "pending" ? "#fef3c7" : "#d1fae5",
                     color: inq.status === "pending" ? "#92400e" : "#065f46",
                   }}>
-                    {inq.status === "pending" ? "미답변" : "답변완료"}
+                    {inq.status === "pending" ? "미답변" : "?��??�료"}
                   </span>
                   <span style={{ fontSize: 16, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {inq.title}
@@ -192,14 +192,14 @@ export default function AdminPage() {
                 </div>
               </div>
               <span style={{ fontSize: 22, color: "#9ca3af", flexShrink: 0 }}>
-                {expanded === inq.id ? "−" : "+"}
+                {expanded === inq.id ? "?? : "+"}
               </span>
             </button>
 
-            {/* 상세 */}
+            {/* ?�세 */}
             {expanded === inq.id && (
               <div style={{ padding: "0 20px 20px", borderTop: "1px solid #f3f4f6" }}>
-                {/* 문의 내용 */}
+                {/* 문의 ?�용 */}
                 <div style={{
                   marginTop: 16, padding: 16,
                   background: "#f9fafb", borderRadius: 12,
@@ -209,7 +209,7 @@ export default function AdminPage() {
                   {inq.content}
                 </div>
 
-                {/* 기존 답변 */}
+                {/* 기존 ?��? */}
                 {inq.answer && (
                   <div style={{
                     marginTop: 12, padding: 16,
@@ -218,18 +218,18 @@ export default function AdminPage() {
                     whiteSpace: "pre-wrap",
                   }}>
                     <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>
-                      답변 · {inq.answered_at ? formatDate(inq.answered_at) : ""}
+                      ?��? · {inq.answered_at ? formatDate(inq.answered_at) : ""}
                     </div>
                     {inq.answer}
                   </div>
                 )}
 
-                {/* 답변 입력 */}
+                {/* ?��? ?�력 */}
                 <div style={{ marginTop: 16, display: "grid", gap: 10 }}>
                   <textarea
                     value={replyText[inq.id] || ""}
                     onChange={(e) => setReplyText((prev) => ({ ...prev, [inq.id]: e.target.value }))}
-                    placeholder={inq.answer ? "답변을 수정하려면 입력하세요" : "답변을 입력하세요"}
+                    placeholder={inq.answer ? "?��????�정?�려�??�력?�세?? : "?��????�력?�세??}
                     rows={4}
                     style={{
                       width: "100%", borderRadius: 12, border: "1px solid #d1d5db",
@@ -247,7 +247,7 @@ export default function AdminPage() {
                       fontWeight: 800, fontSize: 16, cursor: "pointer",
                     }}
                   >
-                    {submitting === inq.id ? "저장 중..." : inq.answer ? "답변 수정" : "답변 등록"}
+                    {submitting === inq.id ? "?�??�?.." : inq.answer ? "?��? ?�정" : "?��? ?�록"}
                   </button>
                 </div>
               </div>

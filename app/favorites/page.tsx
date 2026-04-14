@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase-browser";
 import { showError } from "../lib/toast";
 
 type ModelItem = {
@@ -20,7 +20,7 @@ type SortType = "latest" | "oldest" | "price-low" | "price-high";
 
 const CATEGORIES = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "SET"];
 const CATEGORY_LABEL: Record<string, string> = {
-  ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", SET: "세트",
+  ALL: "?�체", RING: "�?, PENDANT: "?�던??, EARRING: "?�어�?, BRACELET: "브레?�슬�?, SET: "?�트",
 };
 
 export default function FavoritesPage() {
@@ -81,7 +81,7 @@ export default function FavoritesPage() {
       const { error } = await supabase.from("favorites").delete()
         .eq("user_id", session.user.id).eq("model_id", modelId);
 
-      if (error) { showError("찜 해제에 실패했습니다."); return; }
+      if (error) { showError("�??�제???�패?�습?�다."); return; }
 
       setModels((prev) => prev.filter((item) => item.id !== modelId));
       window.dispatchEvent(new Event("favorites-updated"));
@@ -125,22 +125,22 @@ export default function FavoritesPage() {
   return (
     <main style={{ maxWidth: 1200, margin: "40px auto", padding: "0 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
-      {/* 헤더 */}
+      {/* ?�더 */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#111827" }}>찜한 모델</h1>
         <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>
-          저장해둔 관심 모델을 한 번에 모아보세요.
+          ?�?�해??관??모델????번에 모아보세??
         </p>
       </div>
 
-      {/* 검색 + 필터 */}
+      {/* 검??+ ?�터 */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
           <input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            placeholder="모델 이름으로 검색..."
+            placeholder="모델 ?�름?�로 검??.."
             style={{ flex: 1, minWidth: 180, height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none" }}
           />
           <select
@@ -148,14 +148,14 @@ export default function FavoritesPage() {
             onChange={(e) => setSortBy(e.target.value as SortType)}
             style={{ height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 14px", background: "white", fontWeight: 700, color: "#111827", outline: "none", cursor: "pointer" }}
           >
-            <option value="latest">최신순</option>
-            <option value="oldest">오래된순</option>
-            <option value="price-low">가격 낮은순</option>
-            <option value="price-high">가격 높은순</option>
+            <option value="latest">최신??/option>
+            <option value="oldest">?�래?�순</option>
+            <option value="price-low">가�??????/option>
+            <option value="price-high">가�??��???/option>
           </select>
         </div>
 
-        {/* 카테고리 필터 */}
+        {/* 카테고리 ?�터 */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {CATEGORIES.map((cat) => (
             <button
@@ -177,15 +177,15 @@ export default function FavoritesPage() {
 
       {/* 목록 */}
       {loading ? (
-        <p style={{ color: "#6b7280" }}>찜 목록 불러오는 중...</p>
+        <p style={{ color: "#6b7280" }}>�?목록 불러?�는 �?..</p>
       ) : models.length === 0 ? (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-          <p style={{ fontSize: 15, color: "#6b7280", margin: "0 0 16px" }}>아직 찜한 모델이 없습니다.</p>
-          <Link href="/" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>상품 보러가기</Link>
+          <p style={{ fontSize: 15, color: "#6b7280", margin: "0 0 16px" }}>?�직 찜한 모델???�습?�다.</p>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>?�품 보러가�?/Link>
         </div>
       ) : filteredModels.length === 0 ? (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white", textAlign: "center" }}>
-          <p style={{ fontSize: 15, color: "#6b7280", margin: 0 }}>검색 결과가 없습니다.</p>
+          <p style={{ fontSize: 15, color: "#6b7280", margin: 0 }}>검??결과가 ?�습?�다.</p>
         </div>
       ) : (
         <>
@@ -194,7 +194,7 @@ export default function FavoritesPage() {
             const thumb = getThumbnailUrl(item);
             return (
               <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 2px 12px rgba(15,23,42,0.06)" }}>
-                {/* 썸네일 */}
+                {/* ?�네??*/}
                 <Link href={`/models/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
                   <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#0b1220" }}>
                     {thumb && <img src={thumb} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -204,10 +204,10 @@ export default function FavoritesPage() {
                   </div>
                 </Link>
 
-                {/* 내용 */}
+                {/* ?�용 */}
                 <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
                   <h2 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</h2>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}원</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}??/div>
                   {item.description && (
                     <p style={{ margin: 0, fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {item.description}
@@ -221,7 +221,7 @@ export default function FavoritesPage() {
                     href={`/models/${item.id}`}
                     style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 38, borderRadius: 10, background: "#111827", color: "white", textDecoration: "none", fontWeight: 900, fontSize: 13 }}
                   >
-                    상세 보기
+                    ?�세 보기
                   </Link>
                   <button
                     type="button"
@@ -229,7 +229,7 @@ export default function FavoritesPage() {
                     disabled={removingId === item.id}
                     style={{ height: 38, borderRadius: 10, border: "1px solid #e11d48", background: "#fff1f2", color: "#e11d48", fontWeight: 800, cursor: removingId === item.id ? "default" : "pointer", fontSize: 13 }}
                   >
-                    {removingId === item.id ? "해제 중..." : "찜 해제"}
+                    {removingId === item.id ? "?�제 �?.." : "�??�제"}
                   </button>
                 </div>
               </div>
@@ -245,8 +245,7 @@ export default function FavoritesPage() {
               disabled={currentPage === 1}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}
             >
-              ‹
-            </button>
+              ??            </button>
             {Array.from({ length: Math.ceil(filteredModels.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map((p) => (
               <button
                 key={p}
@@ -263,8 +262,7 @@ export default function FavoritesPage() {
               disabled={currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE)}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE) ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE) ? 0.4 : 1 }}
             >
-              ›
-            </button>
+              ??            </button>
           </div>
         )}
         </>

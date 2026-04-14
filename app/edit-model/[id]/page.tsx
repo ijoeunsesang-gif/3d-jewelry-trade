@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabase-browser";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
 

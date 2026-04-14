@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
-import { supabase } from "./lib/supabase";
+import { supabase } from "./lib/supabase-browser";
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
@@ -14,8 +14,8 @@ import { SkeletonCard, SkeletonTopCard } from "./components/SkeletonCard";
 type SortType = "latest" | "price-low" | "price-high" | "popular";
 type FavoriteMap = Record<string, boolean>;
 
-const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "세트"];
-const recommendedKeywords = ["반지", "펜던트", "이어링", "세트", "링", "플라워", "큐빅", "체인"];
+const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "?�트"];
+const recommendedKeywords = ["반�?", "?�던??, "?�어�?, "?�트", "�?, "?�라??, "?�빅", "체인"];
 const ITEMS_PER_PAGE = 20;
 
 export default function Home() {
@@ -48,8 +48,7 @@ export default function Home() {
     fetchFavorites();
   }, []);
 
-  // 카테고리/정렬/검색 변경 시 페이지 초기화
-  useEffect(() => {
+  // 카테고리/?�렬/검??변�????�이지 초기??  useEffect(() => {
     setPage(1);
   }, [selectedCategory, sortBy, search]);
 
@@ -147,7 +146,7 @@ export default function Home() {
   const fetchModels = async () => {
     try {
       setLoading(true);
-      console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log("[fetchModels] ?�작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
       const { data, error } = await supabase
         .from("models")
         .select("*")
@@ -156,13 +155,13 @@ export default function Home() {
 
       console.log("[fetchModels] 결과 - data 개수:", data?.length ?? null, "| error:", error);
       if (error) {
-        console.error("[fetchModels] 에러 상세:", JSON.stringify(error));
+        console.error("[fetchModels] ?�러 ?�세:", JSON.stringify(error));
         return;
       }
-      console.log("[fetchModels] 첫 번째 row 샘플:", data?.[0] ?? "없음");
+      console.log("[fetchModels] �?번째 row ?�플:", data?.[0] ?? "?�음");
       setModels(data || []);
     } catch (error) {
-      console.error("[fetchModels] catch 오류:", error);
+      console.error("[fetchModels] catch ?�류:", error);
     } finally {
       setLoading(false);
     }
@@ -182,7 +181,7 @@ export default function Home() {
         .eq("user_id", session.user.id);
 
       if (error) {
-        console.error("찜 불러오기 실패:", error);
+        console.error("�?불러?�기 ?�패:", error);
         return;
       }
 
@@ -193,7 +192,7 @@ export default function Home() {
       setFavoriteMap(nextMap);
       window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
-      console.error("찜 불러오기 오류:", error);
+      console.error("�?불러?�기 ?�류:", error);
     }
   };
 
@@ -203,7 +202,7 @@ export default function Home() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        showError("로그인 후 찜 기능을 사용할 수 있습니다.");
+        showError("로그????�?기능???�용?????�습?�다.");
         return;
       }
 
@@ -216,7 +215,7 @@ export default function Home() {
           .eq("model_id", modelId);
 
         if (error) {
-          showError("찜 해제에 실패했습니다.");
+          showError("�??�제???�패?�습?�다.");
           return;
         }
         setFavoriteMap((prev) => {
@@ -231,7 +230,7 @@ export default function Home() {
         });
 
         if (error) {
-          showError("찜 추가에 실패했습니다.");
+          showError("�?추�????�패?�습?�다.");
           return;
         }
         setFavoriteMap((prev) => ({ ...prev, [modelId]: true }));
@@ -239,7 +238,7 @@ export default function Home() {
 
       window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
-      console.error("찜 토글 오류:", error);
+      console.error("�??��? ?�류:", error);
     } finally {
       setFavoriteLoadingIds((prev) => ({ ...prev, [modelId]: false }));
     }
@@ -251,7 +250,7 @@ export default function Home() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        showError("로그인 후 찜 기능을 사용할 수 있습니다.");
+        showError("로그????�?기능???�용?????�습?�다.");
         return;
       }
 
@@ -265,7 +264,7 @@ export default function Home() {
           .eq("model_id", quickModel.id);
 
         if (error) {
-          showError("찜 해제에 실패했습니다.");
+          showError("�??�제???�패?�습?�다.");
           return;
         }
         setQuickLiked(false);
@@ -276,7 +275,7 @@ export default function Home() {
         });
 
         if (error) {
-          showError("찜 추가에 실패했습니다.");
+          showError("�?추�????�패?�습?�다.");
           return;
         }
         setQuickLiked(true);
@@ -284,7 +283,7 @@ export default function Home() {
 
       window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
-      console.error("퀵뷰 찜 오류:", error);
+      console.error("?�뷰 �??�류:", error);
     } finally {
       setQuickFavoriteLoading(false);
     }
@@ -327,21 +326,21 @@ export default function Home() {
       const rawText = await res.text();
 
       if (!contentType.includes("application/json")) {
-        console.error("퀵뷰 API가 JSON이 아닌 응답을 반환함:", rawText);
+        console.error("?�뷰 API가 JSON???�닌 ?�답??반환??", rawText);
         setViewerUrl("");
         return;
       }
 
       const data = JSON.parse(rawText);
       if (!res.ok) {
-        console.error("퀵뷰 viewer URL 불러오기 실패:", data.error);
+        console.error("?�뷰 viewer URL 불러?�기 ?�패:", data.error);
         setViewerUrl("");
         return;
       }
 
       setViewerUrl(data.viewerUrl || "");
     } catch (error) {
-      console.error("퀵뷰 viewer URL 요청 실패:", error);
+      console.error("?�뷰 viewer URL ?�청 ?�패:", error);
     } finally {
       setViewerLoading(false);
     }
@@ -412,7 +411,7 @@ export default function Home() {
   return (
     <>
       <main className={styles.main}>
-        {/* Hero + 검색 */}
+        {/* Hero + 검??*/}
         <section className={styles.hero}>
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
@@ -420,14 +419,13 @@ export default function Home() {
               JEWELRY 3D MARKET
             </p>
             <p className={styles.heroTitle}>
-              주얼리 3D 모델 거래 플랫폼
-            </p>
+              주얼�?3D 모델 거래 ?�랫??            </p>
 
             <div className={styles.searchBox} style={{ position: "relative" }} ref={searchWrapRef}>
               <div style={{ position: "relative", width: "100%" }}>
                 <input
                   className={styles.searchInput}
-                  placeholder="모델명, 설명, 카테고리 검색"
+                  placeholder="모델�? ?�명, 카테고리 검??
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
@@ -452,7 +450,7 @@ export default function Home() {
                       fontSize: 16,
                       lineHeight: 1,
                     }}
-                    aria-label="검색어 초기화"
+                    aria-label="검?�어 초기??
                   >
                     ×
                   </button>
@@ -483,8 +481,7 @@ export default function Home() {
                         borderBottom: "1px solid #eef2f7",
                       }}
                     >
-                      추천 검색
-                    </div>
+                      추천 검??                    </div>
                     {suggestions.map((item) => (
                       <button
                         key={item}
@@ -503,14 +500,14 @@ export default function Home() {
                           color: "#111827",
                         }}
                       >
-                        🔎 {item}
+                        ?�� {item}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              <button className={styles.searchButton}>검색</button>
+              <button className={styles.searchButton}>검??/button>
             </div>
 
             <div className={styles.keywordRow}>
@@ -535,7 +532,7 @@ export default function Home() {
               Best 6
             </h3>
             <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#6b7280", lineHeight: 1, paddingBottom: 2 }}>
-              다운로드 기준 상위 모델
+              ?�운로드 기�? ?�위 모델
             </p>
           </div>
 
@@ -554,11 +551,11 @@ export default function Home() {
                     getThumbnailUrl={getThumbnailUrl}
                   />
                 ))
-              : <p className={styles.emptyText}>표시할 TOP 모델이 없습니다.</p>}
+              : <p className={styles.emptyText}>?�시??TOP 모델???�습?�다.</p>}
           </div>
         </section>
 
-        {/* 필터 */}
+        {/* ?�터 */}
         <section className={styles.filterSection}>
           <div className={styles.filterTopRow}>
             <div className={styles.categoryWrap}>
@@ -569,7 +566,7 @@ export default function Home() {
                   onClick={() => setSelectedCategory(category)}
                   className={`${styles.categoryBtn} ${selectedCategory === category ? styles.categoryBtnActive : ""}`}
                 >
-                  {category === "ALL" ? "전체" : category}
+                  {category === "ALL" ? "?�체" : category}
                 </button>
               ))}
             </div>
@@ -579,17 +576,17 @@ export default function Home() {
                 onChange={(e) => setSortBy(e.target.value as SortType)}
                 className={styles.sortSelect}
               >
-                <option value="latest">최신순</option>
-                <option value="price-low">가격 낮은순</option>
-                <option value="price-high">가격 높은순</option>
-                <option value="popular">인기순</option>
+                <option value="latest">최신??/option>
+                <option value="price-low">가�??????/option>
+                <option value="price-high">가�??��???/option>
+                <option value="popular">?�기??/option>
               </select>
             </div>
           </div>
 
           <div className={styles.filterSummary}>
-            현재 결과 <strong>{filteredModels.length}개</strong>
-            {search.trim() ? <> · 검색어 <strong>"{search}"</strong></> : null}
+            ?�재 결과 <strong>{filteredModels.length}�?/strong>
+            {search.trim() ? <> · 검?�어 <strong>"{search}"</strong></> : null}
             {selectedCategory !== "ALL" ? <> · 카테고리 <strong>{selectedCategory}</strong></> : null}
           </div>
         </section>
@@ -597,8 +594,8 @@ export default function Home() {
         {/* 모델 목록 */}
         <section className={styles.section}>
           <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>최근 업데이트 모델링</h2>
-            <span className={styles.sectionBadge}>필터/정렬 이후 추가 목록</span>
+            <h2 className={styles.sectionTitle}>최근 ?�데?�트 모델�?/h2>
+            <span className={styles.sectionBadge}>?�터/?�렬 ?�후 추�? 목록</span>
           </div>
 
           <div className={styles.cardGrid}>
@@ -617,7 +614,7 @@ export default function Home() {
                     getThumbnailUrl={getThumbnailUrl}
                   />
                 ))
-              : <p className={styles.emptyText}>추가로 표시할 모델이 없습니다.</p>}
+              : <p className={styles.emptyText}>추�?�??�시??모델???�습?�다.</p>}
           </div>
 
           {!loading && totalPages > 1 && (
@@ -628,8 +625,7 @@ export default function Home() {
                 disabled={page === 1}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === 1 ? 0.4 : 1 }}
               >
-                ‹
-              </button>
+                ??              </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <button
                   key={p}
@@ -646,8 +642,7 @@ export default function Home() {
                 disabled={page === totalPages}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === totalPages ? 0.4 : 1 }}
               >
-                ›
-              </button>
+                ??              </button>
             </div>
           )}
         </section>

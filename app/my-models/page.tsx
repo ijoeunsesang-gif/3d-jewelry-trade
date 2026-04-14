@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase-browser";
 import { showError, showSuccess } from "../lib/toast";
 
 type ModelItem = {
@@ -21,7 +21,7 @@ type ModelItem = {
 const ITEMS_PER_PAGE = 20;
 const CATEGORIES = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "SET"];
 const CATEGORY_LABEL: Record<string, string> = {
-  ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", SET: "세트",
+  ALL: "?�체", RING: "�?, PENDANT: "?�던??, EARRING: "?�어�?, BRACELET: "브레?�슬�?, SET: "?�트",
 };
 
 export default function MyModelsPage() {
@@ -62,15 +62,15 @@ export default function MyModelsPage() {
   useEffect(() => { fetchMyModels(); }, []);
 
   const handleDelete = async (modelId: string) => {
-    if (!confirm("이 모델을 삭제할까요?")) return;
+    if (!confirm("??모델????��?�까??")) return;
     try {
       setDeletingId(modelId);
       const { error } = await supabase.from("models").delete().eq("id", modelId);
-      if (error) { showError("모델 삭제에 실패했습니다."); return; }
+      if (error) { showError("모델 ??��???�패?�습?�다."); return; }
       setModels((prev) => prev.filter((item) => item.id !== modelId));
-      showSuccess("모델이 삭제되었습니다.");
+      showSuccess("모델????��?�었?�니??");
     } catch (error) {
-      console.error(error); showError("삭제 중 오류가 발생했습니다.");
+      console.error(error); showError("??�� �??�류가 발생?�습?�다.");
     } finally {
       setDeletingId(null);
     }
@@ -88,27 +88,26 @@ export default function MyModelsPage() {
   return (
     <main style={{ maxWidth: 1200, margin: "40px auto", padding: "0 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
 
-      {/* 헤더 */}
+      {/* ?�더 */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 16, flexWrap: "wrap", marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#111827" }}>내 모델</h1>
-          <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>내가 업로드한 모델을 확인하고 수정할 수 있습니다.</p>
+          <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: "#111827" }}>??모델</h1>
+          <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>?��? ?�로?�한 모델???�인?�고 ?�정?????�습?�다.</p>
         </div>
         <Link
           href="/upload"
           style={{ height: 44, padding: "0 18px", borderRadius: 12, background: "#111827", color: "white", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14 }}
         >
-          새 모델 업로드
-        </Link>
+          ??모델 ?�로??        </Link>
       </div>
 
-      {/* 검색 + 카테고리 필터 */}
+      {/* 검??+ 카테고리 ?�터 */}
       <div style={{ marginBottom: 20 }}>
         <input
           type="text"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-          placeholder="모델 이름으로 검색..."
+          placeholder="모델 ?�름?�로 검??.."
           style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none", marginBottom: 12 }}
         />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -132,17 +131,16 @@ export default function MyModelsPage() {
 
       {/* 목록 */}
       {loading ? (
-        <p style={{ color: "#6b7280" }}>내 모델을 불러오는 중...</p>
+        <p style={{ color: "#6b7280" }}>??모델??불러?�는 �?..</p>
       ) : models.length === 0 ? (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, background: "white", padding: 28 }}>
-          <p style={{ margin: "0 0 16px", color: "#6b7280", fontSize: 15 }}>아직 업로드한 모델이 없습니다.</p>
+          <p style={{ margin: "0 0 16px", color: "#6b7280", fontSize: 15 }}>?�직 ?�로?�한 모델???�습?�다.</p>
           <Link href="/upload" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>
-            모델 업로드하기
-          </Link>
+            모델 ?�로?�하�?          </Link>
         </div>
       ) : filteredModels.length === 0 ? (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white", textAlign: "center" }}>
-          <p style={{ fontSize: 15, color: "#6b7280", margin: 0 }}>검색 결과가 없습니다.</p>
+          <p style={{ fontSize: 15, color: "#6b7280", margin: 0 }}>검??결과가 ?�습?�다.</p>
         </div>
       ) : (
         <>
@@ -152,7 +150,7 @@ export default function MyModelsPage() {
               const uploadDate = new Date(item.created_at).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
               return (
                 <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 2px 12px rgba(15,23,42,0.06)" }}>
-                  {/* 썸네일 */}
+                  {/* ?�네??*/}
                   <Link href={`/models/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
                     <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#0b1220" }}>
                       {thumb && <img src={thumb} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
@@ -160,16 +158,16 @@ export default function MyModelsPage() {
                         {CATEGORY_LABEL[item.category] ?? item.category}
                       </div>
                       <div style={{ position: "absolute", right: 10, bottom: 10, background: "rgba(15,23,42,0.8)", color: "white", fontSize: 12, fontWeight: 700, padding: "6px 10px", borderRadius: 999 }}>
-                        다운로드 {item.download_count || 0}
+                        ?�운로드 {item.download_count || 0}
                       </div>
                     </div>
                   </Link>
 
-                  {/* 내용 */}
+                  {/* ?�용 */}
                   <div style={{ padding: "14px 16px", flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
                     <h2 style={{ fontSize: 15, fontWeight: 900, margin: 0, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</h2>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{Number(item.price || 0).toLocaleString("ko-KR")}원</div>
-                    <div style={{ fontSize: 12, color: "#9ca3af" }}>업로드 {uploadDate}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{Number(item.price || 0).toLocaleString("ko-KR")}??/div>
+                    <div style={{ fontSize: 12, color: "#9ca3af" }}>?�로??{uploadDate}</div>
                   </div>
 
                   {/* 버튼 */}
@@ -178,7 +176,7 @@ export default function MyModelsPage() {
                       href={`/edit-model/${item.id}`}
                       style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 38, borderRadius: 10, background: "#111827", color: "white", textDecoration: "none", fontWeight: 900, fontSize: 13 }}
                     >
-                      수정
+                      ?�정
                     </Link>
                     <button
                       type="button"
@@ -186,7 +184,7 @@ export default function MyModelsPage() {
                       disabled={deletingId === item.id}
                       style={{ height: 38, borderRadius: 10, border: "1px solid #fecaca", background: "#fff1f2", color: "#b91c1c", fontWeight: 800, cursor: deletingId === item.id ? "default" : "pointer", fontSize: 13 }}
                     >
-                      {deletingId === item.id ? "삭제 중..." : "삭제"}
+                      {deletingId === item.id ? "??�� �?.." : "??��"}
                     </button>
                   </div>
                 </div>
@@ -194,7 +192,7 @@ export default function MyModelsPage() {
             })}
           </div>
 
-          {/* 페이지네이션 */}
+          {/* ?�이지?�이??*/}
           {totalPages > 1 && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
               <button
@@ -203,8 +201,7 @@ export default function MyModelsPage() {
                 disabled={currentPage === 1}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}
               >
-                ‹
-              </button>
+                ??              </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                 <button
                   key={p}
@@ -221,8 +218,7 @@ export default function MyModelsPage() {
                 disabled={currentPage === totalPages}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === totalPages ? 0.4 : 1 }}
               >
-                ›
-              </button>
+                ??              </button>
             </div>
           )}
         </>

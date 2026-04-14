@@ -1,18 +1,18 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabase-browser";
 
 export default function CallbackPage() {
-  const [msg, setMsg] = useState("처리 중...");
+  const [msg, setMsg] = useState("처리 �?..");
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setMsg("이벤트: " + event);
+      setMsg("?�벤?? " + event);
       if (event === "INITIAL_SESSION") {
         if (session) {
           window.location.href = "/";
         } else {
-          setMsg("세션없음 - " + event);
+          setMsg("?�션?�음 - " + event);
           window.location.href = "/auth?error=no_session";
         }
       }

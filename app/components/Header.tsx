@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase-browser";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -25,12 +25,12 @@ export default function Header() {
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
 
-  // ë¼ìš°íŠ¸ ë³€ê²½ ì‹œ MY ë“œë¡­ë‹¤ìš´ ë‹«ê¸°
+  // ?¼ìš°??ë³€ê²???MY ?œë¡­?¤ìš´ ?«ê¸°
   useEffect(() => {
     setMyOpen(false);
   }, [pathname]);
 
-  // OAuth ë¦¬ë‹¤ì´ë ‰íŠ¸ í›„ ì„¸ì…˜ì´ ì´ë¯¸ ì¡´ì¬í•˜ëŠ” ê²½ìš°ë¥¼ ìœ„í•œ ì´ˆê¸° ì„¸ì…˜ í™•ì¸
+  // OAuth ë¦¬ë‹¤?´ë ‰?????¸ì…˜???´ë? ì¡´ì¬?˜ëŠ” ê²½ìš°ë¥??„í•œ ì´ˆê¸° ?¸ì…˜ ?•ì¸
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) checkUser();
@@ -182,7 +182,7 @@ export default function Header() {
 
   const isMyPage = ["/profile", "/my-models", "/upload", "/sales"].some((p) => pathname.startsWith(p));
 
-  /* â”€â”€ MY ë“œë¡­ë‹¤ìš´ (ë°ìŠ¤í¬íƒ‘Â·ëª¨ë°”ì¼ ê³µìš©) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ?€?€ MY ?œë¡­?¤ìš´ (?°ìŠ¤?¬íƒ‘Â·ëª¨ë°”??ê³µìš©) ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
   const MyDropdown = () => (
     <div style={{
       position: "absolute", right: 0, top: "100%",
@@ -194,7 +194,7 @@ export default function Header() {
         boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
         overflow: "hidden",
       }}>
-        {/* í”„ë¡œí•„ í—¤ë” */}
+        {/* ?„ë¡œ???¤ë” */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0ead8", display: "flex", alignItems: "center", gap: 10 }}>
           <img
             src={avatarUrl || "/default-avatar.png"} alt="me"
@@ -202,7 +202,7 @@ export default function Header() {
           />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700, color: "#111827", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {nickname || "ì‚¬ìš©ì"}
+              {nickname || "?¬ìš©??}
             </div>
             <div style={{ fontSize: 11, color: "#9ca3af", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {userEmail}
@@ -210,29 +210,29 @@ export default function Header() {
           </div>
         </div>
 
-        {/* ì„¹ì…˜ 1: í”„ë¡œí•„ / ëª¨ë¸ / ì—…ë¡œë“œ */}
-        <MyMenuLink href="/profile"   icon={<IconDropUser   active={pathname.startsWith("/profile")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/profile")}>ë‚´ í”„ë¡œí•„</MyMenuLink>
-        <MyMenuLink href="/my-models" icon={<IconDropBox    active={pathname.startsWith("/my-models")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/my-models")}>ë‚´ ëª¨ë¸</MyMenuLink>
-        <MyMenuLink href="/upload"    icon={<IconDropUpload active={pathname.startsWith("/upload")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/upload")}>ì—…ë¡œë“œ</MyMenuLink>
+        {/* ?¹ì…˜ 1: ?„ë¡œ??/ ëª¨ë¸ / ?…ë¡œ??*/}
+        <MyMenuLink href="/profile"   icon={<IconDropUser   active={pathname.startsWith("/profile")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/profile")}>???„ë¡œ??/MyMenuLink>
+        <MyMenuLink href="/my-models" icon={<IconDropBox    active={pathname.startsWith("/my-models")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/my-models")}>??ëª¨ë¸</MyMenuLink>
+        <MyMenuLink href="/upload"    icon={<IconDropUpload active={pathname.startsWith("/upload")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/upload")}>?…ë¡œ??/MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* ì„¹ì…˜ 2: ë‹¤ìš´ë¡œë“œ / íŒë§¤í†µê³„ / ì°œ / ì¥ë°”êµ¬ë‹ˆ */}
-        <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>ë‚´ ë‹¤ìš´ë¡œë“œ</MyMenuLink>
-        <MyMenuLink href="/sales"     icon={<IconDropChart   active={pathname.startsWith("/sales")}     />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/sales")}>íŒë§¤í†µê³„</MyMenuLink>
-        <MyMenuLink href="/favorites" icon={<IconDropHeart   active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>ì°œ</MyMenuLink>
-        <MyMenuLink href="/cart"      icon={<IconDropCart    active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>ì¥ë°”êµ¬ë‹ˆ</MyMenuLink>
+        {/* ?¹ì…˜ 2: ?¤ìš´ë¡œë“œ / ?ë§¤?µê³„ / ì°?/ ?¥ë°”êµ¬ë‹ˆ */}
+        <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>???¤ìš´ë¡œë“œ</MyMenuLink>
+        <MyMenuLink href="/sales"     icon={<IconDropChart   active={pathname.startsWith("/sales")}     />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/sales")}>?ë§¤?µê³„</MyMenuLink>
+        <MyMenuLink href="/favorites" icon={<IconDropHeart   active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>ì°?/MyMenuLink>
+        <MyMenuLink href="/cart"      icon={<IconDropCart    active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>?¥ë°”êµ¬ë‹ˆ</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* ì„¹ì…˜ 3: ë¬¸ì˜ / ê³ ê°ì„¼í„° / ë„ì›€ë§ */}
-        <MyMenuLink href="/messages"        icon={<IconDropMail       active={pathname.startsWith("/messages")}        />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>ë¬¸ì˜í•¨</MyMenuLink>
-        <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>ê³ ê°ì„¼í„°</MyMenuLink>
-        <MyMenuLink href="/help"            icon={<IconDropHelp       active={pathname.startsWith("/help")}            />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>ë„ì›€ë§</MyMenuLink>
+        {/* ?¹ì…˜ 3: ë¬¸ì˜ / ê³ ê°?¼í„° / ?„ì?ë§?*/}
+        <MyMenuLink href="/messages"        icon={<IconDropMail       active={pathname.startsWith("/messages")}        />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>ë¬¸ì˜??/MyMenuLink>
+        <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>ê³ ê°?¼í„°</MyMenuLink>
+        <MyMenuLink href="/help"            icon={<IconDropHelp       active={pathname.startsWith("/help")}            />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>?„ì?ë§?/MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* ë¡œê·¸ì•„ì›ƒ */}
+        {/* ë¡œê·¸?„ì›ƒ */}
         <button
           type="button"
           onClick={handleLogout}
@@ -246,18 +246,18 @@ export default function Header() {
           className="header-logout-btn"
         >
           <IconDropLogout />
-          ë¡œê·¸ì•„ì›ƒ
+          ë¡œê·¸?„ì›ƒ
         </button>
       </div>
     </div>
   );
 
-  /* â”€â”€ MY ë²„íŠ¼ ë‚´ìš© (ì•„ë°”íƒ€ + MY í…ìŠ¤íŠ¸) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  /* ?€?€ MY ë²„íŠ¼ ?´ìš© (?„ë°”?€ + MY ?ìŠ¤?? ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
   const MyButtonInner = () => (
     <>
       {avatarUrl ? (
         <img
-          src={avatarUrl} alt="í”„ë¡œí•„"
+          src={avatarUrl} alt="?„ë¡œ??
           style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}` }}
         />
       ) : (
@@ -282,7 +282,7 @@ export default function Header() {
           fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         }}>
 
-          {/* â”€â”€ Row 1: ë¡œê³  + ë„¤ë¹„ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ?€?€ Row 1: ë¡œê³  + ?¤ë¹„ ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */}
           <div style={{
             height: 68, padding: "0 20px",
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -293,16 +293,16 @@ export default function Header() {
               <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
             </Link>
 
-            {/* ë°ìŠ¤í¬íƒ‘ ë„¤ë¹„ê²Œì´ì…˜ */}
+            {/* ?°ìŠ¤?¬íƒ‘ ?¤ë¹„ê²Œì´??*/}
             <nav className="header-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <NavItem href="/" label="í™ˆ" icon={<IconHome />} active={pathname === "/"} />
-              <NavItem href="/favorites" label="ì°œ" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
-              <NavItem href="/cart" label="ì¥ë°”êµ¬ë‹ˆ" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
-              <NavItem href="/library" label="ë‚´ ë‹¤ìš´ë¡œë“œ" icon={<IconDownload />} active={pathname === "/library"} />
-              <NavItem href="/messages" label="ë¬¸ì˜í•¨" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
-              <NavItem href="/customer-service" label="ê³ ê°ì„¼í„°" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
-              <NavItem href="/help" label="ë„ì›€ë§" icon={<IconHelp />} active={pathname === "/help"} />
-              <NavItem href="/notifications" label="ì•Œë¦¼" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
+              <NavItem href="/" label="?? icon={<IconHome />} active={pathname === "/"} />
+              <NavItem href="/favorites" label="ì°? icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
+              <NavItem href="/cart" label="?¥ë°”êµ¬ë‹ˆ" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
+              <NavItem href="/library" label="???¤ìš´ë¡œë“œ" icon={<IconDownload />} active={pathname === "/library"} />
+              <NavItem href="/messages" label="ë¬¸ì˜?? icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
+              <NavItem href="/customer-service" label="ê³ ê°?¼í„°" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
+              <NavItem href="/help" label="?„ì?ë§? icon={<IconHelp />} active={pathname === "/help"} />
+              <NavItem href="/notifications" label="?Œë¦¼" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
 
               <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
 
@@ -336,14 +336,13 @@ export default function Header() {
                   textDecoration: "none", fontSize: 13, fontWeight: 700,
                   letterSpacing: "0.01em",
                 }}>
-                  ë¡œê·¸ì¸
-                </Link>
+                  ë¡œê·¸??                </Link>
               )}
             </nav>
 
-            {/* ëª¨ë°”ì¼ Row1 ìš°ì¸¡: í™ˆ + ì•Œë¦¼ + MY */}
+            {/* ëª¨ë°”??Row1 ?°ì¸¡: ??+ ?Œë¦¼ + MY */}
             <div className="header-mobile-my" style={{ display: "none", alignItems: "center", gap: 0 }}>
-              {/* í™ˆ ì•„ì´ì½˜ */}
+              {/* ???„ì´ì½?*/}
               <Link href="/" style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
@@ -351,7 +350,7 @@ export default function Header() {
                 <IconHome active={pathname === "/"} size={28} />
               </Link>
 
-              {/* ê³ ê°ì„¼í„° ì•„ì´ì½˜ */}
+              {/* ê³ ê°?¼í„° ?„ì´ì½?*/}
               <Link href="/customer-service" style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
@@ -359,7 +358,7 @@ export default function Header() {
                 <IconHeadphones active={pathname === "/customer-service"} size={28} />
               </Link>
 
-              {/* ì•Œë¦¼ ì•„ì´ì½˜ */}
+              {/* ?Œë¦¼ ?„ì´ì½?*/}
               <Link href="/notifications" style={{
                 position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
                 width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
@@ -378,7 +377,7 @@ export default function Header() {
                 )}
               </Link>
 
-              {/* MY ë²„íŠ¼ ë˜ëŠ” ë¡œê·¸ì¸ */}
+              {/* MY ë²„íŠ¼ ?ëŠ” ë¡œê·¸??*/}
               {isLoading ? (
                 <div style={{ width: 60, height: 34, borderRadius: 8, background: "#f3f4f6", margin: "0 4px" }} />
               ) : userEmail ? (
@@ -406,8 +405,7 @@ export default function Header() {
                   background: GOLD, color: "white",
                   textDecoration: "none", fontSize: 13, fontWeight: 700,
                 }}>
-                  ë¡œê·¸ì¸
-                </Link>
+                  ë¡œê·¸??                </Link>
               )}
             </div>
           </div>
@@ -415,32 +413,32 @@ export default function Header() {
         </div>
       </header>
 
-      {/* â”€â”€ ëª¨ë°”ì¼ í•˜ë‹¨ íƒ­ ë„¤ë¹„ê²Œì´ì…˜ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ?€?€ ëª¨ë°”???˜ë‹¨ ???¤ë¹„ê²Œì´???€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */}
       <nav className="mobile-bottom-tab-bar">
         <BottomTabItem
           href="/favorites"
           icon={<IconHeart active={pathname === "/favorites"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
-          label="ì°œ"
+          label="ì°?
           badge={favoriteCount}
           active={pathname === "/favorites"}
         />
         <BottomTabItem
           href="/cart"
           icon={<IconCart active={pathname === "/cart"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
-          label="ì¥ë°”êµ¬ë‹ˆ"
+          label="?¥ë°”êµ¬ë‹ˆ"
           badge={cartCount}
           active={pathname === "/cart"}
         />
         <BottomTabItem
           href="/library"
           icon={<IconDownload active={pathname === "/library"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
-          label="ë‚´ ë‹¤ìš´ë¡œë“œ"
+          label="???¤ìš´ë¡œë“œ"
           active={pathname === "/library"}
         />
         <BottomTabItem
           href="/messages"
           icon={<IconMail active={pathname === "/messages"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
-          label="ë¬¸ì˜í•¨"
+          label="ë¬¸ì˜??
           badge={messageCount}
           active={pathname === "/messages"}
         />
@@ -449,7 +447,7 @@ export default function Header() {
   );
 }
 
-/* â”€â”€ ë°ìŠ¤í¬íƒ‘ ë„¤ë¹„ ì•„ì´í…œ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ?€?€ ?°ìŠ¤?¬íƒ‘ ?¤ë¹„ ?„ì´???€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
 function NavItem({ href, label, icon, active, badge }: {
   href: string; label: string; icon: React.ReactNode; active: boolean; badge?: number;
 }) {
@@ -486,7 +484,7 @@ function NavItem({ href, label, icon, active, badge }: {
   );
 }
 
-/* â”€â”€ í•˜ë‹¨ íƒ­ ë°” ì•„ì´í…œ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ?€?€ ?˜ë‹¨ ??ë°??„ì´???€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
 function BottomTabItem({ href, icon, label, active, badge }: {
   href: string; icon: React.ReactNode; label: string; active: boolean; badge?: number;
 }) {
@@ -529,7 +527,7 @@ function BottomTabItem({ href, icon, label, active, badge }: {
   );
 }
 
-/* â”€â”€ ë“œë¡­ë‹¤ìš´ ë©”ë‰´ ë§í¬ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ?€?€ ?œë¡­?¤ìš´ ë©”ë‰´ ë§í¬ ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
 function MyMenuLink({ href, children, onClick, active, icon }: {
   href: string; children: React.ReactNode; onClick?: () => void; active?: boolean; icon?: React.ReactNode;
 }) {
@@ -554,7 +552,7 @@ function MyMenuLink({ href, children, onClick, active, icon }: {
   );
 }
 
-/* â”€â”€ SVG ì•„ì´ì½˜ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ?€?€ SVG ?„ì´ì½??€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
 function svgProps(active: boolean, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD) {
   return {
     width: size, height: size, viewBox: "0 0 24 24", fill: "none",
@@ -593,7 +591,7 @@ function IconUser({ active = false }: { active?: boolean }) {
   return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 }
 
-/* â”€â”€ ë“œë¡­ë‹¤ìš´ ì „ìš© ì†Œí˜• ì•„ì´ì½˜ (15Ã—15) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ?€?€ ?œë¡­?¤ìš´ ?„ìš© ?Œí˜• ?„ì´ì½?(15Ã—15) ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€ */
 function dropSvg(active: boolean) {
   return { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: active ? GOLD : "#9ca3af", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 }
