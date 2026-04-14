@@ -12,6 +12,8 @@ export function getSupabase(): SupabaseClient {
         auth: {
           detectSessionInUrl: false, // /auth/callback에서만 code 처리
           flowType: 'pkce',
+          persistSession: true,
+          autoRefreshToken: true,
         },
       }
     ) as SupabaseClient
