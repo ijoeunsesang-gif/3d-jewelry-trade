@@ -32,7 +32,7 @@ export default function ProfilePage() {
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        showInfo("로그?�이 ?�요?�니??");
+        showInfo("로그인이 필요합니다.");
         router.push("/auth");
         return;
       }
@@ -48,7 +48,7 @@ export default function ProfilePage() {
         .maybeSingle();
 
       if (error) {
-        console.error("?�로??불러?�기 ?�패:", error);
+        console.error("프로필 불러오기 실패:", error);
       }
 
       if (profile) {
@@ -68,13 +68,13 @@ export default function ProfilePage() {
         });
 
         if (insertError) {
-          console.error("?�로???�성 ?�패:", insertError);
+          console.error("프로필 생성 실패:", insertError);
         }
 
         setNickname(defaultNickname);
       }
     } catch (error) {
-      console.error("?�로???�이지 ?�류:", error);
+      console.error("프로필 페이지 오류:", error);
     } finally {
       setLoading(false);
     }
@@ -86,7 +86,7 @@ export default function ProfilePage() {
       if (!file) return;
 
       if (!userId) {
-        showError("로그???�보�?먼�? 불러?�???�니??");
+        showError("로그인 정보를 먼저 불러와야 합니다.");
         return;
       }
 
@@ -105,8 +105,8 @@ export default function ProfilePage() {
         });
 
       if (uploadError) {
-        console.error("?�로???��?지 ?�로???�패:", uploadError);
-        showError(`?�로???��?지 ?�로???�패: ${uploadError.message}`);
+        console.error("프로필 이미지 업로드 실패:", uploadError);
+        showError(`프로필 이미지 업로드 실패: ${uploadError.message}`);
         return;
       }
 
@@ -117,8 +117,8 @@ export default function ProfilePage() {
       setAvatarUrl(publicUrl);
       setPreviewUrl(publicUrl);
     } catch (error) {
-      console.error("?�로???��?지 처리 ?�류:", error);
-      showError("?�로???��?지 처리 �??�류가 발생?�습?�다.");
+      console.error("프로필 이미지 처리 오류:", error);
+      showError("프로필 이미지 처리 중 오류가 발생했습니다.");
     } finally {
       setUploading(false);
     }
@@ -148,8 +148,8 @@ export default function ProfilePage() {
           .eq("id", userId);
 
         if (updateError) {
-          console.error("?�로???�정 ?�패:", updateError);
-          showError("?�로???�?�에 ?�패?�습?�다.");
+          console.error("프로필 수정 실패:", updateError);
+          showError("프로필 저장에 실패했습니다.");
           return;
         }
       } else {
@@ -162,18 +162,18 @@ export default function ProfilePage() {
         });
 
         if (insertError) {
-          console.error("?�로???�성 ?�패:", insertError);
-          showError("?�로???�?�에 ?�패?�습?�다.");
+          console.error("프로필 생성 실패:", insertError);
+          showError("프로필 저장에 실패했습니다.");
           return;
         }
       }
 
-      showSuccess("?�로?�이 ?�?�되?�습?�다.");
+      showSuccess("프로필이 저장되었습니다.");
       window.dispatchEvent(new Event("messages-updated"));
       window.location.reload();
     } catch (error) {
-      console.error("?�로???�???�류:", error);
-      showError("?�로???�??�??�류가 발생?�습?�다.");
+      console.error("프로필 저장 오류:", error);
+      showError("프로필 저장 중 오류가 발생했습니다.");
     } finally {
       setSaving(false);
     }
@@ -182,7 +182,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <main style={pageWrap}>
-        <p style={{ color: "#6b7280" }}>?�로??불러?�는 �?..</p>
+        <p style={{ color: "#6b7280" }}>프로필 불러오는 중...</p>
       </main>
     );
   }
@@ -191,8 +191,8 @@ export default function ProfilePage() {
     <main style={pageWrap}>
       <div style={headerWrap}>
         <div>
-          <h1 style={pageTitle}>?�로???�정</h1>
-          <p style={pageDesc}>?�매???�네?? ?�개, ?�로???��?지�??�정?????�습?�다.</p>
+          <h1 style={pageTitle}>프로필 수정</h1>
+          <p style={pageDesc}>판매자 닉네임, 소개, 프로필 이미지를 설정할 수 있습니다.</p>
         </div>
       </div>
 
@@ -205,7 +205,7 @@ export default function ProfilePage() {
           />
 
           <label style={uploadBtn}>
-            {uploading ? "?�로??�?.." : "?��?지 ?�로??}
+            {uploading ? "업로드 중..." : "이미지 업로드"}
             <input
               type="file"
               accept="image/*"
@@ -217,7 +217,7 @@ export default function ProfilePage() {
 
         <div style={formSection}>
           <div style={fieldWrap}>
-            <label style={labelStyle}>?�메??/label>
+            <label style={labelStyle}>이메일</label>
             <input
               value={email}
               readOnly
@@ -226,21 +226,21 @@ export default function ProfilePage() {
           </div>
 
           <div style={fieldWrap}>
-            <label style={labelStyle}>?�네??/label>
+            <label style={labelStyle}>닉네임</label>
             <input
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="?�매???�네???�력"
+              placeholder="판매자 닉네임 입력"
               style={inputStyle}
             />
           </div>
 
           <div style={fieldWrap}>
-            <label style={labelStyle}>?�개글</label>
+            <label style={labelStyle}>소개글</label>
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="?�매???�개�??�력?�세??
+              placeholder="판매자 소개를 입력하세요"
               style={textareaStyle}
             />
           </div>
@@ -252,7 +252,7 @@ export default function ProfilePage() {
               disabled={saving}
               style={primaryBtn}
             >
-              {saving ? "?�??�?.." : "?�?�하�?}
+              {saving ? "저장 중..." : "저장하기"}
             </button>
 
             <button
@@ -260,7 +260,7 @@ export default function ProfilePage() {
               onClick={() => router.back()}
               style={secondaryBtn}
             >
-              ?�로가�?
+              뒤로가기
             </button>
           </div>
         </div>

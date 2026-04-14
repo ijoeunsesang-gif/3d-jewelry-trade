@@ -38,7 +38,8 @@
       "Read(//c/Users/JJ/anaconda3/**)",
       "Bash(node -e \"require\\('sharp'\\); console.log\\('sharp OK'\\)\")",
       "Bash(node -e ':*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(rm:*)"
     ]
   }
 }

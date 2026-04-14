@@ -36,7 +36,8 @@ function CheckoutContent() {
     bootstrap();
   }, []);
 
-  // ?�이??로드 ?�료 ???�젯 초기??  useEffect(() => {
+  // 아이템 로드 완료 후 위젯 초기화
+  useEffect(() => {
     if (!loading && items.length > 0 && !widgetInitRef.current) {
       widgetInitRef.current = true;
       initWidgets(items.reduce((sum, item) => sum + item.price, 0));
@@ -51,7 +52,7 @@ function CheckoutContent() {
       } = await supabase.auth.getSession();
 
       if (!session?.user) {
-        showInfo("로그?�이 ?�요?�니??");
+        showInfo("로그인이 필요합니다.");
         window.location.href = "/auth";
         return;
       }
@@ -65,7 +66,7 @@ function CheckoutContent() {
         if (pendingOrder?.items?.length) {
           setItems(pendingOrder.items);
         } else {
-          showError("직접 구매???�품???�습?�다.");
+          showError("직접 구매할 상품이 없습니다.");
           window.location.href = "/";
           return;
         }
@@ -74,7 +75,7 @@ function CheckoutContent() {
         setItems(cart);
       }
     } catch (error) {
-      console.error("체크?�웃 초기???�패:", error);
+      console.error("체크아웃 초기화 실패:", error);
     } finally {
       setLoading(false);
     }
@@ -83,27 +84,27 @@ function CheckoutContent() {
   const initWidgets = async (amount: number) => {
     const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
 
-    // ?�버�? clientKey 로드 ?��? ?�인
+    // 디버깅: clientKey 로드 여부 확인
     console.log(
       "[TossPayments] clientKey:",
       clientKey
-        ? `?�정??(${clientKey.substring(0, 10)}...)`
-        : "??undefined ??NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY ?�경변??미설??
+        ? `설정됨 (${clientKey.substring(0, 10)}...)`
+        : "❌ undefined — NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY 환경변수 미설정"
     );
 
     if (!clientKey) {
-      showError("결제 ?�정???�바르�? ?�습?�다.");
+      showError("결제 설정이 올바르지 않습니다.");
       return;
     }
 
     try {
-      // CDN ?�크립트가 ?�직 로드?��? ?��? 경우?�만 ?�입
+      // CDN 스크립트가 아직 로드되지 않은 경우에만 삽입
       if (!(window as { TossPayments?: unknown }).TossPayments) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
           script.src = "https://js.tosspayments.com/v2/standard";
           script.onload = () => resolve();
-          script.onerror = () => reject(new Error("TossPayments SDK 로드 ?�패"));
+          script.onerror = () => reject(new Error("TossPayments SDK 로드 실패"));
           document.head.appendChild(script);
         });
       }
@@ -112,7 +113,7 @@ function CheckoutContent() {
       const tossPayments = (window as any).TossPayments(clientKey);
       const widgets = tossPayments.widgets({ customerKey: "ANONYMOUS" });
 
-      // setAmount ?�료 ??renderPaymentMethods / renderAgreement ?�행
+      // setAmount 완료 후 renderPaymentMethods / renderAgreement 실행
       await widgets.setAmount({ currency: "KRW", value: amount });
 
       await Promise.all([
@@ -129,28 +130,28 @@ function CheckoutContent() {
       widgetsRef.current = widgets;
       setWidgetReady(true);
     } catch (error) {
-      console.error("결제 ?�젯 초기???�패:", error);
-      // ?�패 ???�시???�용
+      console.error("결제 위젯 초기화 실패:", error);
+      // 실패 시 재시도 허용
       widgetInitRef.current = false;
-      showError("결제 ?�젯??불러?�는 ???�패?�습?�다. ?�이지�??�로고침?�주?�요.");
+      showError("결제 위젯을 불러오는 데 실패했습니다. 페이지를 새로고침해주세요.");
     }
   };
 
   const handleCheckout = async () => {
     if (!buyerName.trim()) {
-      showInfo("?�름???�력?�주?�요.");
+      showInfo("이름을 입력해주세요.");
       return;
     }
     if (!buyerEmail.trim()) {
-      showInfo("?�메?�을 ?�력?�주?�요.");
+      showInfo("이메일을 입력해주세요.");
       return;
     }
     if (items.length === 0) {
-      showError("결제???�품???�습?�다.");
+      showError("결제할 상품이 없습니다.");
       return;
     }
     if (!widgetsRef.current) {
-      showError("결제 ?�젯???�직 준비되지 ?�았?�니?? ?�시 ???�시 ?�도?�주?�요.");
+      showError("결제 위젯이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
 
@@ -160,7 +161,7 @@ function CheckoutContent() {
     const orderName =
       items.length === 1
         ? items[0].title
-        : `${items[0].title} ??${items.length - 1}�?;
+        : `${items[0].title} 외 ${items.length - 1}개`;
 
     localStorage.setItem(
       "pendingPayment",
@@ -187,7 +188,7 @@ function CheckoutContent() {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "USER_CANCEL") {
         showError(
-          `결제???�패?�습?�다. (${err?.message ?? "?????�는 ?�류"})`
+          `결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`
         );
       }
     } finally {
@@ -201,7 +202,7 @@ function CheckoutContent() {
         className="cart-checkout-main"
         style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}
       >
-        <p>결제 ?�보�?불러?�는 �?..</p>
+        <p>결제 정보를 불러오는 중...</p>
       </main>
     );
   }
@@ -225,7 +226,7 @@ function CheckoutContent() {
           marginBottom: 24,
         }}
       >
-        결제?�기
+        결제하기
       </h1>
 
       {items.length === 0 ? (
@@ -238,7 +239,7 @@ function CheckoutContent() {
           }}
         >
           <p style={{ color: "#6b7280", marginBottom: 16 }}>
-            결제???�품???�습?�다.
+            결제할 상품이 없습니다.
           </p>
           <Link
             href="/cart"
@@ -255,7 +256,7 @@ function CheckoutContent() {
               fontWeight: 800,
             }}
           >
-            ?�바구니�??�동
+            장바구니로 이동
           </Link>
         </div>
       ) : (
@@ -268,9 +269,9 @@ function CheckoutContent() {
             alignItems: "start",
           }}
         >
-          {/* ?�쪽: 구매???�보 + 주문 ?�품 + 결제?�젯 */}
+          {/* 왼쪽: 구매자 정보 + 주문 상품 + 결제위젯 */}
           <section style={{ display: "grid", gap: 16 }}>
-            {/* 구매???�보 */}
+            {/* 구매자 정보 */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -287,7 +288,7 @@ function CheckoutContent() {
                   color: "#111827",
                 }}
               >
-                구매???�보
+                구매자 정보
               </h2>
               <div style={{ display: "grid", gap: 14 }}>
                 <div>
@@ -298,12 +299,12 @@ function CheckoutContent() {
                       fontWeight: 700,
                     }}
                   >
-                    ?�름
+                    이름
                   </label>
                   <input
                     value={buyerName}
                     onChange={(e) => setBuyerName(e.target.value)}
-                    placeholder="?�름 ?�력"
+                    placeholder="이름 입력"
                     style={{
                       width: "100%",
                       height: 48,
@@ -323,11 +324,12 @@ function CheckoutContent() {
                       fontWeight: 700,
                     }}
                   >
-                    ?�메??                  </label>
+                    이메일
+                  </label>
                   <input
                     value={buyerEmail}
                     onChange={(e) => setBuyerEmail(e.target.value)}
-                    placeholder="?�메???�력"
+                    placeholder="이메일 입력"
                     style={{
                       width: "100%",
                       height: 48,
@@ -342,7 +344,7 @@ function CheckoutContent() {
               </div>
             </div>
 
-            {/* 주문 ?�품 */}
+            {/* 주문 상품 */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -359,7 +361,7 @@ function CheckoutContent() {
                   color: "#111827",
                 }}
               >
-                주문 ?�품
+                주문 상품
               </h2>
               <div style={{ display: "grid", gap: 14 }}>
                 {items.map((item) => (
@@ -408,13 +410,14 @@ function CheckoutContent() {
                         color: "#111827",
                       }}
                     >
-                      {item.price.toLocaleString("ko-KR")}??                    </div>
+                      {item.price.toLocaleString("ko-KR")}원
+                    </div>
                   </article>
                 ))}
               </div>
             </div>
 
-            {/* ?�스?�이먼츠 결제?�젯 - 결제 ?�단 */}
+            {/* 토스페이먼츠 결제위젯 - 결제 수단 */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -426,7 +429,7 @@ function CheckoutContent() {
               <div id="payment-method" />
             </div>
 
-            {/* ?�스?�이먼츠 결제?�젯 - ?�용?��? ?�의 */}
+            {/* 토스페이먼츠 결제위젯 - 이용약관 동의 */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -439,7 +442,7 @@ function CheckoutContent() {
             </div>
           </section>
 
-          {/* ?�른�? 결제 ?�약 + 결제 버튼 */}
+          {/* 오른쪽: 결제 요약 + 결제 버튼 */}
           <aside
             style={{
               border: "1px solid #e5e7eb",
@@ -458,7 +461,7 @@ function CheckoutContent() {
                 color: "#111827",
               }}
             >
-              결제 ?�약
+              결제 요약
             </h2>
 
             <div
@@ -470,8 +473,8 @@ function CheckoutContent() {
                 color: "#6b7280",
               }}
             >
-              <span>?�품 ??/span>
-              <span>{items.length}�?/span>
+              <span>상품 수</span>
+              <span>{items.length}개</span>
             </div>
 
             <div
@@ -487,8 +490,8 @@ function CheckoutContent() {
                 paddingTop: 14,
               }}
             >
-              <span>�?결제금액</span>
-              <span>{totalPrice.toLocaleString("ko-KR")}??/span>
+              <span>총 결제금액</span>
+              <span>{totalPrice.toLocaleString("ko-KR")}원</span>
             </div>
 
             <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>
@@ -513,10 +516,10 @@ function CheckoutContent() {
               }}
             >
               {paying
-                ? "결제 처리 �?.."
+                ? "결제 처리 중..."
                 : !widgetReady
-                ? "결제 ?�단 로딩 �?.."
-                : "결제 ?�료?�기"}
+                ? "결제 수단 로딩 중..."
+                : "결제 완료하기"}
             </button>
 
             <Link
@@ -535,7 +538,8 @@ function CheckoutContent() {
                 fontWeight: 800,
               }}
             >
-              ?�바구니�??�아가�?            </Link>
+              장바구니로 돌아가기
+            </Link>
           </aside>
         </div>
       )}
@@ -554,7 +558,7 @@ export default function CheckoutPage() {
             color: "#6b7280",
           }}
         >
-          불러?�는 �?..
+          불러오는 중...
         </main>
       }
     >

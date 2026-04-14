@@ -3,16 +3,16 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase-browser";
 
 export default function CallbackPage() {
-  const [msg, setMsg] = useState("처리 �?..");
+  const [msg, setMsg] = useState("처리 중...");
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setMsg("?�벤?? " + event);
+      setMsg("이벤트: " + event);
       if (event === "INITIAL_SESSION") {
         if (session) {
           window.location.href = "/";
         } else {
-          setMsg("?�션?�음 - " + event);
+          setMsg("세션없음 - " + event);
           window.location.href = "/auth?error=no_session";
         }
       }
