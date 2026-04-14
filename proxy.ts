@@ -11,6 +11,8 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  const { pathname, searchParams } = request.nextUrl
+  const code = searchParams.get('code')
 
   let supabaseResponse = NextResponse.next({ request })
 
@@ -23,11 +25,28 @@ export async function proxy(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
+
+  // ?code= 가 있으면 미들웨어에서 직접 처리
+  if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    if (!error) {
+      // code 제거한 URL로 리다이렉트
+      const cleanUrl = new URL(pathname, request.url)
+      const redirectResponse = NextResponse.redirect(cleanUrl)
+      // 세션 쿠키 복사
+      supabaseResponse.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value)
+      })
+      return redirectResponse
+    }
+  }
 
   await supabase.auth.getUser()
   return supabaseResponse
