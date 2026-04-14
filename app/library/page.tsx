@@ -117,7 +117,7 @@ export default function LibraryPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
             <div>
               <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: 0 }}>내 다운로드</h1>
-              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매한 3D 모델을 기간 제한없이 안전하게 다시 다운로드할 수 있습니다.</p>
+              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매한 3D 모델을 구매일로부터 6개월 동안 안전하게 다시 다운로드할 수 있습니다.</p>
             </div>
             <div style={{ padding: "8px 14px", borderRadius: 999, background: "#f3f4f6", color: "#111827", fontWeight: 800, fontSize: 13 }}>총 {items.length}개</div>
           </div>
@@ -166,6 +166,13 @@ export default function LibraryPage() {
               const purchaseDate = item.purchased_at
                 ? new Date(item.purchased_at).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
                 : "-";
+              const expiresAt = item.purchased_at
+                ? new Date(new Date(item.purchased_at).getTime() + 180 * 24 * 60 * 60 * 1000)
+                : null;
+              const isExpired = expiresAt ? new Date() > expiresAt : false;
+              const expiresDateStr = expiresAt
+                ? expiresAt.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
+                : "-";
               return (
                 <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 2px 12px rgba(15,23,42,0.06)" }}>
                   <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#0b1220" }}>
@@ -189,15 +196,18 @@ export default function LibraryPage() {
                       </div>
                     )}
                     <div style={{ fontSize: 12, color: "#9ca3af" }}>구매일 {purchaseDate}</div>
+                    <div style={{ fontSize: 12, color: isExpired ? "#ef4444" : "#9ca3af" }}>
+                      {isExpired ? `다운로드 기한 만료 (${expiresDateStr})` : `다운로드 기한 ${expiresDateStr}까지`}
+                    </div>
                   </div>
 
                   <div style={{ padding: "0 14px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
                     <button
                       onClick={() => handleDownload(item)}
-                      disabled={downloadingId === item.id}
-                      style={{ height: 40, borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 900, cursor: downloadingId === item.id ? "default" : "pointer", fontSize: 13 }}
+                      disabled={downloadingId === item.id || isExpired}
+                      style={{ height: 40, borderRadius: 10, border: "none", background: isExpired ? "#9ca3af" : "#111827", color: "white", fontWeight: 900, cursor: (downloadingId === item.id || isExpired) ? "default" : "pointer", fontSize: 13 }}
                     >
-                      {downloadingId === item.id ? "생성 중..." : "다운로드"}
+                      {downloadingId === item.id ? "생성 중..." : isExpired ? "기한 만료" : "다운로드"}
                     </button>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                       <button

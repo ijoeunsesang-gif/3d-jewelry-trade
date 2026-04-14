@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const { data: purchase, error: purchaseError } = await adminSupabase
       .from("purchases")
-      .select("id")
+      .select("id, created_at")
       .eq("user_id", user.id)
       .eq("model_id", modelId)
       .maybeSingle();
@@ -61,6 +61,16 @@ export async function POST(req: NextRequest) {
     if (!purchase) {
       return NextResponse.json(
         { error: "구매한 사용자만 다운로드할 수 있습니다." },
+        { status: 403 }
+      );
+    }
+
+    const DOWNLOAD_PERIOD_DAYS = 180;
+    const purchasedAt = new Date(purchase.created_at);
+    const expiresAt = new Date(purchasedAt.getTime() + DOWNLOAD_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    if (new Date() > expiresAt) {
+      return NextResponse.json(
+        { error: "다운로드 기한이 만료되었습니다. (구매일로부터 6개월)" },
         { status: 403 }
       );
     }
