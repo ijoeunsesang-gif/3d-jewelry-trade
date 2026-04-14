@@ -96,7 +96,7 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
-        redirectTo: window.location.origin + "/auth/callback",
+        redirectTo: 'https://www.3d-jewelry-trade.com/auth/callback',
       },
     });
     if (error) showError(translateAuthError(error.message));
@@ -106,7 +106,7 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin + "/auth/callback",
+        redirectTo: 'https://www.3d-jewelry-trade.com/auth/callback',
       },
     });
     if (error) showError(translateAuthError(error.message));

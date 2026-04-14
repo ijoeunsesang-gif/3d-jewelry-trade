@@ -17,27 +17,27 @@ function AuthCallbackContent() {
       return
     }
 
+    const timeout = setTimeout(() => {
+      router.replace('/')
+    }, 5000)
+
     supabase.auth.exchangeCodeForSession(code)
       .then(({ error }) => {
+        clearTimeout(timeout)
         if (error) {
-          console.error('Auth error:', error)
-          router.replace('/?error=auth_failed')
-        } else {
-          router.replace(next)
+          console.error('Auth error:', error.message)
         }
+        router.replace(next)
+      })
+      .catch(() => {
+        clearTimeout(timeout)
+        router.replace('/')
       })
   }, [])
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      gap: 16
-    }}>
-      <div>로그인 처리 중...</div>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh'}}>
+      로그인 처리 중...
     </div>
   )
 }
