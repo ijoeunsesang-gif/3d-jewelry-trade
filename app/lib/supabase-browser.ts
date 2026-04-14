@@ -10,7 +10,7 @@ export function getSupabase(): SupabaseClient {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
-          detectSessionInUrl: false, // /auth/callback에서만 code 처리
+          detectSessionInUrl: true,
           flowType: 'pkce',
           persistSession: true,
           autoRefreshToken: true,
@@ -21,5 +21,4 @@ export function getSupabase(): SupabaseClient {
   return supabaseInstance
 }
 
-// 기존 코드 호환을 위한 export
 export const supabase = getSupabase()
