@@ -11,15 +11,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Supabase OAuth redirect URL이 / 로 잘못 설정된 경우 대응:
-  // /?code=xxx 로 오면 /auth/callback?code=xxx 로 즉시 리다이렉트
-  const { pathname } = request.nextUrl
-  const code = request.nextUrl.searchParams.get('code')
-  if (pathname === '/' && code) {
-    const callbackUrl = new URL('/auth/callback', request.url)
-    callbackUrl.searchParams.set('code', code)
-    return NextResponse.redirect(callbackUrl)
-  }
 
   let supabaseResponse = NextResponse.next({ request })
 
