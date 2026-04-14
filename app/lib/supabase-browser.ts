@@ -1,22 +1,22 @@
-import { createBrowserClient } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 let supabaseInstance: SupabaseClient | null = null
 
 export function getSupabase(): SupabaseClient {
   if (!supabaseInstance) {
-    supabaseInstance = createBrowserClient(
+    supabaseInstance = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
-          detectSessionInUrl: true,
           flowType: 'pkce',
           persistSession: true,
           autoRefreshToken: true,
-        },
+          detectSessionInUrl: true,
+          storageKey: 'sb-fvhotaxjdacfulxjahon-auth-token',
+        }
       }
-    ) as SupabaseClient
+    )
   }
   return supabaseInstance
 }
