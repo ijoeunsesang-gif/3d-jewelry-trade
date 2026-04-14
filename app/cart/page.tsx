@@ -264,6 +264,10 @@ export default function CartPage() {
               <span>{totalPrice.toLocaleString("ko-KR")}원</span>
             </div>
 
+            <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>
+              ℹ️ 구매 후 6개월간 횟수 제한없이 다운로드 가능
+            </p>
+
             <Link
               href="/checkout"
               style={{
