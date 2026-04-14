@@ -55,6 +55,9 @@ export default function Footer() {
           <p style={{ margin: 0 }}>
             주소: 서울특별시 중구 다산로33라길 15-4, 1층
           </p>
+          <p style={{ margin: 0 }}>
+            고객센터: 070-7954-3257
+          </p>
           <p style={{ margin: "6px 0 0" }}>
             © {new Date().getFullYear()} 클래식. All rights reserved.
           </p>
