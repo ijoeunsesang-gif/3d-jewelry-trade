@@ -32,9 +32,10 @@ export default function Header() {
 
   // OAuth 리다이렉트 후 세션이 이미 존재하는 경우를 위한 초기 세션 확인
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) checkUser();
-    });
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) checkUser();
+    })();
   }, []);
 
   useEffect(() => {
