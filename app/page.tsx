@@ -2,8 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
-import { supabase } from "./lib/supabase-browser";
-import { createClient } from "@supabase/supabase-js";
+import { supabase, publicSupabase } from "./lib/supabase-browser";
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
@@ -11,11 +10,6 @@ import ModelCard, { type ModelItem } from "./components/ModelCard";
 import TopModelCard from "./components/TopModelCard";
 import QuickViewModal from "./components/QuickViewModal";
 import { SkeletonCard, SkeletonTopCard } from "./components/SkeletonCard";
-
-const publicClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 type SortType = "latest" | "price-low" | "price-high" | "popular";
 type FavoriteMap = Record<string, boolean>;
@@ -154,7 +148,7 @@ export default function Home() {
     try {
       setLoading(true);
       console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-      const { data, error } = await publicClient
+      const { data, error } = await publicSupabase
         .from("models")
         .select("*")
         .order("created_at", { ascending: false })

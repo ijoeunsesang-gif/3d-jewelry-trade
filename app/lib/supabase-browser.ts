@@ -22,3 +22,17 @@ export function getSupabase(): SupabaseClient {
 }
 
 export const supabase = getSupabase()
+
+let publicInstance: ReturnType<typeof createClient> | null = null
+
+export function getPublicSupabase() {
+  if (!publicInstance) {
+    publicInstance = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  }
+  return publicInstance
+}
+
+export const publicSupabase = getPublicSupabase()
