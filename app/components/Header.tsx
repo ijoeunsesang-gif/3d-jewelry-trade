@@ -96,18 +96,16 @@ export default function Header() {
   };
 
   const checkUser = async (session: any) => {
-    try {
-      if (session?.user) {
-        setUserEmail(session.user.email || "kakao_user");
-        const { data: profile } = await supabase
-          .from("profiles").select("avatar_url, nickname").eq("id", session.user.id).maybeSingle();
-        setAvatarUrl(profile?.avatar_url || "");
-        setNickname(profile?.nickname || "");
-      } else {
-        setUserEmail("");
-        setAvatarUrl("");
-        setNickname("");
-      }
+    if (session?.user) {
+      setUserEmail(session.user.email || "kakao_user");
+      const { data: profile } = await supabase
+        .from("profiles").select("avatar_url, nickname").eq("id", session.user.id).maybeSingle();
+      setAvatarUrl(profile?.avatar_url || "");
+      setNickname(profile?.nickname || "");
+    } else {
+      setUserEmail("");
+      setAvatarUrl("");
+      setNickname("");
     }
   };
 
