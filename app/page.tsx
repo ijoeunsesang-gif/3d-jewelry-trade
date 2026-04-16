@@ -144,31 +144,22 @@ export default function Home() {
     fetchQuickFavorite();
   }, [quickModel]);
 
-  const fetchModels = async (retryCount = 0) => {
+  const fetchModels = async () => {
     try {
       setLoading(true);
-      console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-      const { data, error } = await supabase
-        .from("models")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      console.log("[fetchModels] 결과 - data 개수:", data?.length ?? null, "| error:", error);
-      if (error) {
-        console.error('[fetchModels] 에러:', error.message, error.code);
-        if (retryCount < 2) {
-          setTimeout(() => fetchModels(retryCount + 1), 1000);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=*&order=created_at.desc&limit=200`,
+        {
+          headers: {
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+          }
         }
-        return;
-      }
-      console.log("[fetchModels] 첫 번째 row 샘플:", data?.[0] ?? "없음");
-      setModels(data || []);
-    } catch (error) {
-      console.error("[fetchModels] catch 오류:", error);
-      if (retryCount < 2) {
-        setTimeout(() => fetchModels(retryCount + 1), 1000);
-      }
+      );
+      const data = await res.json();
+      setModels(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error('[fetchModels] 에러:', e);
     } finally {
       setLoading(false);
     }
