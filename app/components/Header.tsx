@@ -31,24 +31,21 @@ export default function Header() {
   }, [pathname]);
 
   useEffect(() => {
-    const timer = setTimeout(() => checkUser(), 300);
     updateCartCount();
     fetchFavoriteCount();
     fetchMessageCount();
     fetchNotificationCount();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
-        if (session) {
-          await checkUser();
-        } else {
-          setIsLoading(false);
-        }
-      } else if (event === "TOKEN_REFRESHED") {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         await checkUser();
       } else if (event === "SIGNED_OUT") {
         setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
       }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) { checkUser(); } else { setIsLoading(false); }
     });
 
     const onPageShow = (e: PageTransitionEvent) => {
@@ -80,7 +77,6 @@ export default function Header() {
     document.addEventListener("mousedown", onDocClick);
 
     return () => {
-      clearTimeout(timer);
       subscription.unsubscribe();
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
