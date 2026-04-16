@@ -1,39 +1,29 @@
 'use client'
 
 import { useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase-browser'
 
 function AuthCallbackContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
-    const code = searchParams.get('code')
-    const next = searchParams.get('next') ?? '/'
-
-    if (!code) {
-      router.replace('/')
-      return
-    }
-
     const timeout = setTimeout(() => {
       router.replace('/')
-    }, 10000)
+    }, 8000)
 
-    supabase.auth.exchangeCodeForSession(code)
-      .then(({ error }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
         clearTimeout(timeout)
-        if (error) {
-          console.error('Auth error:', error.message)
-          console.error('PKCE error:', error.message)
-        }
-        router.replace(next)
-      })
-      .catch(() => {
-        clearTimeout(timeout)
+        subscription.unsubscribe()
         router.replace('/')
-      })
+      }
+    })
+
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   return (
