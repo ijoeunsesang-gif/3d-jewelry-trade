@@ -102,9 +102,13 @@ export default function Header() {
     await fetchNotificationCount();
   };
 
-  const checkUser = async () => {
+  const checkUser = async (retry = true) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session && retry) {
+        setTimeout(() => checkUser(false), 1000);
+        return;
+      }
       if (session?.user) {
         const user = session.user;
         setUserEmail(user.email || (user.id ? "kakao_user" : ""));
