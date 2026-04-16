@@ -144,7 +144,7 @@ export default function Home() {
     fetchQuickFavorite();
   }, [quickModel]);
 
-  const fetchModels = async () => {
+  const fetchModels = async (retryCount = 0) => {
     try {
       setLoading(true);
       console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -157,12 +157,18 @@ export default function Home() {
       console.log("[fetchModels] 결과 - data 개수:", data?.length ?? null, "| error:", error);
       if (error) {
         console.error('[fetchModels] 에러:', error.message, error.code);
+        if (retryCount < 2) {
+          setTimeout(() => fetchModels(retryCount + 1), 1000);
+        }
         return;
       }
       console.log("[fetchModels] 첫 번째 row 샘플:", data?.[0] ?? "없음");
       setModels(data || []);
     } catch (error) {
       console.error("[fetchModels] catch 오류:", error);
+      if (retryCount < 2) {
+        setTimeout(() => fetchModels(retryCount + 1), 1000);
+      }
     } finally {
       setLoading(false);
     }
