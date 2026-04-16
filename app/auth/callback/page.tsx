@@ -2,7 +2,6 @@
 
 import { useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase-browser'
 
 function AuthCallbackContent() {
   const router = useRouter()
@@ -10,20 +9,9 @@ function AuthCallbackContent() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       router.replace('/')
-    }, 8000)
+    }, 500)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        clearTimeout(timeout)
-        subscription.unsubscribe()
-        router.replace('/')
-      }
-    })
-
-    return () => {
-      clearTimeout(timeout)
-      subscription.unsubscribe()
-    }
+    return () => clearTimeout(timeout)
   }, [])
 
   return (
