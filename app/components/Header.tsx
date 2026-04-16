@@ -38,18 +38,18 @@ export default function Header() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        await checkUser();
+        await checkUser(session);
       } else if (event === "SIGNED_OUT") {
         setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { checkUser(); } else { setIsLoading(false); }
+      if (session) { checkUser(session); } else { setIsLoading(false); }
     });
 
     const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) checkUser();
+      if (e.persisted) supabase.auth.getSession().then(({ data: { session } }) => checkUser(session));
     };
     window.addEventListener("pageshow", onPageShow);
 
@@ -91,29 +91,22 @@ export default function Header() {
   }, []);
 
   const initHeader = async () => {
-    await checkUser();
+    const { data: { session } } = await supabase.auth.getSession();
+    await checkUser(session);
     updateCartCount();
     await fetchFavoriteCount();
     await fetchMessageCount();
     await fetchNotificationCount();
   };
 
-  const checkUser = async (retry = true) => {
+  const checkUser = async (session: any) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session && retry) {
-        setTimeout(() => checkUser(false), 1000);
-        return;
-      }
       if (session?.user) {
-        const user = session.user;
-        setUserEmail(user.email || (user.id ? "kakao_user" : ""));
-        if (user.id) {
-          const { data: profile } = await supabase
-            .from("profiles").select("avatar_url, nickname").eq("id", user.id).maybeSingle();
-          setAvatarUrl(profile?.avatar_url || "");
-          setNickname(profile?.nickname || "");
-        }
+        setUserEmail(session.user.email || "kakao_user");
+        const { data: profile } = await supabase
+          .from("profiles").select("avatar_url, nickname").eq("id", session.user.id).maybeSingle();
+        setAvatarUrl(profile?.avatar_url || "");
+        setNickname(profile?.nickname || "");
       } else {
         setUserEmail("");
         setAvatarUrl("");
