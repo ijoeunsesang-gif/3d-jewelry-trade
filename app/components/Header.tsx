@@ -31,6 +31,7 @@ export default function Header() {
   }, [pathname]);
 
   useEffect(() => {
+    const timer = setTimeout(() => checkUser(), 300);
     updateCartCount();
     fetchFavoriteCount();
     fetchMessageCount();
@@ -79,6 +80,7 @@ export default function Header() {
     document.addEventListener("mousedown", onDocClick);
 
     return () => {
+      clearTimeout(timer);
       subscription.unsubscribe();
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
