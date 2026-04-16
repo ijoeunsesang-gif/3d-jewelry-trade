@@ -31,14 +31,19 @@ export default function Header() {
   }, [pathname]);
 
   useEffect(() => {
-    checkUser();
     updateCartCount();
     fetchFavoriteCount();
     fetchMessageCount();
     fetchNotificationCount();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      if (event === "INITIAL_SESSION") {
+        if (session) {
+          await checkUser();
+        } else {
+          setIsLoading(false);
+        }
+      } else if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         await checkUser();
       } else if (event === "SIGNED_OUT") {
         setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
