@@ -11,6 +11,11 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  const host = request.headers.get('host') || '';
+  if (!host.startsWith('www.') && !host.includes('localhost') && !host.includes('vercel.app')) {
+    return NextResponse.redirect(`https://www.${host}${request.nextUrl.pathname}${request.nextUrl.search}`, 308)
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
