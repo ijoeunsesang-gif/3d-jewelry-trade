@@ -3,6 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
 import { supabase } from "./lib/supabase-browser";
+import { createClient } from "@supabase/supabase-js";
+
+const publicClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
@@ -148,7 +154,7 @@ export default function Home() {
     try {
       setLoading(true);
       console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-      const { data, error } = await supabase
+      const { data, error } = await publicClient
         .from("models")
         .select("*")
         .order("created_at", { ascending: false })
