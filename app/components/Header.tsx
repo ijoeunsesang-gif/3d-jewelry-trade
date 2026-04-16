@@ -156,13 +156,17 @@ export default function Header() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem("cart");
-    window.dispatchEvent(new Event("cart-updated"));
-    window.dispatchEvent(new Event("favorites-updated"));
-    window.dispatchEvent(new Event("messages-updated"));
-    window.dispatchEvent(new Event("notifications-updated"));
-    location.href = "/";
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/logout`, {
+        method: 'POST',
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        }
+      });
+    } catch (e) {}
+    localStorage.clear();
+    location.href = '/';
   };
 
   const isMyPage = ["/profile", "/my-models", "/upload", "/sales"].some((p) => pathname.startsWith(p));
