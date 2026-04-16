@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
               ${attachedListHtml}
               ${linkFilesHtml}
 
-              <p align="left" style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D Jewelry Trade 플랫폼에서 자동 발송되었습니다.</p>
+              <p align="left" style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D마켓 플랫폼에서 발송되었습니다.</p>
             </td>
           </tr>
         </table>
