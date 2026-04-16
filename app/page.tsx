@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
-import { supabase, publicSupabase } from "./lib/supabase-browser";
+import { supabase } from "./lib/supabase-browser";
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
@@ -148,7 +148,7 @@ export default function Home() {
     try {
       setLoading(true);
       console.log("[fetchModels] 시작 - SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-      const { data, error } = await publicSupabase
+      const { data, error } = await supabase
         .from("models")
         .select("*")
         .order("created_at", { ascending: false })
