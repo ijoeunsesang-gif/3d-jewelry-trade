@@ -156,7 +156,7 @@ export default function Home() {
 
       console.log("[fetchModels] 결과 - data 개수:", data?.length ?? null, "| error:", error);
       if (error) {
-        console.error("[fetchModels] 에러 상세:", JSON.stringify(error));
+        console.error('[fetchModels] 에러:', error.message, error.code);
         return;
       }
       console.log("[fetchModels] 첫 번째 row 샘플:", data?.[0] ?? "없음");
