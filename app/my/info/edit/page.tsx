@@ -198,7 +198,7 @@ function MyInfoEditContent() {
               fontSize: 15, cursor: "pointer",
             }}
           >
-            저장 후 전송 →
+            저장 →
           </button>
         </div>
       </div>
