@@ -37,15 +37,11 @@ export default function Header() {
     fetchNotificationCount();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
         await checkUser(session);
       } else if (event === "SIGNED_OUT") {
         setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
       }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) { checkUser(session); } else { setIsLoading(false); }
     });
 
     const onPageShow = (e: PageTransitionEvent) => {
