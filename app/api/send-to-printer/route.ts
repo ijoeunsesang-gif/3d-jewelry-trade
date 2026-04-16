@@ -220,6 +220,7 @@ export async function POST(req: NextRequest) {
             <td align="left" style="text-align: left; padding: 32px 24px; color: #111827; max-width: 580px;">
               <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">3D 출력 파일 전달</h2>
               <p align="left" style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
+              <p align="left" style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">*신규 고객님은 출력 전 꼭 연락 후 진행해주세요.</p>
 
               <table align="left" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
                 ${infoHtml}
