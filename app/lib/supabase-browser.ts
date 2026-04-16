@@ -12,7 +12,7 @@ export function getSupabase(): SupabaseClient {
           flowType: 'pkce',
           persistSession: true,
           autoRefreshToken: true,
-          detectSessionInUrl: true,
+          detectSessionInUrl: false,
           storageKey: 'sb-fvhotaxjdacfulxjahon-auth-token',
         }
       }

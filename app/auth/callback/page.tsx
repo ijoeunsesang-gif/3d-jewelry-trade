@@ -19,13 +19,14 @@ function AuthCallbackContent() {
 
     const timeout = setTimeout(() => {
       router.replace('/')
-    }, 5000)
+    }, 10000)
 
     supabase.auth.exchangeCodeForSession(code)
       .then(({ error }) => {
         clearTimeout(timeout)
         if (error) {
           console.error('Auth error:', error.message)
+          console.error('PKCE error:', error.message)
         }
         router.replace(next)
       })
