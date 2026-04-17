@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
 type ModelItem = {
@@ -43,10 +43,11 @@ export default function MyModelsPage() {
   const fetchMyModels = async () => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { setModels([]); setLoading(false); return; }
+      const token = getAccessToken();
+      if (!token) { setModels([]); setLoading(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      const { data, error } = await sbFetch("models", `?seller_id=eq.${session.user.id}&order=created_at.desc`);
+      const { data, error } = await sbAuthFetch("models", `?seller_id=eq.${userId}&order=created_at.desc`);
 
       if (error) { console.error(error); setModels([]); return; }
       setModels((data || []) as ModelItem[]);

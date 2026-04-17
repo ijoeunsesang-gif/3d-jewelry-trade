@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
 
 type ModelItem = {
@@ -43,16 +43,18 @@ export default function FavoritesPage() {
   const fetchFavoriteModels = async () => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { setModels([]); setLoading(false); return; }
+      const token = getAccessToken();
+      if (!token) { setModels([]); setLoading(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      const { data: favoriteRows, error: favoriteError } = await supabase
-        .from("favorites").select("model_id, created_at")
-        .eq("user_id", session.user.id).order("created_at", { ascending: false });
+      const { data: favoriteRows, error: favoriteError } = await sbAuthFetch(
+        "favorites",
+        `?select=model_id,created_at&user_id=eq.${userId}&order=created_at.desc`
+      );
 
       if (favoriteError) { console.error(favoriteError); setLoading(false); return; }
 
-      const ids = (favoriteRows || []).map((row: any) => row.model_id);
+      const ids = ((favoriteRows || []) as { model_id: string }[]).map((row) => row.model_id);
       if (ids.length === 0) { setModels([]); setLoading(false); return; }
 
       const { data: modelRows, error: modelError } = await sbFetch(
@@ -77,11 +79,12 @@ export default function FavoritesPage() {
   const removeFavorite = async (modelId: string) => {
     try {
       setRemovingId(modelId);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      const token = getAccessToken();
+      if (!token) return;
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
       const { error } = await supabase.from("favorites").delete()
-        .eq("user_id", session.user.id).eq("model_id", modelId);
+        .eq("user_id", userId).eq("model_id", modelId);
 
       if (error) { showError("찜 해제에 실패했습니다."); return; }
 
