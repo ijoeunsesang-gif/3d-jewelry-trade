@@ -44,14 +44,14 @@ export default function ProfilePage() {
       const social = identities.some((id: any) => id.provider !== "email");
       setIsSocialUser(social);
 
-      const userEmail = userData?.user?.email || "";
-      if (userEmail && !email_) {
-        setEmail(userEmail);
-        initialEmailRef.current = userEmail;
-      } else {
-        setEmail(email_);
-        initialEmailRef.current = email_;
-      }
+      const finalEmail =
+        email_
+        || userData?.user?.email
+        || identities[0]?.identity_data?.email
+        || "";
+
+      setEmail(finalEmail);
+      initialEmailRef.current = finalEmail;
 
       const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${userId_}&limit=1`);
       const profile = (_profileArr as any[])?.[0] ?? null;
