@@ -151,10 +151,19 @@ function SendToPrinterContent() {
     setTemplates(existingTpls);
     const firstTpl = existingTpls[0];
     setSelectedTemplateId(firstTpl.id);
-    setSenderEmail(firstTpl.email || "");
     setBusinessName(firstTpl.businessName || "");
     setPhoneNumber(firstTpl.phoneNumber || "");
     setExtraNote(firstTpl.notes || "");
+
+    // 로그인 유저 이메일로 발신 이메일 고정
+    const { data: userData } = await supabase.auth.getUser();
+    const identities = userData?.user?.identities ?? [];
+    const authEmail =
+      userData?.user?.email ||
+      identities[0]?.identity_data?.email ||
+      firstTpl.email ||
+      "";
+    setSenderEmail(authEmail);
 
     // 파일 목록 조회
     setFilesLoading(true);
@@ -544,7 +553,7 @@ function SendToPrinterContent() {
             <div style={sectionTitle}>보내는 사람 정보</div>
             <div style={fieldWrap}>
               <label style={labelStyle}>이메일</label>
-              <input type="email" value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="my@email.com" style={inputStyle} />
+              <input type="email" value={senderEmail} readOnly style={{ ...inputStyle, background: "#f3f4f6", cursor: "not-allowed" }} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
