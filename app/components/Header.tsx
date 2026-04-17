@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken, sbAuthFetch, sbFetch } from "@/lib/supabase-fetch";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -36,16 +37,16 @@ export default function Header() {
     fetchMessageCount();
     fetchNotificationCount();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        await checkUser(session);
+        await checkUser();
       } else if (event === "SIGNED_OUT") {
         setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
       }
     });
 
     const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) supabase.auth.getSession().then(({ data: { session } }) => checkUser(session));
+      if (e.persisted) checkUser();
     };
     window.addEventListener("pageshow", onPageShow);
 
@@ -86,20 +87,14 @@ export default function Header() {
     };
   }, []);
 
-  const initHeader = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    await checkUser(session);
-    updateCartCount();
-    await fetchFavoriteCount();
-    await fetchMessageCount();
-    await fetchNotificationCount();
-  };
-
-  const checkUser = async (session: any) => {
-    if (session?.user) {
-      setUserEmail(session.user.email || "kakao_user");
-      const { data: profile } = await supabase
-        .from("profiles").select("avatar_url, nickname").eq("id", session.user.id).maybeSingle();
+  const checkUser = async () => {
+    const token = getAccessToken();
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1])) as any;
+      setUserEmail(payload?.email || "kakao_user");
+      const userId = payload?.sub as string;
+      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${userId}&select=avatar_url,nickname&limit=1`);
+      const profile = (profileArr as any[])?.[0] ?? null;
       setAvatarUrl(profile?.avatar_url || "");
       setNickname(profile?.nickname || "");
     } else {
@@ -120,39 +115,36 @@ export default function Header() {
   };
 
   const fetchFavoriteCount = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { setFavoriteCount(0); return; }
+    const token = getAccessToken();
+    if (!token) { setFavoriteCount(0); return; }
+    const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
     const lastViewed = localStorage.getItem("favorites_last_viewed");
-    let query = supabase.from("favorites").select("*", { count: "exact", head: true }).eq("user_id", session.user.id);
-    if (lastViewed) query = query.gt("created_at", lastViewed);
-    const { count } = await query;
-    setFavoriteCount(count || 0);
+    let query = `?select=id&user_id=eq.${userId}`;
+    if (lastViewed) query += `&created_at=gt.${lastViewed}`;
+    const { data } = await sbAuthFetch("favorites", query);
+    setFavoriteCount((data as any[])?.length || 0);
   };
 
   const fetchMessageCount = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { setMessageCount(0); return; }
-    const myId = session.user.id;
-    const { data: conversations, error: convError } = await supabase
-      .from("conversations").select("id").or(`user1_id.eq.${myId},user2_id.eq.${myId}`);
+    const token = getAccessToken();
+    if (!token) { setMessageCount(0); return; }
+    const myId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+    const { data: conversations, error: convError } = await sbAuthFetch("conversations", `?select=id&or=(user1_id.eq.${myId},user2_id.eq.${myId})`);
     if (convError) { setMessageCount(0); return; }
-    const conversationIds = (conversations || []).map((item: { id: string }) => item.id);
+    const conversationIds = ((conversations || []) as { id: string }[]).map((item) => item.id);
     if (conversationIds.length === 0) { setMessageCount(0); return; }
-    const { count, error: msgError } = await supabase
-      .from("messages").select("id", { count: "exact", head: true })
-      .in("conversation_id", conversationIds).neq("sender_id", myId).eq("is_read", false);
+    const { data: unread, error: msgError } = await sbAuthFetch("messages", `?select=id&conversation_id=in.(${conversationIds.join(',')})&sender_id=neq.${myId}&is_read=eq.false`);
     if (msgError) { setMessageCount(0); return; }
-    setMessageCount(count || 0);
+    setMessageCount((unread as any[])?.length || 0);
   };
 
   const fetchNotificationCount = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) { setNotificationCount(0); return; }
-    const { count, error } = await supabase
-      .from("notifications").select("id", { count: "exact", head: true })
-      .eq("user_id", session.user.id).eq("is_read", false);
+    const token = getAccessToken();
+    if (!token) { setNotificationCount(0); return; }
+    const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+    const { data, error } = await sbAuthFetch("notifications", `?select=id&user_id=eq.${userId}&is_read=eq.false`);
     if (error) { setNotificationCount(0); return; }
-    setNotificationCount(count || 0);
+    setNotificationCount((data as any[])?.length || 0);
   };
 
   const handleLogout = async () => {

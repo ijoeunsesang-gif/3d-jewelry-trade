@@ -207,14 +207,12 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   const toggleFavorite = async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.user) {
+      const token = getAccessToken();
+      if (!token) {
         showError("로그인 후 찜 기능을 사용할 수 있습니다.");
         return;
       }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
       setFavoriteLoading(true);
 
@@ -222,7 +220,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         const { error } = await supabase
           .from("favorites")
           .delete()
-          .eq("user_id", session.user.id)
+          .eq("user_id", userId)
           .eq("model_id", model.id);
 
         if (error) {
@@ -234,7 +232,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         setLiked(false);
       } else {
         const { error } = await supabase.from("favorites").insert({
-          user_id: session.user.id,
+          user_id: userId,
           model_id: model.id,
         });
 
@@ -265,16 +263,13 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     try {
       setViewerLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
+      const token = getAccessToken();
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
 
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const res = await fetch("/api/model-viewer-url", {
@@ -366,16 +361,12 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     try {
       setInquiryLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.user) {
+      const token = getAccessToken();
+      if (!token) {
         showError("로그인 후 문의할 수 있습니다.");
         return;
       }
-
-      const myId = session.user.id;
+      const myId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
       const sellerId = model.seller_id;
 
       if (myId === sellerId) {

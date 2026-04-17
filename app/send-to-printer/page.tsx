@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
 /* ── 타입 ─────────────────────────────────────────────────── */
@@ -273,12 +274,12 @@ function SendToPrinterContent() {
   const handleConfirmSend = async () => {
     try {
       setSending(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) { showInfo("로그인이 필요합니다."); return; }
+      const token = getAccessToken();
+      if (!token) { showInfo("로그인이 필요합니다."); return; }
       const effectiveCastingType = castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType;
       const res = await fetch("/api/send-to-printer", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           modelId, printerEmail: printerEmail.trim(),
           senderEmail: senderEmail.trim(), businessName: businessName.trim(),

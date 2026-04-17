@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
+import { getAccessToken } from "@/lib/supabase-fetch";
 
 type OrderItem = {
   id: string;
@@ -71,8 +72,8 @@ function PaymentSuccessContent() {
         return;
       }
 
-      // Supabase 세션을 먼저 확보해 락 경합 방지
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = getAccessToken();
+      const userId = token ? ((JSON.parse(atob(token.split('.')[1])) as any)?.sub as string) : null;
 
       // 서버 결제 승인
       const confirmRes = await fetch("/api/payment/confirm", {
@@ -90,9 +91,9 @@ function PaymentSuccessContent() {
       }
 
       // 구매 내역 Supabase 저장
-      if (session?.user) {
+      if (userId) {
         const purchaseRows = pending.items.map((item) => ({
-          user_id: session.user.id,
+          user_id: userId,
           model_id: item.id,
           price: item.price,
         }));

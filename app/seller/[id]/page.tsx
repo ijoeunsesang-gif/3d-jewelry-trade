@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
@@ -84,12 +84,9 @@ export default function SellerPage() {
     try {
       setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const currentUser = session?.user;
-      setCurrentUserId(currentUser?.id || "");
+      const token = getAccessToken();
+      const currentUserId_ = token ? ((JSON.parse(atob(token.split('.')[1])) as any)?.sub as string) : "";
+      setCurrentUserId(currentUserId_);
 
       const { data: _sellerArr, error: sellerError } = await sbFetch("profiles", `?id=eq.${id}&limit=1`);
       const sellerData = (_sellerArr as any[])?.[0] ?? null;
@@ -136,11 +133,11 @@ export default function SellerPage() {
         setFollowersCount(followerCount || 0);
       }
 
-      if (currentUser?.id && currentUser.id !== id) {
+      if (currentUserId_ && currentUserId_ !== id) {
         const { data: followRow, error: followCheckError } = await supabase
           .from("follows")
           .select("id")
-          .eq("follower_id", currentUser.id)
+          .eq("follower_id", currentUserId_)
           .eq("following_id", id)
           .maybeSingle();
 
@@ -153,11 +150,11 @@ export default function SellerPage() {
         setIsFollowing(false);
       }
 
-      if (currentUser?.id) {
+      if (currentUserId_) {
         const { data: favoritesData, error: favoritesError } = await supabase
           .from("favorites")
           .select("model_id")
-          .eq("user_id", currentUser.id);
+          .eq("user_id", currentUserId_);
 
         if (favoritesError) {
           console.error("찜 목록 불러오기 실패:", favoritesError);

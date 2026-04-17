@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken, sbAuthFetch, sbFetch } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
 
 type PurchasedModel = {
@@ -45,23 +46,21 @@ export default function LibraryPage() {
 
   const fetchLibrary = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { showInfo("로그인이 필요합니다."); window.location.href = "/auth"; return; }
+      const token = getAccessToken();
+      if (!token) { showInfo("로그인이 필요합니다."); window.location.href = "/auth"; return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      const { data: purchases, error: purchaseError } = await supabase
-        .from("purchases").select("model_id, created_at")
-        .eq("user_id", session.user.id).order("created_at", { ascending: false });
+      const { data: purchases, error: purchaseError } = await sbAuthFetch("purchases", `?select=model_id,created_at&user_id=eq.${userId}&order=created_at.desc`);
       if (purchaseError) { console.error(purchaseError); return; }
-      if (!purchases || purchases.length === 0) { setItems([]); return; }
+      if (!purchases || (purchases as any[]).length === 0) { setItems([]); return; }
 
-      const modelIds = [...new Set(purchases.map((p) => p.model_id))];
-      const { data: models, error: modelError } = await supabase
-        .from("models").select("*").in("id", modelIds);
+      const modelIds = [...new Set((purchases as any[]).map((p: any) => p.model_id))];
+      const { data: models, error: modelError } = await sbFetch("models", `?id=in.(${modelIds.join(',')})`);
       if (modelError) { console.error(modelError); return; }
 
-      const ordered = purchases
-        .map((p) => {
-          const m = models?.find((mm) => mm.id === p.model_id);
+      const ordered = (purchases as any[])
+        .map((p: any) => {
+          const m = (models as any[])?.find((mm: any) => mm.id === p.model_id);
           if (!m) return null;
           return { ...m, purchased_at: p.created_at };
         })
@@ -74,11 +73,11 @@ export default function LibraryPage() {
   const handleDownload = async (item: PurchasedModel) => {
     try {
       setDownloadingId(item.id);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) { showInfo("로그인이 필요합니다."); return; }
+      const token = getAccessToken();
+      if (!token) { showInfo("로그인이 필요합니다."); return; }
       const res = await fetch("/api/download", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ modelId: item.id }),
       });
       const data = await res.json();

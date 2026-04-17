@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import DescriptionTemplateSelector from "../components/DescriptionTemplateSelector";
 
@@ -68,10 +69,9 @@ export default function UploadPage() {
 
       setUploading(true);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) { showInfo("로그인이 필요합니다."); return; }
-
-      const sellerId = session.user.id;
+      const token = getAccessToken();
+      if (!token) { showInfo("로그인이 필요합니다."); return; }
+      const sellerId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
       const now = Date.now();
 
       // 썸네일 업로드

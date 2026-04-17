@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken, sbAuthFetch } from "@/lib/supabase-fetch";
 
 type PurchaseRow = {
   id: string;
@@ -34,19 +35,11 @@ export default function SalesPage() {
     try {
       setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const token = getAccessToken();
+      if (!token) { setLoading(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data: myModels, error: modelError } = await supabase
-        .from("models")
-        .select("id, title, thumbnail, thumbnail_path, seller_id")
-        .eq("seller_id", session.user.id);
+      const { data: myModels, error: modelError } = await sbAuthFetch("models", `?select=id,title,thumbnail,thumbnail_path,seller_id&seller_id=eq.${userId}`);
 
       if (modelError) {
         console.error("판매 모델 불러오기 실패:", modelError);
@@ -54,9 +47,9 @@ export default function SalesPage() {
         return;
       }
 
-      setModels(myModels || []);
+      setModels((myModels as ModelRow[]) || []);
 
-      const modelIds = (myModels || []).map((m) => m.id);
+      const modelIds = ((myModels as ModelRow[]) || []).map((m) => m.id);
 
       if (modelIds.length === 0) {
         setPurchases([]);
@@ -64,11 +57,7 @@ export default function SalesPage() {
         return;
       }
 
-      const { data: purchaseData, error: purchaseError } = await supabase
-        .from("purchases")
-        .select("id, model_id, price, created_at")
-        .in("model_id", modelIds)
-        .order("created_at", { ascending: false });
+      const { data: purchaseData, error: purchaseError } = await sbAuthFetch("purchases", `?select=id,model_id,price,created_at&model_id=in.(${modelIds.join(',')})&order=created_at.desc`);
 
       if (purchaseError) {
         console.error("판매 내역 불러오기 실패:", purchaseError);
@@ -76,7 +65,7 @@ export default function SalesPage() {
         return;
       }
 
-      setPurchases(purchaseData || []);
+      setPurchases((purchaseData as PurchaseRow[]) || []);
     } catch (error) {
       console.error("판매 통계 불러오기 오류:", error);
     } finally {

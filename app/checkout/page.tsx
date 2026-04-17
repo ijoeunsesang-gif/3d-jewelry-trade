@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
 
 type OrderItem = {
@@ -47,17 +48,14 @@ function CheckoutContent() {
   const bootstrap = async () => {
     try {
       const mode = searchParams.get("mode");
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.user) {
+      const token = getAccessToken();
+      if (!token) {
         showInfo("로그인이 필요합니다.");
         window.location.href = "/auth";
         return;
       }
-
-      setBuyerEmail(session.user.email || "");
+      const payload = JSON.parse(atob(token.split('.')[1])) as any;
+      setBuyerEmail(payload?.email || "");
 
       if (mode === "direct") {
         const pendingOrder = JSON.parse(

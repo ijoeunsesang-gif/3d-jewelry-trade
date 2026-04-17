@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
+import { getAccessToken, sbAuthFetch, sbFetch } from "@/lib/supabase-fetch";
 import type { ProfileItem } from "../lib/getProfile";
 
 type FollowItem = {
@@ -36,33 +37,15 @@ export default function NotificationsPage() {
     try {
       setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const token = getAccessToken();
+      if (!token) { setLoading(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
+      const { data: follows } = await sbAuthFetch("follows", `?following_id=eq.${userId}&order=created_at.desc&limit=20`);
+      const { data: convs } = await sbAuthFetch("conversations", `?or=(user1_id.eq.${userId},user2_id.eq.${userId})&order=updated_at.desc&limit=20`);
 
-      const userId = session.user.id;
-
-      const { data: follows } = await supabase
-        .from("follows")
-        .select("*")
-        .eq("following_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
-
-      const { data: convs } = await supabase
-        .from("conversations")
-        .select("*")
-        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-        .order("updated_at", { ascending: false })
-        .limit(20);
-
-      setFollowItems(follows || []);
-      setConversationItems(convs || []);
+      setFollowItems((follows as FollowItem[]) || []);
+      setConversationItems((convs as ConversationItem[]) || []);
 
       const ids = new Set<string>();
 
@@ -74,10 +57,7 @@ export default function NotificationsPage() {
 
       const idArray = Array.from(ids);
       if (idArray.length > 0) {
-        const { data: profileRows } = await supabase
-          .from("profiles")
-          .select("*")
-          .in("id", idArray);
+        const { data: profileRows } = await sbFetch("profiles", `?id=in.(${idArray.join(',')})`);
 
         const nextMap: Record<string, ProfileItem> = {};
         (profileRows || []).forEach((row: ProfileItem) => {

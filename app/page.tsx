@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
 import { supabase } from "./lib/supabase-browser";
+import { getAccessToken, sbAuthFetch } from "@/lib/supabase-fetch";
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
@@ -128,18 +129,11 @@ export default function Home() {
         setQuickLiked(false);
         return;
       }
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setQuickLiked(false);
-        return;
-      }
-      const { data } = await supabase
-        .from("favorites")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .eq("model_id", quickModel.id)
-        .maybeSingle();
-      setQuickLiked(!!data);
+      const token = getAccessToken();
+      if (!token) { setQuickLiked(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const { data: favRows } = await sbAuthFetch("favorites", `?select=id&user_id=eq.${userId}&model_id=eq.${quickModel.id}&limit=1`);
+      setQuickLiked(!!((favRows as any[])?.length));
     };
     fetchQuickFavorite();
   }, [quickModel]);
@@ -167,16 +161,11 @@ export default function Home() {
 
   const fetchFavorites = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setFavoriteMap({});
-        return;
-      }
+      const token = getAccessToken();
+      if (!token) { setFavoriteMap({}); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      const { data, error } = await supabase
-        .from("favorites")
-        .select("model_id")
-        .eq("user_id", session.user.id);
+      const { data, error } = await sbAuthFetch("favorites", `?select=model_id&user_id=eq.${userId}`);
 
       if (error) {
         console.error("찜 불러오기 실패:", error);
@@ -184,7 +173,7 @@ export default function Home() {
       }
 
       const nextMap: FavoriteMap = {};
-      (data || []).forEach((row: { model_id: string }) => {
+      ((data || []) as { model_id: string }[]).forEach((row) => {
         nextMap[row.model_id] = true;
       });
       setFavoriteMap(nextMap);
@@ -197,19 +186,19 @@ export default function Home() {
   const toggleFavorite = async (modelId: string) => {
     try {
       setFavoriteLoadingIds((prev) => ({ ...prev, [modelId]: true }));
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session?.user) {
+      const token = getAccessToken();
+      if (!token) {
         showError("로그인 후 찜 기능을 사용할 수 있습니다.");
         return;
       }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
       const liked = !!favoriteMap[modelId];
       if (liked) {
         const { error } = await supabase
           .from("favorites")
           .delete()
-          .eq("user_id", session.user.id)
+          .eq("user_id", userId)
           .eq("model_id", modelId);
 
         if (error) {
@@ -223,7 +212,7 @@ export default function Home() {
         });
       } else {
         const { error } = await supabase.from("favorites").insert({
-          user_id: session.user.id,
+          user_id: userId,
           model_id: modelId,
         });
 
@@ -245,12 +234,12 @@ export default function Home() {
   const toggleQuickFavorite = async () => {
     try {
       if (!quickModel) return;
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (!session?.user) {
+      const token = getAccessToken();
+      if (!token) {
         showError("로그인 후 찜 기능을 사용할 수 있습니다.");
         return;
       }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
       setQuickFavoriteLoading(true);
 
@@ -258,7 +247,7 @@ export default function Home() {
         const { error } = await supabase
           .from("favorites")
           .delete()
-          .eq("user_id", session.user.id)
+          .eq("user_id", userId)
           .eq("model_id", quickModel.id);
 
         if (error) {
@@ -268,7 +257,7 @@ export default function Home() {
         setQuickLiked(false);
       } else {
         const { error } = await supabase.from("favorites").insert({
-          user_id: session.user.id,
+          user_id: userId,
           model_id: quickModel.id,
         });
 
@@ -304,11 +293,11 @@ export default function Home() {
   const loadQuickViewerUrl = async (model: ModelItem) => {
     try {
       setViewerLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = getAccessToken();
 
       const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`;
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const res = await fetch("/api/model-viewer-url", {

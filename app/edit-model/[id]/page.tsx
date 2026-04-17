@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
 
@@ -154,16 +154,13 @@ export default function EditModelPage() {
     try {
       setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const user = session?.user;
-      if (!user) {
+      const token = getAccessToken();
+      if (!token) {
         showInfo("로그인이 필요합니다.");
         router.push("/login");
         return;
       }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
       const { data: _modelArr, error } = await sbFetch("models", `?id=eq.${id}&limit=1`);
       const data = (_modelArr as any[])?.[0] ?? null;
@@ -175,7 +172,7 @@ export default function EditModelPage() {
         return;
       }
 
-      if (data.seller_id !== user.id) {
+      if (data.seller_id !== userId) {
         showError("수정 권한이 없습니다.");
         router.push("/my-models");
         return;
@@ -375,22 +372,19 @@ export default function EditModelPage() {
     try {
       setSaving(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const user = session?.user;
-      if (!user) {
+      const saveToken = getAccessToken();
+      if (!saveToken) {
         showInfo("로그인이 필요합니다.");
         return;
       }
+      const saveUserId = (JSON.parse(atob(saveToken.split('.')[1])) as any)?.sub as string;
 
       let thumbnailPath = model.thumbnail_path || null;
       let thumbnailUrl = model.thumbnail || "";
 
       if (thumbnailFile) {
         const ext = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${user.id}/thumb-${Date.now()}.${ext}`;
+        const path = `${saveUserId}/thumb-${Date.now()}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from("thumbnails")
@@ -410,7 +404,7 @@ export default function EditModelPage() {
 
       if (modelFile) {
         const ext = modelFile.name.split(".").pop()?.toLowerCase() || "stl";
-        const path = `${user.id}/model-${Date.now()}.${ext}`;
+        const path = `${saveUserId}/model-${Date.now()}.${ext}`;
 
         const { error: uploadError } = await supabase.storage
           .from("models-private")
@@ -450,7 +444,7 @@ export default function EditModelPage() {
         for (let i = 0; i < detailImageFiles.length; i++) {
           const file = detailImageFiles[i];
           const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-          const path = `${user.id}/detail-${Date.now()}-${i}.${ext}`;
+          const path = `${saveUserId}/detail-${Date.now()}-${i}.${ext}`;
 
           const { error: uploadError } = await supabase.storage
             .from("thumbnails")
@@ -492,7 +486,7 @@ export default function EditModelPage() {
         for (let i = 0; i < extraFiles.length; i++) {
           const file = extraFiles[i];
           const ext = file.name.split(".").pop()?.toLowerCase() || "";
-          const path = `${user.id}/extra-${Date.now()}-${i}.${ext}`;
+          const path = `${saveUserId}/extra-${Date.now()}-${i}.${ext}`;
 
           const { error: uploadError } = await supabase.storage
             .from("models-private")
