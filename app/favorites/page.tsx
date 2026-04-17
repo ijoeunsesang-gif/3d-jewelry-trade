@@ -35,9 +35,11 @@ export default function FavoritesPage() {
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
-    fetchFavoriteModels();
     localStorage.setItem("favorites_last_viewed", new Date().toISOString());
     window.dispatchEvent(new Event("favorites-updated"));
+    console.log('raw token:', localStorage.getItem('sb-fvhotaxjdacfulxjahon-auth-token')?.slice(0, 50));
+    const timer = setTimeout(() => { fetchFavoriteModels(); }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const fetchFavoriteModels = async () => {
