@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
 export default function ProfilePage() {
@@ -41,11 +42,8 @@ export default function ProfilePage() {
       setUserId(user.id);
       setEmail(user.email || "");
 
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
+      const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${user.id}&limit=1`);
+      const profile = (_profileArr as any[])?.[0] ?? null;
 
       if (error) {
         console.error("프로필 불러오기 실패:", error);
@@ -130,11 +128,8 @@ export default function ProfilePage() {
 
       setSaving(true);
 
-      const { data: existing } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", userId)
-        .maybeSingle();
+      const { data: _existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
+      const existing = (_existingArr as any[])?.[0] ?? null;
 
       if (existing) {
         const { error: updateError } = await supabase

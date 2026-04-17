@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
 interface Notice {
@@ -55,12 +56,7 @@ export default function CustomerServicePage() {
   }, []);
 
   const fetchNotices = async () => {
-    const { data } = await supabase
-      .from("notices")
-      .select("id, title, content, created_at")
-      .eq("is_published", true)
-      .order("created_at", { ascending: false })
-      .limit(20);
+    const { data } = await sbFetch("notices", "?select=id,title,content,created_at&is_published=eq.true&order=created_at.desc&limit=20");
     setNotices(data || []);
   };
 

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
 
@@ -164,11 +165,8 @@ export default function EditModelPage() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("models")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const { data: _modelArr, error } = await sbFetch("models", `?id=eq.${id}&limit=1`);
+      const data = (_modelArr as any[])?.[0] ?? null;
 
       if (error || !data) {
         console.error("모델 불러오기 실패:", error);
@@ -183,21 +181,13 @@ export default function EditModelPage() {
         return;
       }
 
-      const { data: imageData, error: imageError } = await supabase
-        .from("model_images")
-        .select("*")
-        .eq("model_id", id)
-        .order("sort_order", { ascending: true });
+      const { data: imageData, error: imageError } = await sbFetch("model_images", `?model_id=eq.${id}&order=sort_order.asc`);
 
       if (imageError) {
         console.error("기존 이미지 불러오기 실패:", imageError);
       }
 
-      const { data: fileData, error: fileError } = await supabase
-        .from("model_files")
-        .select("*")
-        .eq("model_id", id)
-        .order("sort_order", { ascending: true });
+      const { data: fileData, error: fileError } = await sbFetch("model_files", `?model_id=eq.${id}&order=sort_order.asc`);
 
       if (fileError) {
         console.error("기존 추가 파일 불러오기 실패:", fileError);

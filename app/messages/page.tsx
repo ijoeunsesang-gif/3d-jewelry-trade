@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 import type { ProfileItem } from "../lib/getProfile";
 
@@ -124,10 +125,7 @@ function MessagesContent() {
       );
 
       if (otherIds.length > 0) {
-        const { data: profileRows } = await supabase
-          .from("profiles")
-          .select("*")
-          .in("id", otherIds);
+        const { data: profileRows } = await sbFetch("profiles", `?id=in.(${otherIds.join(",")})`);
 
         const nextMap: Record<string, ProfileItem> = {};
         (profileRows || []).forEach((row: ProfileItem) => {
