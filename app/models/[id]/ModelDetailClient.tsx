@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { getProfile } from "../../lib/getProfile";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
@@ -95,21 +95,15 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   const checkPurchase = async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const token = getAccessToken();
+      if (!token) { setAlreadyPurchased(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      if (!session?.user) {
-        setAlreadyPurchased(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("purchases")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .eq("model_id", model.id)
-        .maybeSingle();
+      const { data: _rows, error } = await sbAuthFetch(
+        "purchases",
+        `?select=id&user_id=eq.${userId}&model_id=eq.${model.id}&limit=1`
+      );
+      const data = (_rows as any[])?.[0] ?? null;
 
       if (!error && data) {
         setAlreadyPurchased(true);
@@ -185,21 +179,15 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   const fetchFavoriteStatus = async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const token = getAccessToken();
+      if (!token) { setLiked(false); return; }
+      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
 
-      if (!session?.user) {
-        setLiked(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("favorites")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .eq("model_id", model.id)
-        .maybeSingle();
+      const { data: _rows } = await sbAuthFetch(
+        "favorites",
+        `?select=id&user_id=eq.${userId}&model_id=eq.${model.id}&limit=1`
+      );
+      const data = (_rows as any[])?.[0] ?? null;
 
       setLiked(!!data);
     } catch (error) {
