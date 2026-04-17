@@ -3,7 +3,7 @@
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 import type { ProfileItem } from "../lib/getProfile";
 
@@ -87,23 +87,15 @@ function MessagesContent() {
     try {
       if (!silent) setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.user) {
-        setLoading(false);
-        return;
-      }
-
-      const myId = session.user.id;
+      const token = getAccessToken();
+      if (!token) { setLoading(false); return; }
+      const myId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
       setCurrentUserId(myId);
 
-      const { data: convRows, error: convError } = await supabase
-        .from("conversations")
-        .select("*")
-        .or(`user1_id.eq.${myId},user2_id.eq.${myId}`)
-        .order("updated_at", { ascending: false });
+      const { data: convRows, error: convError } = await sbAuthFetch(
+        "conversations",
+        `?or=(user1_id.eq.${myId},user2_id.eq.${myId})&order=updated_at.desc`
+      );
 
       if (convError) {
         console.error("대화 목록 불러오기 실패:", convError);
@@ -141,11 +133,10 @@ function MessagesContent() {
   };
 
   const fetchMessages = async (conversationId: string) => {
-    const { data, error } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+    const { data, error } = await sbAuthFetch(
+      "messages",
+      `?conversation_id=eq.${conversationId}&order=created_at.asc`
+    );
 
     if (error) {
       console.error("메시지 불러오기 실패:", error);

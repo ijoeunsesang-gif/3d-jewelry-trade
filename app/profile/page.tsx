@@ -3,7 +3,7 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
 export default function ProfilePage() {
@@ -26,23 +26,19 @@ export default function ProfilePage() {
 
   const fetchProfile = async () => {
     try {
-      setLoading(true);
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session?.user) {
+      setLoading(true);      const token = getAccessToken();
+      if (!token) {
         showInfo("로그인이 필요합니다.");
         router.push("/auth");
         return;
       }
+      const payload = JSON.parse(atob(token.split('.')[1])) as any;
+      const userId_ = payload?.sub as string;
+      const email_ = (payload?.email || "") as string;
+      setUserId(userId_);
+      setEmail(email_);
 
-      const user = session.user;
-      setUserId(user.id);
-      setEmail(user.email || "");
-
-      const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${user.id}&limit=1`);
+      const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${userId_}&limit=1`);
       const profile = (_profileArr as any[])?.[0] ?? null;
 
       if (error) {
@@ -55,11 +51,11 @@ export default function ProfilePage() {
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
       } else {
-        const defaultNickname = user.email?.split("@")[0] || "user";
+        const defaultNickname = email_?.split("@")[0] || "user";
 
         const { error: insertError } = await supabase.from("profiles").insert({
-          id: user.id,
-          email: user.email || "",
+          id: userId_,
+          email: email_ || "",
           nickname: defaultNickname,
           bio: "",
           avatar_url: "",

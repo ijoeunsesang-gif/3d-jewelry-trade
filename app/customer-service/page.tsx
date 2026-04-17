@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
 interface Notice {
@@ -60,10 +60,12 @@ export default function CustomerServicePage() {
     setNotices(data || []);
   };
 
-  const fetchUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setUserEmail(session?.user?.email || "");
-    setUserId(session?.user?.id || "");
+  const fetchUser = () => {
+    const token = getAccessToken();
+    if (!token) return;
+    const payload = JSON.parse(atob(token.split('.')[1])) as any;
+    setUserEmail(payload?.email || "");
+    setUserId(payload?.sub || "");
   };
 
   const handleInquirySubmit = async (e: FormEvent) => {
