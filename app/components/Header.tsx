@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken, sbAuthFetch, sbFetch } from "@/lib/supabase-fetch";
+import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -90,7 +90,7 @@ export default function Header() {
   const checkUser = async () => {
     const token = getAccessToken();
     if (token) {
-      const payload = JSON.parse(atob(token.split('.')[1])) as any;
+      const payload = decodeJwt(token) as any;
       setUserEmail(payload?.email || "kakao_user");
       const userId = payload?.sub as string;
       const { data: profileArr } = await sbFetch("profiles", `?id=eq.${userId}&select=avatar_url,nickname&limit=1`);
@@ -117,7 +117,7 @@ export default function Header() {
   const fetchFavoriteCount = async () => {
     const token = getAccessToken();
     if (!token) { setFavoriteCount(0); return; }
-    const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+    const userId = (decodeJwt(token) as any)?.sub as string;
     const lastViewed = localStorage.getItem("favorites_last_viewed");
     let query = `?select=id&user_id=eq.${userId}`;
     if (lastViewed) query += `&created_at=gt.${lastViewed}`;
@@ -128,7 +128,7 @@ export default function Header() {
   const fetchMessageCount = async () => {
     const token = getAccessToken();
     if (!token) { setMessageCount(0); return; }
-    const myId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+    const myId = (decodeJwt(token) as any)?.sub as string;
     const { data: conversations, error: convError } = await sbAuthFetch("conversations", `?select=id&or=(user1_id.eq.${myId},user2_id.eq.${myId})`);
     if (convError) { setMessageCount(0); return; }
     const conversationIds = ((conversations || []) as { id: string }[]).map((item) => item.id);
@@ -141,7 +141,7 @@ export default function Header() {
   const fetchNotificationCount = async () => {
     const token = getAccessToken();
     if (!token) { setNotificationCount(0); return; }
-    const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+    const userId = (decodeJwt(token) as any)?.sub as string;
     const { data, error } = await sbAuthFetch("notifications", `?select=id&user_id=eq.${userId}&is_read=eq.false`);
     if (error) { setNotificationCount(0); return; }
     setNotificationCount((data as any[])?.length || 0);

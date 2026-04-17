@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken } from "@/lib/supabase-fetch";
+import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
 interface Inquiry {
@@ -35,7 +35,7 @@ export default function AdminPage() {
 
   const checkAdmin = async () => {
     const token = getAccessToken();
-    const email = token ? ((JSON.parse(atob(token.split('.')[1])) as any)?.email || "") : "";
+    const email = token ? ((decodeJwt(token) as any)?.email || "") : "";
     if (!email || email !== ADMIN_EMAIL) {
       router.replace("/");
       return;

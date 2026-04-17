@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken, sbAuthFetch, sbFetch } from "@/lib/supabase-fetch";
+import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import type { ProfileItem } from "../lib/getProfile";
 
 type FollowItem = {
@@ -39,7 +39,7 @@ export default function NotificationsPage() {
 
       const token = getAccessToken();
       if (!token) { setLoading(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: follows } = await sbAuthFetch("follows", `?following_id=eq.${userId}&order=created_at.desc&limit=20`);
       const { data: convs } = await sbAuthFetch("conversations", `?or=(user1_id.eq.${userId},user2_id.eq.${userId})&order=updated_at.desc&limit=20`);

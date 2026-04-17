@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken, sbAuthFetch, sbFetch } from "@/lib/supabase-fetch";
+import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
 
 type PurchasedModel = {
@@ -48,7 +48,7 @@ export default function LibraryPage() {
     try {
       const token = getAccessToken();
       if (!token) { showInfo("로그인이 필요합니다."); window.location.href = "/auth"; return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: purchases, error: purchaseError } = await sbAuthFetch("purchases", `?select=model_id,created_at&user_id=eq.${userId}&order=created_at.desc`);
       if (purchaseError) { console.error(purchaseError); return; }

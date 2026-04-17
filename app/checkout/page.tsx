@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken } from "@/lib/supabase-fetch";
+import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
 
 type OrderItem = {
@@ -54,7 +54,7 @@ function CheckoutContent() {
         window.location.href = "/auth";
         return;
       }
-      const payload = JSON.parse(atob(token.split('.')[1])) as any;
+      const payload = decodeJwt(token) as any;
       setBuyerEmail(payload?.email || "");
 
       if (mode === "direct") {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
 import { supabase } from "./lib/supabase-browser";
-import { getAccessToken, sbAuthFetch } from "@/lib/supabase-fetch";
+import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
@@ -131,7 +131,7 @@ export default function Home() {
       }
       const token = getAccessToken();
       if (!token) { setQuickLiked(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
       const { data: favRows } = await sbAuthFetch("favorites", `?select=id&user_id=eq.${userId}&model_id=eq.${quickModel.id}&limit=1`);
       setQuickLiked(!!((favRows as any[])?.length));
     };
@@ -163,7 +163,7 @@ export default function Home() {
     try {
       const token = getAccessToken();
       if (!token) { setFavoriteMap({}); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data, error } = await sbAuthFetch("favorites", `?select=model_id&user_id=eq.${userId}`);
 
@@ -191,7 +191,7 @@ export default function Home() {
         showError("로그인 후 찜 기능을 사용할 수 있습니다.");
         return;
       }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const liked = !!favoriteMap[modelId];
       if (liked) {
@@ -239,7 +239,7 @@ export default function Home() {
         showError("로그인 후 찜 기능을 사용할 수 있습니다.");
         return;
       }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       setQuickFavoriteLoading(true);
 

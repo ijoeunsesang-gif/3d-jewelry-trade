@@ -3,7 +3,7 @@
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch, sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 import type { ProfileItem } from "../lib/getProfile";
 
@@ -89,7 +89,7 @@ function MessagesContent() {
 
       const token = getAccessToken();
       if (!token) { setLoading(false); return; }
-      const myId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const myId = (decodeJwt(token) as any)?.sub as string;
       setCurrentUserId(myId);
 
       const { data: convRows, error: convError } = await sbAuthFetch(

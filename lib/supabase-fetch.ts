@@ -1,3 +1,10 @@
+export function decodeJwt(token: string) {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(base64))
+  } catch { return null }
+}
+
 export async function sbFetch(table: string, query: string = '') {
   const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}${query}`, {
     headers: {
@@ -17,7 +24,7 @@ export function getAccessToken(): string | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     const token = parsed?.access_token ?? parsed?.[0]?.access_token ?? null;
-    console.log('토큰:', token?.slice(0, 20));
+    if (token) console.log('토큰 sub:', decodeJwt(token)?.sub);
     return token;
   } catch { return null; }
 }

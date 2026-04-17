@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
 type ModelItem = {
@@ -45,7 +45,7 @@ export default function MyModelsPage() {
       setLoading(true);
       const token = getAccessToken();
       if (!token) { setModels([]); setLoading(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data, error } = await sbAuthFetch("models", `?seller_id=eq.${userId}&order=created_at.desc`);
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch, sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
 
 type ModelItem = {
@@ -45,7 +45,7 @@ export default function FavoritesPage() {
       setLoading(true);
       const token = getAccessToken();
       if (!token) { setModels([]); setLoading(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: favoriteRows, error: favoriteError } = await sbAuthFetch(
         "favorites",
@@ -81,7 +81,7 @@ export default function FavoritesPage() {
       setRemovingId(modelId);
       const token = getAccessToken();
       if (!token) return;
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { error } = await supabase.from("favorites").delete()
         .eq("user_id", userId).eq("model_id", modelId);

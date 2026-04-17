@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
 
@@ -160,7 +160,7 @@ export default function EditModelPage() {
         router.push("/login");
         return;
       }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: _modelArr, error } = await sbFetch("models", `?id=eq.${id}&limit=1`);
       const data = (_modelArr as any[])?.[0] ?? null;
@@ -377,7 +377,7 @@ export default function EditModelPage() {
         showInfo("로그인이 필요합니다.");
         return;
       }
-      const saveUserId = (JSON.parse(atob(saveToken.split('.')[1])) as any)?.sub as string;
+      const saveUserId = (decodeJwt(saveToken) as any)?.sub as string;
 
       let thumbnailPath = model.thumbnail_path || null;
       let thumbnailUrl = model.thumbnail || "";

@@ -3,7 +3,7 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
 export default function ProfilePage() {
@@ -32,7 +32,7 @@ export default function ProfilePage() {
         router.push("/auth");
         return;
       }
-      const payload = JSON.parse(atob(token.split('.')[1])) as any;
+      const payload = decodeJwt(token) as any;
       const userId_ = payload?.sub as string;
       const email_ = (payload?.email || "") as string;
       setUserId(userId_);

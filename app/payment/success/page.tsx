@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { getAccessToken } from "@/lib/supabase-fetch";
+import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 
 type OrderItem = {
   id: string;
@@ -73,7 +73,7 @@ function PaymentSuccessContent() {
       }
 
       const token = getAccessToken();
-      const userId = token ? ((JSON.parse(atob(token.split('.')[1])) as any)?.sub as string) : null;
+      const userId = token ? ((decodeJwt(token) as any)?.sub as string) : null;
 
       // 서버 결제 승인
       const confirmRes = await fetch("/api/payment/confirm", {

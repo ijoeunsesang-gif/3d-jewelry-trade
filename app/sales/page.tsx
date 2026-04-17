@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken, sbAuthFetch } from "@/lib/supabase-fetch";
+import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
 
 type PurchaseRow = {
   id: string;
@@ -37,7 +37,7 @@ export default function SalesPage() {
 
       const token = getAccessToken();
       if (!token) { setLoading(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: myModels, error: modelError } = await sbAuthFetch("models", `?select=id,title,thumbnail,thumbnail_path,seller_id&seller_id=eq.${userId}`);
 

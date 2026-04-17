@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
@@ -85,7 +85,7 @@ export default function SellerPage() {
       setLoading(true);
 
       const token = getAccessToken();
-      const currentUserId_ = token ? ((JSON.parse(atob(token.split('.')[1])) as any)?.sub as string) : "";
+      const currentUserId_ = token ? ((decodeJwt(token) as any)?.sub as string) : "";
       setCurrentUserId(currentUserId_);
 
       const { data: _sellerArr, error: sellerError } = await sbFetch("profiles", `?id=eq.${id}&limit=1`);

@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
 interface Notice {
@@ -63,7 +63,7 @@ export default function CustomerServicePage() {
   const fetchUser = () => {
     const token = getAccessToken();
     if (!token) return;
-    const payload = JSON.parse(atob(token.split('.')[1])) as any;
+    const payload = decodeJwt(token) as any;
     setUserEmail(payload?.email || "");
     setUserId(payload?.sub || "");
   };

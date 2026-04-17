@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
-import { sbFetch, sbAuthFetch, getAccessToken } from "@/lib/supabase-fetch";
+import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { getProfile } from "../../lib/getProfile";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
@@ -96,7 +96,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     try {
       const token = getAccessToken();
       if (!token) { setAlreadyPurchased(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: _rows, error } = await sbAuthFetch(
         "purchases",
@@ -180,7 +180,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     try {
       const token = getAccessToken();
       if (!token) { setLiked(false); return; }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       const { data: _rows } = await sbAuthFetch(
         "favorites",
@@ -212,7 +212,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         showError("로그인 후 찜 기능을 사용할 수 있습니다.");
         return;
       }
-      const userId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const userId = (decodeJwt(token) as any)?.sub as string;
 
       setFavoriteLoading(true);
 
@@ -366,7 +366,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         showError("로그인 후 문의할 수 있습니다.");
         return;
       }
-      const myId = (JSON.parse(atob(token.split('.')[1])) as any)?.sub as string;
+      const myId = (decodeJwt(token) as any)?.sub as string;
       const sellerId = model.seller_id;
 
       if (myId === sellerId) {
