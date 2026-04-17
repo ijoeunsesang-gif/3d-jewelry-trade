@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const initialEmailRef = useRef("");
+  const [isSocialUser, setIsSocialUser] = useState(false);
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -39,6 +40,11 @@ export default function ProfilePage() {
       setUserId(userId_);
       setEmail(email_);
       initialEmailRef.current = email_;
+
+      const { data: userData } = await supabase.auth.getUser();
+      const identities = userData?.user?.identities ?? [];
+      const social = identities.some((id: any) => id.provider !== "email");
+      setIsSocialUser(social);
 
       const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${userId_}&limit=1`);
       const profile = (_profileArr as any[])?.[0] ?? null;
@@ -160,8 +166,13 @@ export default function ProfilePage() {
         }
       }
 
-      // 이메일이 변경된 경우 REST API 직접 호출
+      // 이메일이 변경된 경우 REST API 직접 호출 (이메일 전용 계정만)
       if (email.trim() && email !== initialEmailRef.current) {
+        if (isSocialUser) {
+          showError("소셜 로그인 계정은 이메일을 변경할 수 없습니다.");
+          return;
+        }
+
         const { data: sessionData } = await supabase.auth.getSession();
         const accessToken = sessionData?.session?.access_token;
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -180,7 +191,7 @@ export default function ProfilePage() {
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({}));
           const msg = errBody?.message || errBody?.error_description || "이메일 변경에 실패했습니다.";
-          console.error("이메일 변경 실패:", msg);
+          console.error("이메일 변경 실패:", msg, errBody);
           showError(msg);
           return;
         }
@@ -239,10 +250,16 @@ export default function ProfilePage() {
             <label style={labelStyle}>이메일</label>
             <input
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => !isSocialUser && setEmail(e.target.value)}
               placeholder="이메일 입력"
-              style={inputStyle}
+              disabled={isSocialUser}
+              style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", color: "#9ca3af", cursor: "not-allowed" } : {}) }}
             />
+            {isSocialUser && (
+              <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+                카카오/구글 계정은 이메일 변경 불가
+              </p>
+            )}
           </div>
 
           <div style={fieldWrap}>
