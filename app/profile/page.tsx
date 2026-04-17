@@ -252,8 +252,8 @@ export default function ProfilePage() {
               value={email}
               onChange={(e) => !isSocialUser && setEmail(e.target.value)}
               placeholder="이메일 입력"
-              disabled={isSocialUser}
-              style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", color: "#9ca3af", cursor: "not-allowed" } : {}) }}
+              readOnly={isSocialUser}
+              style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", cursor: "not-allowed" } : {}) }}
             />
             {isSocialUser && (
               <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
