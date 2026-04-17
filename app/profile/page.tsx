@@ -211,8 +211,9 @@ export default function ProfilePage() {
             <label style={labelStyle}>이메일</label>
             <input
               value={email}
-              readOnly
-              style={{ ...inputStyle, background: "#f8fafc", color: "#6b7280" }}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="이메일 입력"
+              style={inputStyle}
             />
           </div>
 
