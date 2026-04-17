@@ -44,9 +44,14 @@ export default function ProfilePage() {
       const social = identities.some((id: any) => id.provider !== "email");
       setIsSocialUser(social);
 
-      const finalEmail = email_ || userData?.user?.email || "";
-      setEmail(finalEmail);
-      initialEmailRef.current = finalEmail;
+      const userEmail = userData?.user?.email || "";
+      if (userEmail && !email_) {
+        setEmail(userEmail);
+        initialEmailRef.current = userEmail;
+      } else {
+        setEmail(email_);
+        initialEmailRef.current = email_;
+      }
 
       const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${userId_}&limit=1`);
       const profile = (_profileArr as any[])?.[0] ?? null;
@@ -253,9 +258,9 @@ export default function ProfilePage() {
             <input
               value={email}
               onChange={(e) => !isSocialUser && setEmail(e.target.value)}
-              placeholder="이메일 입력"
+              placeholder={isSocialUser ? "이메일 없음" : "이메일 입력"}
               readOnly={isSocialUser}
-              style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", cursor: "not-allowed" } : {}) }}
+              style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", cursor: "not-allowed", opacity: 0.6 } : {}) }}
             />
             {isSocialUser && (
               <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
