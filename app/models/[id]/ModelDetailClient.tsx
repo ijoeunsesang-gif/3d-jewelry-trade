@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { getProfile } from "../../lib/getProfile";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
@@ -123,13 +124,10 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   const fetchRelatedModels = async () => {
     try {
-      const { data, error } = await supabase
-        .from("models")
-        .select("*")
-        .eq("category", model.category)
-        .neq("id", model.id)
-        .order("created_at", { ascending: false })
-        .limit(4);
+      const { data, error } = await sbFetch(
+        "models",
+        `?category=eq.${model.category}&id=neq.${model.id}&order=created_at.desc&limit=4`
+      );
 
       if (error) {
         console.error("관련 모델 불러오기 실패:", error);
@@ -151,11 +149,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         urls.push(baseThumb);
       }
 
-      const { data, error } = await supabase
-        .from("model_images")
-        .select("*")
-        .eq("model_id", model.id)
-        .order("sort_order", { ascending: true });
+      const { data, error } = await sbFetch("model_images", `?model_id=eq.${model.id}&order=sort_order.asc`);
 
       if (!error && data?.length) {
         data.forEach((row: any) => {
@@ -182,11 +176,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   };
 
   const fetchExtraFiles = async () => {
-    const { data, error } = await supabase
-      .from("model_files")
-      .select("file_name, file_type")
-      .eq("model_id", model.id)
-      .order("sort_order", { ascending: true });
+    const { data, error } = await sbFetch("model_files", `?select=file_name,file_type&model_id=eq.${model.id}&order=sort_order.asc`);
 
     if (!error && data) {
       setExtraFiles(data);

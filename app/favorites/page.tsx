@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
 
 type ModelItem = {
@@ -54,9 +55,10 @@ export default function FavoritesPage() {
       const ids = (favoriteRows || []).map((row: any) => row.model_id);
       if (ids.length === 0) { setModels([]); setLoading(false); return; }
 
-      const { data: modelRows, error: modelError } = await supabase
-        .from("models").select("id, title, description, price, thumbnail, thumbnail_path, category, created_at")
-        .in("id", ids);
+      const { data: modelRows, error: modelError } = await sbFetch(
+        "models",
+        `?select=id,title,description,price,thumbnail,thumbnail_path,category,created_at&id=in.(${ids.join(",")})`
+      );
 
       if (modelError) { console.error(modelError); setLoading(false); return; }
 

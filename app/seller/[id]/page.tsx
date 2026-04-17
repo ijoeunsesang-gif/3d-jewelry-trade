@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
@@ -90,11 +91,8 @@ export default function SellerPage() {
       const currentUser = session?.user;
       setCurrentUserId(currentUser?.id || "");
 
-      const { data: sellerData, error: sellerError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", id)
-        .maybeSingle();
+      const { data: _sellerArr, error: sellerError } = await sbFetch("profiles", `?id=eq.${id}&limit=1`);
+      const sellerData = (_sellerArr as any[])?.[0] ?? null;
 
       if (sellerError) {
         console.error("판매자 정보 불러오기 실패:", sellerError);
@@ -102,18 +100,12 @@ export default function SellerPage() {
         setSeller(sellerData);
       }
 
-      const { data: modelData, error: modelError } = await supabase
-        .from("models")
-        .select("*")
-        .eq("seller_id", id)
-        .order("created_at", { ascending: false });
+      const { data: modelData, error: modelError } = await sbFetch("models", `?seller_id=eq.${id}&order=created_at.desc`);
 
       if (modelError) {
         console.error("판매자 모델 불러오기 실패:", modelError);
       } else {
-        const { data: favoriteRows, error: favoriteRowsError } = await supabase
-          .from("favorites")
-          .select("model_id");
+        const { data: favoriteRows, error: favoriteRowsError } = await sbFetch("favorites", "?select=model_id");
 
         if (favoriteRowsError) {
           console.error("찜 개수 불러오기 실패:", favoriteRowsError);
