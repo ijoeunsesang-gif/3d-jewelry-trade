@@ -63,7 +63,7 @@ export default function FavoritesPage() {
       if (modelError) { console.error(modelError); setLoading(false); return; }
 
       const ordered = ids
-        .map((id) => (modelRows || []).find((model) => model.id === id))
+        .map((id) => (modelRows as ModelItem[] || []).find((model) => model.id === id))
         .filter(Boolean) as ModelItem[];
 
       setModels(ordered);
