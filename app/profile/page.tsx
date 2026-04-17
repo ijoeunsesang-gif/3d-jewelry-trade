@@ -160,12 +160,28 @@ export default function ProfilePage() {
         }
       }
 
-      // 이메일이 변경된 경우 auth.updateUser로 처리
+      // 이메일이 변경된 경우 REST API 직접 호출
       if (email.trim() && email !== initialEmailRef.current) {
-        const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
-        if (emailError) {
-          console.error("이메일 변경 실패:", emailError);
-          showError("이메일 변경에 실패했습니다.");
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+
+        const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+          method: "PUT",
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "apikey": anonKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const msg = errBody?.message || errBody?.error_description || "이메일 변경에 실패했습니다.";
+          console.error("이메일 변경 실패:", msg);
+          showError(msg);
           return;
         }
         showInfo("이메일 변경 확인 메일이 발송되었습니다. 메일함을 확인해 주세요.");
