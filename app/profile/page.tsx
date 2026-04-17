@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -15,6 +15,7 @@ export default function ProfilePage() {
 
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
+  const initialEmailRef = useRef("");
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -37,6 +38,7 @@ export default function ProfilePage() {
       const email_ = (payload?.email || "") as string;
       setUserId(userId_);
       setEmail(email_);
+      initialEmailRef.current = email_;
 
       const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${userId_}&limit=1`);
       const profile = (_profileArr as any[])?.[0] ?? null;
@@ -134,7 +136,6 @@ export default function ProfilePage() {
             nickname,
             bio,
             avatar_url: avatarUrl,
-            email,
           })
           .eq("id", userId);
 
@@ -157,6 +158,17 @@ export default function ProfilePage() {
           showError("프로필 저장에 실패했습니다.");
           return;
         }
+      }
+
+      // 이메일이 변경된 경우 auth.updateUser로 처리
+      if (email.trim() && email !== initialEmailRef.current) {
+        const { error: emailError } = await supabase.auth.updateUser({ email: email.trim() });
+        if (emailError) {
+          console.error("이메일 변경 실패:", emailError);
+          showError("이메일 변경에 실패했습니다.");
+          return;
+        }
+        showInfo("이메일 변경 확인 메일이 발송되었습니다. 메일함을 확인해 주세요.");
       }
 
       showSuccess("프로필이 저장되었습니다.");
