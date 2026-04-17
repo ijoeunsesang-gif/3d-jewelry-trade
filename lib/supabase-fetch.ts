@@ -10,15 +10,16 @@ export async function sbFetch(table: string, query: string = '') {
   return { data: await res.json(), error: null };
 }
 
-export function getAccessToken() {
+export function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem('sb-fvhotaxjdacfulxjahon-auth-token');
     if (!raw) return null;
-    return JSON.parse(raw)?.access_token ?? null;
-  } catch {
-    return null;
-  }
+    const parsed = JSON.parse(raw);
+    const token = parsed?.access_token ?? parsed?.[0]?.access_token ?? null;
+    console.log('토큰:', token?.slice(0, 20));
+    return token;
+  } catch { return null; }
 }
 
 export async function sbAuthFetch(table: string, query: string = '') {
