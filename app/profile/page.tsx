@@ -38,13 +38,15 @@ export default function ProfilePage() {
       const userId_ = payload?.sub as string;
       const email_ = (payload?.email || "") as string;
       setUserId(userId_);
-      setEmail(email_);
-      initialEmailRef.current = email_;
 
       const { data: userData } = await supabase.auth.getUser();
       const identities = userData?.user?.identities ?? [];
       const social = identities.some((id: any) => id.provider !== "email");
       setIsSocialUser(social);
+
+      const finalEmail = email_ || userData?.user?.email || "";
+      setEmail(finalEmail);
+      initialEmailRef.current = finalEmail;
 
       const { data: _profileArr, error } = await sbFetch("profiles", `?id=eq.${userId_}&limit=1`);
       const profile = (_profileArr as any[])?.[0] ?? null;
