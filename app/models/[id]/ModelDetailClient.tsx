@@ -79,7 +79,6 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   useEffect(() => {
     fetchRelatedModels();
-    fetchGalleryImages();
   }, [model.id, model.category]);
 
   useEffect(() => {

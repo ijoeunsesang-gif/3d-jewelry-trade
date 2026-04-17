@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase-browser";
+import { sbFetch } from "@/lib/supabase-fetch";
 import ModelDetailClient from "./ModelDetailClient";
 
 type ModelItem = {
@@ -28,13 +28,10 @@ export default function ModelDetailPage({
     async function fetchModel() {
       const { id } = await params;
 
-      const { data, error } = await supabase
-        .from("models")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const { data: _arr, error } = await sbFetch("models", `?id=eq.${id}&limit=1`);
+      const data = (_arr as any[])?.[0] ?? null;
 
-      if (error) {
+      if (error || !data) {
         console.error("모델 상세 불러오기 실패:", error);
         setLoaded(true);
         return;
