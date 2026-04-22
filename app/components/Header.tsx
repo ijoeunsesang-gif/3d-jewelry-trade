@@ -334,29 +334,35 @@ export default function Header() {
 
               {/* 고객센터 아이콘 */}
               <Link href="/customer-service" style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                width: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                padding: "4px 0",
               }}>
                 <IconHeadphones active={pathname === "/customer-service"} size={28} />
+                <span style={{ fontSize: 10, color: pathname === "/customer-service" ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>고객센터</span>
               </Link>
 
               {/* 알림 아이콘 */}
               <Link href="/notifications" style={{
-                position: "relative", display: "flex", alignItems: "center", justifyContent: "center",
-                width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                width: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                padding: "4px 0",
               }}>
-                <IconBell active={pathname === "/notifications"} size={28} />
-                {notificationCount > 0 && (
-                  <span style={{
-                    position: "absolute", top: 6, right: 4,
-                    minWidth: 16, height: 16, padding: "0 3px",
-                    borderRadius: 999, background: GOLD, color: "white",
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 9, fontWeight: 800, lineHeight: 1, pointerEvents: "none",
-                  }}>
-                    {notificationCount > 99 ? "99+" : notificationCount}
-                  </span>
-                )}
+                <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <IconBell active={pathname === "/notifications"} size={28} />
+                  {notificationCount > 0 && (
+                    <span style={{
+                      position: "absolute", top: -2, right: -6,
+                      minWidth: 16, height: 16, padding: "0 3px",
+                      borderRadius: 999, background: GOLD, color: "white",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 9, fontWeight: 800, lineHeight: 1, pointerEvents: "none",
+                    }}>
+                      {notificationCount > 99 ? "99+" : notificationCount}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 10, color: pathname === "/notifications" ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>알람</span>
               </Link>
 
               {/* MY 버튼 또는 로그인 */}
