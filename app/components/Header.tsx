@@ -208,6 +208,7 @@ export default function Header() {
 
         {/* 섹션 3: 문의 / 고객센터 / 도움말 */}
         <MyMenuLink href="/messages"        icon={<IconDropMail       active={pathname.startsWith("/messages")}        />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>문의함</MyMenuLink>
+        <MyMenuLink href="/commission"      icon={<IconDropClipboard  active={pathname.startsWith("/commission")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/commission")}>모델링 의뢰</MyMenuLink>
         <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>고객센터</MyMenuLink>
         <MyMenuLink href="/help"            icon={<IconDropHelp       active={pathname.startsWith("/help")}            />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>도움말</MyMenuLink>
 
@@ -281,6 +282,7 @@ export default function Header() {
               <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
               <NavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} />
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
+              <NavItem href="/commission" label="의뢰" icon={<IconClipboard />} active={pathname.startsWith("/commission")} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
               <NavItem href="/help" label="도움말" icon={<IconHelp />} active={pathname === "/help"} />
               <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
@@ -430,6 +432,12 @@ export default function Header() {
           label="문의함"
           badge={messageCount}
           active={pathname === "/messages"}
+        />
+        <BottomTabItem
+          href="/commission"
+          icon={<IconClipboard active={pathname.startsWith("/commission")} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
+          label="의뢰"
+          active={pathname.startsWith("/commission")}
         />
       </nav>
     </>
@@ -616,4 +624,10 @@ function IconDropHelp({ active = false }: { active?: boolean }) {
 }
 function IconDropLogout() {
   return <svg {...dropSvg(false)} stroke="#b45309"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
+}
+function IconClipboard({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></svg>;
+}
+function IconDropClipboard({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></svg>;
 }
