@@ -27,6 +27,16 @@ export default function CommissionNewPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
+
+  useEffect(() => {
     const token = getAccessToken();
     if (!token) { router.replace("/auth"); return; }
     const payload = decodeJwt(token) as any;
