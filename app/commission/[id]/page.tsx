@@ -39,7 +39,7 @@ type Comment = {
   user_id: string;
   content: string;
   created_at: string;
-  profiles: { nickname: string } | null;
+  profiles: { nickname: string | null } | { nickname: string | null }[] | null;
 };
 
 export default function CommissionDetailPage() {
@@ -432,7 +432,9 @@ export default function CommissionDetailPage() {
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 13, color: "#111827" }}>
-                    {comment.profiles?.nickname || "익명"}
+                    {(Array.isArray(comment.profiles)
+                      ? comment.profiles[0]?.nickname
+                      : comment.profiles?.nickname) || "익명"}
                   </span>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 11, color: "#9ca3af" }}>
