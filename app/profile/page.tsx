@@ -35,12 +35,7 @@ export default function ProfilePage() {
 
   // 판매자 정보
   const [isSeller, setIsSeller] = useState(false);
-  const [bankName, setBankName] = useState("");
-  const [bankAccount, setBankAccount] = useState("");
-  const [bankHolder, setBankHolder] = useState("");
-  const [existingBankName, setExistingBankName] = useState("");
-  const [existingBankAccount, setExistingBankAccount] = useState("");
-  const [existingBankHolder, setExistingBankHolder] = useState("");
+  const [sellerAppliedAt, setSellerAppliedAt] = useState<string | null>(null);
 
   // 사업자 등록
   const [bizRegUrl, setBizRegUrl] = useState("");
@@ -94,9 +89,7 @@ export default function ProfilePage() {
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
         setIsSeller(profile.role === "seller");
-        setExistingBankName(profile.bank_name || "");
-        setExistingBankAccount(profile.bank_account || "");
-        setExistingBankHolder(profile.bank_holder || "");
+        setSellerAppliedAt(profile.seller_applied_at || null);
         setBizRegUrl(profile.business_registration_url || "");
       } else {
         const defaultNickname = email_?.split("@")[0] || "user";
@@ -194,28 +187,16 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSellerRegister = async () => {
-    if (!bankName.trim() || !bankAccount.trim() || !bankHolder.trim()) {
-      showError("은행명, 계좌번호, 예금주를 모두 입력해주세요.");
-      return;
-    }
+  const handleSellerApply = async () => {
     setSellerRegistering(true);
     try {
-      const { error } = await supabase.from("profiles").update({
-        role: "seller",
-        bank_name: bankName.trim(),
-        bank_account: bankAccount.trim(),
-        bank_holder: bankHolder.trim(),
-        seller_registered_at: new Date().toISOString(),
-      }).eq("id", userId);
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("profiles").update({ seller_applied_at: now }).eq("id", userId);
       if (error) throw error;
-      setIsSeller(true);
-      setExistingBankName(bankName.trim());
-      setExistingBankAccount(bankAccount.trim());
-      setExistingBankHolder(bankHolder.trim());
-      showSuccess("판매자 등록이 완료되었습니다!");
+      setSellerAppliedAt(now);
+      showSuccess("신청이 완료되었습니다. 검토 후 연락드립니다.");
     } catch (e: any) {
-      showError(e.message || "판매자 등록 실패. 다시 시도해주세요.");
+      showError(e.message || "신청 실패. 다시 시도해주세요.");
     } finally {
       setSellerRegistering(false);
     }
@@ -240,9 +221,6 @@ export default function ProfilePage() {
       setBizUploading(false);
     }
   };
-
-  const maskAccount = (account: string) =>
-    !account || account.length <= 4 ? account : "***-****-" + account.slice(-4);
 
   const tabs: { id: TabId; label: string; sellerOnly?: boolean }[] = [
     { id: "basic", label: "기본 정보" },
@@ -363,37 +341,25 @@ export default function ProfilePage() {
               <h2 style={sectionTitle}>판매자 등록</h2>
 
               {isSeller ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 700 }}>
-                    ✓ 판매자 인증 완료
-                  </span>
-                  <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#374151", lineHeight: 2 }}>
-                    <div><span style={{ color: "#9ca3af", fontSize: 12 }}>은행</span>&nbsp;&nbsp;{existingBankName || "-"}</div>
-                    <div><span style={{ color: "#9ca3af", fontSize: 12 }}>계좌</span>&nbsp;&nbsp;{maskAccount(existingBankAccount)}</div>
-                    <div><span style={{ color: "#9ca3af", fontSize: 12 }}>예금주</span>&nbsp;{existingBankHolder || "-"}</div>
-                  </div>
-                </div>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 700 }}>
+                  ✓ 판매자 인증 완료
+                </span>
+              ) : sellerAppliedAt ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#d97706", fontSize: 13, fontWeight: 700 }}>
+                  ⏳ 심사 중입니다.
+                </span>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>은행명</label>
-                    <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="예: 국민은행" style={inputStyle} />
-                  </div>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>계좌번호</label>
-                    <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} placeholder="계좌번호 입력" style={inputStyle} />
-                  </div>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>예금주</label>
-                    <input value={bankHolder} onChange={(e) => setBankHolder(e.target.value)} placeholder="예금주 입력" style={inputStyle} />
-                  </div>
+                  <p style={{ margin: 0, fontSize: 14, color: "#374151" }}>
+                    판매자 등록을 신청하면 검토 후 승인됩니다.
+                  </p>
                   <button
                     type="button"
-                    onClick={handleSellerRegister}
+                    onClick={handleSellerApply}
                     disabled={sellerRegistering}
                     style={{ ...actionBtn, opacity: sellerRegistering ? 0.6 : 1, cursor: sellerRegistering ? "not-allowed" : "pointer" }}
                   >
-                    {sellerRegistering ? "등록 중..." : "판매자 등록하기"}
+                    {sellerRegistering ? "신청 중..." : "판매자 신청하기"}
                   </button>
                 </div>
               )}
