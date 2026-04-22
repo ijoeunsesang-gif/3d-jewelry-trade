@@ -40,7 +40,7 @@ export default function ProfilePage() {
   // 판매 통계 (seller 전용)
   const [productCount, setProductCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
-  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [monthlyCount, setMonthlyCount] = useState(0);
 
   useEffect(() => {
     fetchProfile();
@@ -105,21 +105,25 @@ export default function ProfilePage() {
   };
 
   const fetchSellerStats = async (uid: string) => {
-    const { data: products } = await sbAuthFetch(
-      "products",
-      `?select=id&seller_id=eq.${uid}`
-    );
-    const productIds = ((products as any[]) || []).map((p: any) => p.id);
-    setProductCount(productIds.length);
-    if (productIds.length === 0) return;
+    // 등록 상품 수
+    const { data: models } = await sbAuthFetch("models", `?select=id&seller_id=eq.${uid}`);
+    const modelIds = ((models as any[]) || []).map((m: any) => m.id);
+    setProductCount(modelIds.length);
+    if (modelIds.length === 0) return;
 
+    // 총 판매 건수
     const { data: purchaseData } = await sbAuthFetch(
       "purchases",
-      `?select=id,price&model_id=in.(${productIds.join(",")})`
+      `?select=id,created_at&model_id=in.(${modelIds.join(",")})`
     );
     const rows = (purchaseData as any[]) || [];
     setSalesCount(rows.length);
-    setTotalRevenue(rows.reduce((sum: number, r: any) => sum + (r.price || 0), 0));
+
+    // 이번 달 판매 건수
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthly = rows.filter((r: any) => r.created_at >= monthStart);
+    setMonthlyCount(monthly.length);
   };
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -424,19 +428,10 @@ export default function ProfilePage() {
       {isSeller && (
         <section style={{ marginTop: 24 }}>
           <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 14 }}>판매 통계</div>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 16,
-          }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
             <StatCard label="등록 상품" value={productCount} unit="개" />
-            <StatCard label="총 판매 건수" value={salesCount} unit="건" />
-            <StatCard
-              label="총 매출"
-              value={totalRevenue.toLocaleString()}
-              unit="원"
-              highlight
-            />
+            <StatCard label="총 판매" value={salesCount} unit="건" />
+            <StatCard label="이번 달" value={monthlyCount} unit="건" highlight />
           </div>
         </section>
       )}
@@ -447,12 +442,13 @@ export default function ProfilePage() {
 function StatCard({ label, value, unit, highlight }: { label: string; value: string | number; unit: string; highlight?: boolean }) {
   return (
     <div style={{
-      border: "1px solid #e5e7eb", borderRadius: 16, background: "white",
-      padding: "20px 20px 18px", display: "flex", flexDirection: "column", gap: 6,
+      border: "1px solid #e5e7eb", borderRadius: 14, background: "white",
+      padding: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+      textAlign: "center",
     }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-        <span style={{ fontSize: 26, fontWeight: 900, color: highlight ? GOLD : "#111827" }}>{value}</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+        <span style={{ fontSize: 28, fontWeight: 900, color: highlight ? GOLD : "#111827" }}>{value}</span>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#9ca3af" }}>{unit}</span>
       </div>
     </div>
