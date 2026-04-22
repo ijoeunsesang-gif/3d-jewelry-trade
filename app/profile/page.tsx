@@ -6,15 +6,24 @@ import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
+type TabId = "basic" | "seller" | "business" | "stats";
+
 const GOLD = "#c9a84c";
+const DARK = "#111827";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabId>("basic");
 
+  // 로딩 상태
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [sellerRegistering, setSellerRegistering] = useState(false);
+  const [bizUploading, setBizUploading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
 
+  // 계정 정보
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const initialEmailRef = useRef("");
@@ -24,7 +33,7 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
 
-  // 판매자 관련 상태
+  // 판매자 정보
   const [isSeller, setIsSeller] = useState(false);
   const [bankName, setBankName] = useState("");
   const [bankAccount, setBankAccount] = useState("");
@@ -32,19 +41,27 @@ export default function ProfilePage() {
   const [existingBankName, setExistingBankName] = useState("");
   const [existingBankAccount, setExistingBankAccount] = useState("");
   const [existingBankHolder, setExistingBankHolder] = useState("");
-  const [bizRegUrl, setBizRegUrl] = useState("");
-  const [bizRegFile, setBizRegFile] = useState<File | null>(null);
-  const [bizRegPreview, setBizRegPreview] = useState("");
-  const [sellerRegistering, setSellerRegistering] = useState(false);
 
-  // 판매 통계 (seller 전용)
+  // 사업자 등록
+  const [bizRegUrl, setBizRegUrl] = useState("");
+  const [bizRegPreview, setBizRegPreview] = useState("");
+
+  // 판매 통계
   const [productCount, setProductCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
   const [monthlyCount, setMonthlyCount] = useState(0);
+  const statsLoadedRef = useRef(false);
 
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "stats" && isSeller && userId && !statsLoadedRef.current) {
+      statsLoadedRef.current = true;
+      fetchSellerStats(userId);
+    }
+  }, [activeTab, isSeller, userId]);
 
   const fetchProfile = async () => {
     try {
@@ -56,45 +73,34 @@ export default function ProfilePage() {
         return;
       }
       const payload = decodeJwt(token) as any;
-      const userId_ = payload?.sub as string;
+      const uid = payload?.sub as string;
       const email_ = (payload?.email || "") as string;
-      setUserId(userId_);
+      setUserId(uid);
 
       const { data: userData } = await supabase.auth.getUser();
       const identities = userData?.user?.identities ?? [];
-      const social = identities.some((id: any) => id.provider !== "email");
-      setIsSocialUser(social);
+      setIsSocialUser(identities.some((id: any) => id.provider !== "email"));
 
-      const finalEmail =
-        email_ || userData?.user?.email || identities[0]?.identity_data?.email || "";
+      const finalEmail = email_ || userData?.user?.email || identities[0]?.identity_data?.email || "";
       setEmail(finalEmail);
       initialEmailRef.current = finalEmail;
 
-      const { data: _profileArr, error } = await sbFetch(
-        "profiles",
-        `?id=eq.${userId_}&limit=1`
-      );
-      const profile = (_profileArr as any[])?.[0] ?? null;
-
-      if (error) console.error("프로필 불러오기 실패:", error);
+      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${uid}&limit=1`);
+      const profile = (profileArr as any[])?.[0] ?? null;
 
       if (profile) {
         setNickname(profile.nickname || "");
         setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
-        const seller = profile.role === "seller";
-        setIsSeller(seller);
+        setIsSeller(profile.role === "seller");
         setExistingBankName(profile.bank_name || "");
         setExistingBankAccount(profile.bank_account || "");
         setExistingBankHolder(profile.bank_holder || "");
         setBizRegUrl(profile.business_registration_url || "");
-        if (seller) fetchSellerStats(userId_);
       } else {
         const defaultNickname = email_?.split("@")[0] || "user";
-        await supabase.from("profiles").insert({
-          id: userId_, email: email_ || "", nickname: defaultNickname, bio: "", avatar_url: "",
-        });
+        await supabase.from("profiles").insert({ id: uid, email: email_ || "", nickname: defaultNickname, bio: "", avatar_url: "" });
         setNickname(defaultNickname);
       }
     } catch (e) {
@@ -105,25 +111,24 @@ export default function ProfilePage() {
   };
 
   const fetchSellerStats = async (uid: string) => {
-    // 등록 상품 수
-    const { data: models } = await sbAuthFetch("models", `?select=id&seller_id=eq.${uid}`);
-    const modelIds = ((models as any[]) || []).map((m: any) => m.id);
-    setProductCount(modelIds.length);
-    if (modelIds.length === 0) return;
+    setStatsLoading(true);
+    try {
+      const { data: models } = await sbAuthFetch("models", `?select=id&seller_id=eq.${uid}`);
+      const modelIds = ((models as any[]) || []).map((m: any) => m.id);
+      setProductCount(modelIds.length);
+      if (modelIds.length === 0) return;
 
-    // 총 판매 건수
-    const { data: purchaseData } = await sbAuthFetch(
-      "purchases",
-      `?select=id,created_at&model_id=in.(${modelIds.join(",")})`
-    );
-    const rows = (purchaseData as any[]) || [];
-    setSalesCount(rows.length);
-
-    // 이번 달 판매 건수
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const monthly = rows.filter((r: any) => r.created_at >= monthStart);
-    setMonthlyCount(monthly.length);
+      const { data: purchases } = await sbAuthFetch(
+        "purchases",
+        `?select=id,created_at&model_id=in.(${modelIds.join(",")})`
+      );
+      const rows = (purchases as any[]) || [];
+      setSalesCount(rows.length);
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+      setMonthlyCount(rows.filter((r: any) => r.created_at >= monthStart).length);
+    } finally {
+      setStatsLoading(false);
+    }
   };
 
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -133,14 +138,12 @@ export default function ProfilePage() {
     try {
       setPreviewUrl(URL.createObjectURL(file));
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-      const filePath = `avatars/${userId}-${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("thumbnails")
-        .upload(filePath, file, { upsert: true });
-      if (uploadError) { showError(`이미지 업로드 실패: ${uploadError.message}`); return; }
-      const publicUrl = supabase.storage.from("thumbnails").getPublicUrl(filePath).data.publicUrl;
-      setAvatarUrl(publicUrl);
-      setPreviewUrl(publicUrl);
+      const path = `avatars/${userId}-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("thumbnails").upload(path, file, { upsert: true });
+      if (error) { showError(`이미지 업로드 실패: ${error.message}`); return; }
+      const url = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
+      setAvatarUrl(url);
+      setPreviewUrl(url);
     } catch {
       showError("프로필 이미지 처리 중 오류가 발생했습니다.");
     } finally {
@@ -148,71 +151,14 @@ export default function ProfilePage() {
     }
   };
 
-  const handleBizRegChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setBizRegFile(file);
-    setBizRegPreview(URL.createObjectURL(file));
-  };
-
-  const handleSellerRegister = async () => {
-    if (!bankName.trim() || !bankAccount.trim() || !bankHolder.trim()) {
-      showError("은행명, 계좌번호, 예금주를 모두 입력해주세요.");
-      return;
-    }
-    setSellerRegistering(true);
-    try {
-      let uploadedBizUrl = "";
-      if (bizRegFile) {
-        const ext = bizRegFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `business/${userId}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("thumbnails")
-          .upload(path, bizRegFile, { upsert: true });
-        if (upErr) throw new Error("사업자 등록증 업로드 실패");
-        uploadedBizUrl = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
-      }
-
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          role: "seller",
-          bank_name: bankName.trim(),
-          bank_account: bankAccount.trim(),
-          bank_holder: bankHolder.trim(),
-          business_registration_url: uploadedBizUrl || null,
-          seller_registered_at: new Date().toISOString(),
-        })
-        .eq("id", userId);
-
-      if (error) throw error;
-
-      setIsSeller(true);
-      setExistingBankName(bankName.trim());
-      setExistingBankAccount(bankAccount.trim());
-      setExistingBankHolder(bankHolder.trim());
-      if (uploadedBizUrl) setBizRegUrl(uploadedBizUrl);
-      showSuccess("판매자 등록이 완료되었습니다!");
-      fetchSellerStats(userId);
-    } catch (e: any) {
-      showError(e.message || "판매자 등록 실패. 다시 시도해주세요.");
-    } finally {
-      setSellerRegistering(false);
-    }
-  };
-
   const handleSave = async () => {
+    if (!userId) return;
+    setSaving(true);
     try {
-      if (!userId) return;
-      setSaving(true);
-
-      const { data: _existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
-      const existing = (_existingArr as any[])?.[0] ?? null;
-
-      if (existing) {
-        const { error } = await supabase.from("profiles")
-          .update({ nickname, bio, avatar_url: avatarUrl })
-          .eq("id", userId);
+      const { data: existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
+      const exists = (existingArr as any[])?.[0];
+      if (exists) {
+        const { error } = await supabase.from("profiles").update({ nickname, bio, avatar_url: avatarUrl }).eq("id", userId);
         if (error) { showError("프로필 저장에 실패했습니다."); return; }
       } else {
         const { error } = await supabase.from("profiles").insert({ id: userId, email, nickname, bio, avatar_url: avatarUrl });
@@ -221,12 +167,11 @@ export default function ProfilePage() {
 
       if (email.trim() && email !== initialEmailRef.current) {
         if (isSocialUser) { showError("소셜 로그인 계정은 이메일을 변경할 수 없습니다."); return; }
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
+        const { data: session } = await supabase.auth.getSession();
         const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/user`, {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${session?.session?.access_token}`,
             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             "Content-Type": "application/json",
           },
@@ -249,10 +194,62 @@ export default function ProfilePage() {
     }
   };
 
-  const maskAccount = (account: string) => {
-    if (!account || account.length <= 4) return account;
-    return "***-****-" + account.slice(-4);
+  const handleSellerRegister = async () => {
+    if (!bankName.trim() || !bankAccount.trim() || !bankHolder.trim()) {
+      showError("은행명, 계좌번호, 예금주를 모두 입력해주세요.");
+      return;
+    }
+    setSellerRegistering(true);
+    try {
+      const { error } = await supabase.from("profiles").update({
+        role: "seller",
+        bank_name: bankName.trim(),
+        bank_account: bankAccount.trim(),
+        bank_holder: bankHolder.trim(),
+        seller_registered_at: new Date().toISOString(),
+      }).eq("id", userId);
+      if (error) throw error;
+      setIsSeller(true);
+      setExistingBankName(bankName.trim());
+      setExistingBankAccount(bankAccount.trim());
+      setExistingBankHolder(bankHolder.trim());
+      showSuccess("판매자 등록이 완료되었습니다!");
+    } catch (e: any) {
+      showError(e.message || "판매자 등록 실패. 다시 시도해주세요.");
+    } finally {
+      setSellerRegistering(false);
+    }
   };
+
+  const handleBizUpload = async (file: File, previewSrc: string) => {
+    if (!file || !userId) return;
+    setBizRegPreview(previewSrc);
+    setBizUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `business/${userId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("thumbnails").upload(path, file, { upsert: true });
+      if (error) throw new Error("사업자 등록증 업로드 실패");
+      const url = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
+      await supabase.from("profiles").update({ business_registration_url: url }).eq("id", userId);
+      setBizRegUrl(url);
+      showSuccess("사업자 등록증이 업로드되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "업로드 실패");
+    } finally {
+      setBizUploading(false);
+    }
+  };
+
+  const maskAccount = (account: string) =>
+    !account || account.length <= 4 ? account : "***-****-" + account.slice(-4);
+
+  const tabs: { id: TabId; label: string; sellerOnly?: boolean }[] = [
+    { id: "basic", label: "기본 정보" },
+    { id: "seller", label: "판매자 등록" },
+    { id: "business", label: "사업자 등록" },
+    { id: "stats", label: "판매 통계", sellerOnly: true },
+  ];
 
   if (loading) {
     return (
@@ -264,192 +261,243 @@ export default function ProfilePage() {
 
   return (
     <main style={pageWrap}>
-      {/* 페이지 헤더 */}
       <div style={{ marginBottom: 28 }}>
-        <h1 style={pageTitle}>내 정보</h1>
-        <p style={pageDesc}>계정 정보 및 판매자 설정을 관리합니다.</p>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: DARK }}>내 정보</h1>
+        <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>계정 정보 및 판매자 설정을 관리합니다.</p>
       </div>
 
-      {/* 프로필 카드 */}
-      <section style={cardWrap} className="profile-card-wrap">
-        <div style={avatarSection}>
-          <img src={previewUrl || "/default-avatar.png"} alt="profile" style={avatarImg} />
-          <label style={uploadBtn}>
-            {uploading ? "업로드 중..." : "이미지 업로드"}
-            <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
-          </label>
-        </div>
+      <div className="profile-grid" style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 24, alignItems: "start" }}>
 
-        <div style={formSection}>
-          <div style={fieldWrap}>
-            <label style={labelStyle}>이메일</label>
-            <input
-              value={email}
-              onChange={(e) => !isSocialUser && setEmail(e.target.value)}
-              placeholder={isSocialUser ? "이메일 없음" : "이메일 입력"}
-              readOnly={isSocialUser}
-              style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", cursor: "not-allowed", opacity: 0.6 } : {}) }}
-            />
-            {isSocialUser && (
-              <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>카카오/구글 계정은 이메일 변경 불가</p>
+        {/* ── 왼쪽 사이드바 ── */}
+        <aside style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 20, position: "sticky", top: 88 }}>
+          {/* 프로필 이미지 + 업로드 */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <div style={{ position: "relative" }}>
+              <img
+                src={previewUrl || "/default-avatar.png"}
+                alt="profile"
+                style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "2px solid #e5e7eb", display: "block" }}
+              />
+            </div>
+            <label style={{
+              height: 34, padding: "0 14px", borderRadius: 10,
+              background: DARK, color: "white",
+              display: "inline-flex", alignItems: "center",
+              cursor: uploading ? "not-allowed" : "pointer",
+              fontWeight: 700, fontSize: 12, opacity: uploading ? 0.6 : 1,
+            }}>
+              {uploading ? "업로드 중..." : "이미지 업로드"}
+              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
+            </label>
+            {isSeller && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
+                ✓ 판매자
+              </span>
             )}
           </div>
 
-          <div style={fieldWrap}>
-            <label style={labelStyle}>닉네임</label>
-            <input
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="닉네임 입력"
-              style={inputStyle}
-            />
-          </div>
+          <div style={{ height: 1, background: "#e5e7eb", marginBottom: 14 }} />
 
-          <div style={fieldWrap}>
-            <label style={labelStyle}>소개글</label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="소개를 입력하세요"
-              style={textareaStyle}
-            />
-          </div>
+          {/* 탭 버튼 목록 */}
+          <nav className="profile-tabs-nav" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {tabs.filter((t) => !t.sellerOnly || isSeller).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  width: "100%", textAlign: "left",
+                  padding: "10px 14px", borderRadius: 10, border: "none",
+                  background: activeTab === tab.id ? DARK : "white",
+                  color: activeTab === tab.id ? "white" : "#374151",
+                  fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  transition: "background 0.15s, color 0.15s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-          {/* ── 구분선 ── */}
-          <div style={{ height: 1, background: "#e5e7eb", margin: "8px 0" }} />
+        {/* ── 오른쪽 콘텐츠 영역 ── */}
+        <section style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 28, minHeight: 360 }}>
 
-          {/* ── 판매자 등록 섹션 ── */}
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 14 }}>판매자 등록</div>
+          {/* 기본 정보 탭 */}
+          {activeTab === "basic" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <h2 style={sectionTitle}>기본 정보</h2>
 
-            {isSeller ? (
-              /* 등록 완료 상태 */
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "6px 14px", borderRadius: 999,
-                  background: "#dcfce7", color: "#16a34a",
-                  fontSize: 13, fontWeight: 700, alignSelf: "flex-start",
-                }}>
-                  ✓ 판매자 인증 완료
+              <div style={fieldWrap}>
+                <label style={labelStyle}>이메일</label>
+                <input
+                  value={email}
+                  onChange={(e) => !isSocialUser && setEmail(e.target.value)}
+                  readOnly={isSocialUser}
+                  placeholder={isSocialUser ? "이메일 없음" : "이메일 입력"}
+                  style={{ ...inputStyle, ...(isSocialUser ? { background: "#f3f4f6", cursor: "not-allowed", opacity: 0.6 } : {}) }}
+                />
+                {isSocialUser && <p style={helperText}>카카오/구글 계정은 이메일 변경 불가</p>}
+              </div>
+
+              <div style={fieldWrap}>
+                <label style={labelStyle}>닉네임</label>
+                <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임 입력" style={inputStyle} />
+              </div>
+
+              <div style={fieldWrap}>
+                <label style={labelStyle}>소개글</label>
+                <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="소개를 입력하세요" style={textareaStyle} />
+              </div>
+
+              <button type="button" onClick={handleSave} disabled={saving} style={{ ...actionBtn, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
+                {saving ? "저장 중..." : "저장하기"}
+              </button>
+            </div>
+          )}
+
+          {/* 판매자 등록 탭 */}
+          {activeTab === "seller" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <h2 style={sectionTitle}>판매자 등록</h2>
+
+              {isSeller ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 700 }}>
+                    ✓ 판매자 인증 완료
+                  </span>
+                  <div style={{ background: "#f8fafc", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#374151", lineHeight: 2 }}>
+                    <div><span style={{ color: "#9ca3af", fontSize: 12 }}>은행</span>&nbsp;&nbsp;{existingBankName || "-"}</div>
+                    <div><span style={{ color: "#9ca3af", fontSize: 12 }}>계좌</span>&nbsp;&nbsp;{maskAccount(existingBankAccount)}</div>
+                    <div><span style={{ color: "#9ca3af", fontSize: 12 }}>예금주</span>&nbsp;{existingBankHolder || "-"}</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.8, background: "#f8fafc", borderRadius: 10, padding: "12px 14px" }}>
-                  <div><span style={{ color: "#6b7280" }}>은행</span>&nbsp;&nbsp;{existingBankName || "-"}</div>
-                  <div><span style={{ color: "#6b7280" }}>계좌</span>&nbsp;&nbsp;{maskAccount(existingBankAccount)}</div>
-                  <div><span style={{ color: "#6b7280" }}>예금주</span>&nbsp;{existingBankHolder || "-"}</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={fieldWrap}>
+                    <label style={labelStyle}>은행명</label>
+                    <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="예: 국민은행" style={inputStyle} />
+                  </div>
+                  <div style={fieldWrap}>
+                    <label style={labelStyle}>계좌번호</label>
+                    <input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} placeholder="계좌번호 입력" style={inputStyle} />
+                  </div>
+                  <div style={fieldWrap}>
+                    <label style={labelStyle}>예금주</label>
+                    <input value={bankHolder} onChange={(e) => setBankHolder(e.target.value)} placeholder="예금주 입력" style={inputStyle} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSellerRegister}
+                    disabled={sellerRegistering}
+                    style={{ ...actionBtn, opacity: sellerRegistering ? 0.6 : 1, cursor: sellerRegistering ? "not-allowed" : "pointer" }}
+                  >
+                    {sellerRegistering ? "등록 중..." : "판매자 등록하기"}
+                  </button>
                 </div>
-                {bizRegUrl && (
-                  <a href={bizRegUrl} target="_blank" rel="noopener noreferrer" style={{
-                    display: "inline-flex", alignItems: "center", gap: 4,
-                    color: GOLD, fontSize: 13, fontWeight: 700, textDecoration: "none",
-                  }}>
-                    🔗 사업자 등록증 보기
+              )}
+            </div>
+          )}
+
+          {/* 사업자 등록 탭 */}
+          {activeTab === "business" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <h2 style={sectionTitle}>사업자 등록</h2>
+
+              {(bizRegPreview || bizRegUrl) && (
+                <img
+                  src={bizRegPreview || bizRegUrl}
+                  alt="사업자 등록증"
+                  style={{ maxWidth: 340, borderRadius: 12, border: "1px solid #e5e7eb" }}
+                />
+              )}
+
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+                {bizRegUrl && !bizRegPreview && (
+                  <a href={bizRegUrl} target="_blank" rel="noopener noreferrer" style={{ color: GOLD, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                    🔗 등록증 보기
                   </a>
                 )}
+                <label style={{
+                  height: 46, padding: "0 20px", borderRadius: 12,
+                  border: bizRegUrl ? "1px solid #d1d5db" : "1px dashed #d1d5db",
+                  background: bizRegUrl ? "white" : "#f8fafc",
+                  color: "#374151", fontSize: 14, fontWeight: 700,
+                  display: "inline-flex", alignItems: "center",
+                  cursor: bizUploading ? "not-allowed" : "pointer",
+                  opacity: bizUploading ? 0.6 : 1,
+                }}>
+                  {bizUploading ? "업로드 중..." : bizRegUrl ? "재업로드" : "사업자 등록증 업로드"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    disabled={bizUploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleBizUpload(f, URL.createObjectURL(f));
+                    }}
+                  />
+                </label>
               </div>
-            ) : (
-              /* 등록 폼 */
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={fieldWrap}>
-                  <label style={subLabelStyle}>은행명</label>
-                  <input
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    placeholder="예: 국민은행"
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={fieldWrap}>
-                  <label style={subLabelStyle}>계좌번호</label>
-                  <input
-                    value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value)}
-                    placeholder="계좌번호 입력"
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={fieldWrap}>
-                  <label style={subLabelStyle}>예금주</label>
-                  <input
-                    value={bankHolder}
-                    onChange={(e) => setBankHolder(e.target.value)}
-                    placeholder="예금주 입력"
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={fieldWrap}>
-                  <label style={subLabelStyle}>사업자 등록증 (선택)</label>
-                  {bizRegPreview && (
-                    <img
-                      src={bizRegPreview}
-                      alt="사업자 등록증 미리보기"
-                      style={{ width: "100%", maxWidth: 240, borderRadius: 10, border: "1px solid #e5e7eb", objectFit: "cover" }}
-                    />
-                  )}
-                  <label style={{ ...uploadBtn, background: "#f3f4f6", color: "#374151", fontSize: 13, width: "fit-content" }}>
-                    {bizRegFile ? bizRegFile.name : "이미지 선택"}
-                    <input type="file" accept="image/*" onChange={handleBizRegChange} style={{ display: "none" }} />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSellerRegister}
-                  disabled={sellerRegistering}
-                  style={{
-                    height: 46, borderRadius: 12, border: "none",
-                    background: sellerRegistering ? "#d1d5db" : GOLD,
-                    color: "white", fontSize: 14, fontWeight: 700,
-                    cursor: sellerRegistering ? "not-allowed" : "pointer",
-                    marginTop: 4,
-                  }}
-                >
-                  {sellerRegistering ? "등록 중..." : "판매자 등록하기"}
-                </button>
-              </div>
-            )}
-          </div>
+              {!bizRegUrl && !bizRegPreview && (
+                <p style={helperText}>JPG, PNG 등 이미지 파일을 업로드해주세요.</p>
+              )}
+            </div>
+          )}
 
-          {/* ── 구분선 ── */}
-          <div style={{ height: 1, background: "#e5e7eb", margin: "8px 0" }} />
+          {/* 판매 통계 탭 (seller 전용) */}
+          {activeTab === "stats" && isSeller && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <h2 style={sectionTitle}>판매 통계</h2>
+              {statsLoading ? (
+                <p style={{ color: "#6b7280", fontSize: 14 }}>통계를 불러오는 중...</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+                  <StatCard label="등록 상품" value={productCount} unit="개" />
+                  <StatCard label="총 판매" value={salesCount} unit="건" />
+                  <StatCard label="이번 달" value={monthlyCount} unit="건" highlight />
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* 저장/뒤로가기 버튼 */}
-          <div style={buttonRow}>
-            <button type="button" onClick={handleSave} disabled={saving} style={primaryBtn}>
-              {saving ? "저장 중..." : "저장하기"}
-            </button>
-            <button type="button" onClick={() => router.back()} style={secondaryBtn}>
-              뒤로가기
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 판매 통계 (seller 전용) ── */}
-      {isSeller && (
-        <section style={{ marginTop: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 14 }}>판매 통계</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-            <StatCard label="등록 상품" value={productCount} unit="개" />
-            <StatCard label="총 판매" value={salesCount} unit="건" />
-            <StatCard label="이번 달" value={monthlyCount} unit="건" highlight />
-          </div>
         </section>
-      )}
+      </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .profile-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .profile-tabs-nav {
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+            gap: 6px !important;
+          }
+          .profile-tabs-nav button {
+            flex-shrink: 0;
+          }
+        }
+      `}</style>
     </main>
   );
 }
 
-function StatCard({ label, value, unit, highlight }: { label: string; value: string | number; unit: string; highlight?: boolean }) {
+function StatCard({ label, value, unit, highlight }: { label: string; value: number; unit: string; highlight?: boolean }) {
   return (
     <div style={{
-      border: "1px solid #e5e7eb", borderRadius: 14, background: "white",
-      padding: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-      textAlign: "center",
+      border: "1px solid #e5e7eb", borderRadius: 14, padding: 20,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      textAlign: "center", gap: 8, background: "white",
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>{label}</div>
+      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{label}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
-        <span style={{ fontSize: 28, fontWeight: 900, color: highlight ? GOLD : "#111827" }}>{value}</span>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#9ca3af" }}>{unit}</span>
+        <span style={{ fontSize: 32, fontWeight: 900, color: highlight ? GOLD : "#111827" }}>{value}</span>
+        <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 700 }}>{unit}</span>
       </div>
     </div>
   );
@@ -460,37 +508,22 @@ const pageWrap: React.CSSProperties = {
   maxWidth: 1100, margin: "0 auto", padding: "32px 20px 60px",
   fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 };
-const pageTitle: React.CSSProperties = { margin: 0, fontSize: 40, fontWeight: 900, color: "#111827" };
-const pageDesc: React.CSSProperties = { margin: "10px 0 0", color: "#6b7280", fontSize: 15, lineHeight: 1.7 };
-const cardWrap: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "280px 1fr", gap: 24,
-  border: "1px solid #e5e7eb", borderRadius: 28, background: "white", padding: 24,
-};
-const avatarSection: React.CSSProperties = { display: "flex", flexDirection: "column", alignItems: "center", gap: 16 };
-const avatarImg: React.CSSProperties = { width: 160, height: 160, borderRadius: "50%", objectFit: "cover", border: "1px solid #e5e7eb" };
-const uploadBtn: React.CSSProperties = {
-  height: 44, padding: "0 18px", borderRadius: 14, background: "#111827",
-  color: "white", display: "inline-flex", alignItems: "center", cursor: "pointer", fontWeight: 800,
-};
-const formSection: React.CSSProperties = { display: "grid", gap: 16 };
-const fieldWrap: React.CSSProperties = { display: "grid", gap: 8 };
-const labelStyle: React.CSSProperties = { fontSize: 14, fontWeight: 800, color: "#111827" };
-const subLabelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: "#374151" };
+const sectionTitle: React.CSSProperties = { margin: "0 0 4px", fontSize: 17, fontWeight: 800, color: "#111827" };
+const fieldWrap: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 8 };
+const labelStyle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: "#374151" };
+const helperText: React.CSSProperties = { margin: 0, fontSize: 12, color: "#9ca3af" };
 const inputStyle: React.CSSProperties = {
-  height: 48, borderRadius: 14, border: "1px solid #d1d5db", padding: "0 14px",
+  height: 48, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 14px",
   outline: "none", fontSize: 14, width: "100%", boxSizing: "border-box",
 };
 const textareaStyle: React.CSSProperties = {
-  minHeight: 140, borderRadius: 16, border: "1px solid #d1d5db", padding: 14,
+  minHeight: 140, borderRadius: 12, border: "1px solid #d1d5db", padding: "12px 14px",
   outline: "none", fontSize: 14, resize: "vertical", width: "100%", boxSizing: "border-box",
-  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: 'system-ui, -apple-system, sans-serif',
 };
-const buttonRow: React.CSSProperties = { display: "flex", gap: 12, marginTop: 8 };
-const primaryBtn: React.CSSProperties = {
-  height: 48, padding: "0 18px", borderRadius: 14, border: "none",
-  background: "#111827", color: "white", fontWeight: 900, cursor: "pointer",
-};
-const secondaryBtn: React.CSSProperties = {
-  height: 48, padding: "0 18px", borderRadius: 14,
-  border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer",
+const actionBtn: React.CSSProperties = {
+  height: 48, padding: "0 24px", borderRadius: 12, border: "none",
+  background: "#111827", color: "white", fontWeight: 700, fontSize: 14,
+  cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
+  alignSelf: "flex-start",
 };
