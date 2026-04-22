@@ -53,6 +53,7 @@ export default function CommissionDetailPage() {
   const [editResultLink, setEditResultLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [linkPanelOpen, setLinkPanelOpen] = useState(false);
 
   // 댓글
   const [comments, setComments] = useState<Comment[]>([]);
@@ -131,6 +132,7 @@ export default function CommissionDetailPage() {
       setCommission((prev) =>
         prev ? { ...prev, result_link: editResultLink.trim() || null } : prev
       );
+      setLinkPanelOpen(false);
       showSuccess("저장되었습니다.");
     } catch (e: any) {
       showError(e.message || "저장 실패");
@@ -216,27 +218,89 @@ export default function CommissionDetailPage() {
         ← 목록으로
       </Link>
 
-      {/* 제목 + 상태 */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1.35, flex: 1 }}>
-          {commission.title}
-        </h1>
-        <span style={{
-          flexShrink: 0, fontSize: 12, fontWeight: 700,
-          color: STATUS_COLOR[commission.status] || "#374151",
-          background: STATUS_BG[commission.status] || "#f3f4f6",
-          padding: "4px 12px", borderRadius: 999,
-        }}>
-          {STATUS_LABEL[commission.status] || commission.status}
-        </span>
+      {/* 헤더: 제목+작성자 (왼쪽) | 판매자 버튼 (오른쪽) */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 16 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1.35, flex: 1 }}>
+              {commission.title}
+            </h1>
+            <span style={{
+              flexShrink: 0, fontSize: 12, fontWeight: 700,
+              color: STATUS_COLOR[commission.status] || "#374151",
+              background: STATUS_BG[commission.status] || "#f3f4f6",
+              padding: "4px 12px", borderRadius: 999,
+            }}>
+              {STATUS_LABEL[commission.status] || commission.status}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 10, fontSize: 13, color: "#6b7280" }}>
+            <span>{commission.nickname}</span>
+            <span>·</span>
+            <span>{formatDate(commission.created_at)}</span>
+          </div>
+        </div>
+        {isSeller && (
+          <button
+            type="button"
+            onClick={() => setLinkPanelOpen((p) => !p)}
+            style={{
+              flexShrink: 0, border: "1px solid #d1d5db", borderRadius: 10,
+              padding: "8px 16px", background: "white",
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🔗 결과물 링크 등록
+          </button>
+        )}
       </div>
 
-      {/* 작성자 + 날짜 */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 28, fontSize: 13, color: "#6b7280" }}>
-        <span>{commission.nickname}</span>
-        <span>·</span>
-        <span>{formatDate(commission.created_at)}</span>
-      </div>
+      {/* 판매자 링크 입력 패널 (토글) */}
+      {isSeller && linkPanelOpen && (
+        <div style={{
+          border: "1px solid #e5e7eb", borderRadius: 12,
+          padding: "16px", marginBottom: 20, background: "#fafafa",
+        }}>
+          <input
+            type="url"
+            value={editResultLink}
+            onChange={(e) => setEditResultLink(e.target.value)}
+            placeholder="https://..."
+            style={{
+              height: 44, borderRadius: 10, border: "1px solid #d1d5db",
+              padding: "0 12px", fontSize: 14, width: "100%",
+              boxSizing: "border-box", outline: "none",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                height: 38, padding: "0 20px", borderRadius: 10, border: "none",
+                background: saving ? "#d1d5db" : GOLD,
+                color: "white", fontSize: 13, fontWeight: 700,
+                cursor: saving ? "not-allowed" : "pointer",
+              }}
+            >
+              {saving ? "저장 중..." : "저장"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLinkPanelOpen(false)}
+              style={{
+                height: 38, padding: "0 16px", borderRadius: 10,
+                border: "1px solid #d1d5db", background: "white",
+                fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151",
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 이미지 갤러리 */}
       {commission.images && commission.images.length > 0 ? (
@@ -308,48 +372,6 @@ export default function CommissionDetailPage() {
           >
             결과물 보기 →
           </a>
-        </div>
-      )}
-
-      {/* 판매자 관리 패널 */}
-      {isSeller && (
-        <div style={{
-          border: "1px solid #e5e7eb", borderRadius: 14,
-          padding: "20px", marginBottom: 28, background: "#fafafa",
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 18 }}>판매자 관리</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>
-                결과물 링크
-              </label>
-              <input
-                type="url"
-                value={editResultLink}
-                onChange={(e) => setEditResultLink(e.target.value)}
-                placeholder="https://..."
-                style={{
-                  height: 44, borderRadius: 10, border: "1px solid #d1d5db",
-                  padding: "0 12px", fontSize: 14, width: "100%",
-                  boxSizing: "border-box", outline: "none",
-                }}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                height: 44, borderRadius: 10, border: "none",
-                background: saving ? "#d1d5db" : GOLD,
-                color: "white", fontSize: 14, fontWeight: 700,
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
-            >
-              {saving ? "저장 중..." : "저장"}
-            </button>
-          </div>
         </div>
       )}
 
