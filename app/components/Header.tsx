@@ -22,9 +22,13 @@ export default function Header() {
   const [myOpen, setMyOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [notifDropOpen, setNotifDropOpen] = useState(false);
+  const [notifItems, setNotifItems] = useState<any[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
+  const notifWrapRef = useRef<HTMLDivElement | null>(null);
 
   // 라우트 변경 시 MY 드롭다운 닫기
   useEffect(() => {
@@ -147,6 +151,24 @@ export default function Header() {
     setNotificationCount((data as any[])?.length || 0);
   };
 
+  const fetchNotifPreview = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    const userId = (decodeJwt(token) as any)?.sub as string;
+    setNotifLoading(true);
+    try {
+      const { data } = await sbAuthFetch(
+        "notifications",
+        `?user_id=eq.${userId}&select=id,link,is_read,created_at,type,message&order=created_at.desc&limit=5`
+      );
+      setNotifItems((data as any[]) || []);
+    } catch {
+      setNotifItems([]);
+    } finally {
+      setNotifLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/logout`, {
@@ -162,6 +184,75 @@ export default function Header() {
   };
 
   const isMyPage = ["/profile", "/my-models", "/upload", "/sales"].some((p) => pathname.startsWith(p));
+
+  /* ── 알림 호버 드롭다운 ──────────────────────────────────── */
+  const getNotifText = (item: any): string => {
+    if (item.message) return item.message;
+    switch (item.type) {
+      case "follow":   return "새로운 팔로워가 생겼습니다";
+      case "message":  return "새 메시지가 도착했습니다";
+      case "purchase": return "구매가 완료되었습니다";
+      case "comment":  return "새 댓글이 달렸습니다";
+      default:         return item.link ? `알림: ${item.link}` : "새로운 알림이 있습니다";
+    }
+  };
+
+  const NotifDropdown = () => (
+    <div style={{
+      position: "absolute", top: "100%", right: 0, marginTop: 4,
+      width: 320, background: "white", borderRadius: 16,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+      border: "1px solid #e5e7eb", zIndex: 1000,
+      padding: "8px 0",
+    }}>
+      {/* 헤더 */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "10px 16px", borderBottom: "1px solid #f3f4f6",
+      }}>
+        <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>알림</span>
+        <Link href="/notifications" style={{ fontSize: 12, color: "#6b7280", textDecoration: "none" }}>
+          전체보기
+        </Link>
+      </div>
+
+      {/* 콘텐츠 */}
+      {notifLoading ? (
+        <div style={{ padding: "16px", color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
+          불러오는 중...
+        </div>
+      ) : notifItems.length === 0 ? (
+        <div style={{ padding: 20, color: "#9ca3af", fontSize: 13, textAlign: "center" }}>
+          새로운 알림이 없습니다
+        </div>
+      ) : (
+        notifItems.map((item) => (
+          <a
+            key={item.id}
+            href={item.link || "/notifications"}
+            style={{
+              display: "block", padding: "10px 16px",
+              textDecoration: "none", color: "inherit",
+              background: item.is_read ? "white" : "#fffbeb",
+              opacity: item.is_read ? 0.6 : 1,
+              borderLeft: item.is_read ? "3px solid transparent" : "3px solid #f59e0b",
+              borderBottom: "1px solid #f8fafc",
+            }}
+          >
+            <div style={{
+              fontSize: 13, fontWeight: item.is_read ? 400 : 700, color: "#111827",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {getNotifText(item)}
+            </div>
+            <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 2 }}>
+              {new Date(item.created_at).toLocaleString("ko-KR")}
+            </div>
+          </a>
+        ))
+      )}
+    </div>
+  );
 
   /* ── MY 드롭다운 (데스크탑·모바일 공용) ──────────────────── */
   const MyDropdown = () => (
@@ -285,7 +376,18 @@ export default function Header() {
               <NavItem href="/commission" label="의뢰" icon={<IconClipboard />} active={pathname.startsWith("/commission")} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
               <NavItem href="/help" label="도움말" icon={<IconHelp />} active={pathname === "/help"} />
-              <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
+              <div
+                ref={notifWrapRef}
+                style={{ position: "relative" }}
+                onMouseEnter={() => {
+                  setNotifDropOpen(true);
+                  if (userEmail && notifItems.length === 0) fetchNotifPreview();
+                }}
+                onMouseLeave={() => setNotifDropOpen(false)}
+              >
+                <NavItem href="/notifications" label="알림" icon={<IconBell />} active={pathname === "/notifications"} badge={notificationCount} />
+                {notifDropOpen && userEmail && <NotifDropdown />}
+              </div>
 
               <div style={{ width: 1, height: 22, background: "#e8dfc8", margin: "0 10px" }} />
 
