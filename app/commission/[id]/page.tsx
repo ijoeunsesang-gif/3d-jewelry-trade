@@ -33,6 +33,15 @@ type Commission = {
   nickname: string;
 };
 
+type Comment = {
+  id: string;
+  commission_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  profiles: { nickname: string } | null;
+};
+
 export default function CommissionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -41,10 +50,15 @@ export default function CommissionDetailPage() {
   const [myId, setMyId] = useState<string | null>(null);
   const [isSeller, setIsSeller] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [editStatus, setEditStatus] = useState("open");
   const [editResultLink, setEditResultLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // 댓글
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -59,6 +73,7 @@ export default function CommissionDetailPage() {
         .then(({ data }) => { setIsSeller(data?.role === "seller"); });
     }
     fetchCommission();
+    fetchComments();
   }, [id]);
 
   const fetchCommission = async () => {
@@ -80,10 +95,23 @@ export default function CommissionDetailPage() {
 
       const c: Commission = { ...data, nickname: profile?.nickname || "익명" };
       setCommission(c);
-      setEditStatus(c.status);
       setEditResultLink(c.result_link || "");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchComments = async () => {
+    setCommentsLoading(true);
+    try {
+      const { data } = await supabase
+        .from("commission_comments")
+        .select("id, commission_id, user_id, content, created_at, profiles(nickname)")
+        .eq("commission_id", id)
+        .order("created_at", { ascending: false });
+      setComments((data as Comment[]) || []);
+    } finally {
+      setCommentsLoading(false);
     }
   };
 
@@ -94,7 +122,6 @@ export default function CommissionDetailPage() {
       const { error } = await supabase
         .from("commissions")
         .update({
-          status: editStatus,
           result_link: editResultLink.trim() || null,
           updated_at: new Date().toISOString(),
         })
@@ -102,7 +129,7 @@ export default function CommissionDetailPage() {
 
       if (error) throw error;
       setCommission((prev) =>
-        prev ? { ...prev, status: editStatus, result_link: editResultLink.trim() || null } : prev
+        prev ? { ...prev, result_link: editResultLink.trim() || null } : prev
       );
       showSuccess("저장되었습니다.");
     } catch (e: any) {
@@ -118,6 +145,32 @@ export default function CommissionDetailPage() {
     const { error } = await supabase.from("commissions").delete().eq("id", commission.id);
     if (error) { showError("삭제 실패"); setDeleting(false); return; }
     router.push("/commission");
+  };
+
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !myId) return;
+    setSubmittingComment(true);
+    try {
+      const { error } = await supabase.from("commission_comments").insert({
+        commission_id: id,
+        user_id: myId,
+        content: commentText.trim(),
+      });
+      if (error) throw error;
+      setCommentText("");
+      await fetchComments();
+    } catch (e: any) {
+      showError(e.message || "댓글 등록 실패");
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    const { error } = await supabase.from("commission_comments").delete().eq("id", commentId);
+    if (!error) {
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    }
   };
 
   const formatDate = (iso: string) => {
@@ -148,7 +201,6 @@ export default function CommissionDetailPage() {
   }
 
   const isAuthor = myId === commission.user_id;
-  const displayResultLink = isSeller ? editResultLink : (commission.result_link || "");
 
   return (
     <div style={{
@@ -239,23 +291,22 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
-      {/* 결과물 링크 (판매자가 아닌 경우 표시) */}
-      {!isSeller && commission.result_link && (
+      {/* 결과물 링크 (모든 유저에게 표시) */}
+      {commission.result_link && (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>결과물 링크</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>결과물</div>
           <a
             href={commission.result_link}
             target="_blank"
             rel="noopener noreferrer"
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "9px 18px", borderRadius: 10,
-              background: "#f0fdf4", color: "#16a34a",
+              padding: "10px 18px", borderRadius: 10,
+              background: "#111827", color: "white",
               textDecoration: "none", fontSize: 13, fontWeight: 700,
-              border: "1px solid #bbf7d0",
             }}
           >
-            🔗 결과물 보기
+            결과물 보기 →
           </a>
         </div>
       )}
@@ -268,25 +319,6 @@ export default function CommissionDetailPage() {
         }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 18 }}>판매자 관리</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>
-                상태 변경
-              </label>
-              <select
-                value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value)}
-                style={{
-                  height: 44, borderRadius: 10, border: "1px solid #d1d5db",
-                  padding: "0 12px", fontSize: 14, background: "white",
-                  width: "100%", outline: "none", cursor: "pointer",
-                }}
-              >
-                <option value="open">의뢰중</option>
-                <option value="in_progress">작업중</option>
-                <option value="completed">완료</option>
-              </select>
-            </div>
-
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>
                 결과물 링크
@@ -303,23 +335,6 @@ export default function CommissionDetailPage() {
                 }}
               />
             </div>
-
-            {editResultLink.trim() && (
-              <a
-                href={editResultLink.trim()}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "9px 18px", borderRadius: 10,
-                  background: "#f0fdf4", color: "#16a34a",
-                  textDecoration: "none", fontSize: 13, fontWeight: 700,
-                  border: "1px solid #bbf7d0", alignSelf: "flex-start",
-                }}
-              >
-                🔗 결과물 보기
-              </a>
-            )}
 
             <button
               type="button"
@@ -340,7 +355,7 @@ export default function CommissionDetailPage() {
 
       {/* 작성자 삭제 버튼 */}
       {isAuthor && (
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
           <button
             type="button"
             onClick={handleDelete}
@@ -356,6 +371,96 @@ export default function CommissionDetailPage() {
           </button>
         </div>
       )}
+
+      {/* 댓글 섹션 */}
+      <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 28 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
+          댓글 {comments.length}개
+        </div>
+
+        {/* 댓글 입력 */}
+        {myId ? (
+          <div style={{ marginBottom: 24 }}>
+            <textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="댓글을 입력하세요"
+              rows={3}
+              style={{
+                width: "100%", borderRadius: 12, border: "1px solid #d1d5db",
+                padding: "12px", fontSize: 14, resize: "vertical",
+                boxSizing: "border-box", outline: "none",
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={handleAddComment}
+                disabled={submittingComment || !commentText.trim()}
+                style={{
+                  height: 38, padding: "0 20px", borderRadius: 10, border: "none",
+                  background: submittingComment || !commentText.trim() ? "#d1d5db" : "#111827",
+                  color: "white", fontSize: 13, fontWeight: 700,
+                  cursor: submittingComment || !commentText.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {submittingComment ? "등록 중..." : "등록"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            padding: "14px 16px", borderRadius: 12, background: "#f8fafc",
+            fontSize: 13, color: "#6b7280", marginBottom: 24,
+          }}>
+            댓글을 작성하려면 로그인이 필요합니다.
+          </div>
+        )}
+
+        {/* 댓글 목록 */}
+        {commentsLoading ? (
+          <div style={{ color: "#6b7280", fontSize: 14 }}>불러오는 중...</div>
+        ) : comments.length === 0 ? (
+          <div style={{ color: "#9ca3af", fontSize: 14 }}>아직 댓글이 없습니다.</div>
+        ) : (
+          <div>
+            {comments.map((comment) => (
+              <div
+                key={comment.id}
+                style={{ borderBottom: "1px solid #f3f4f6", padding: "12px 0" }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: "#111827" }}>
+                    {comment.profiles?.nickname || "익명"}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                      {formatDate(comment.created_at)}
+                    </span>
+                    {myId === comment.user_id && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComment(comment.id)}
+                        style={{
+                          background: "none", border: "none", padding: 0,
+                          color: "#d1d5db", fontSize: 11, cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: 14, color: "#374151", marginTop: 4, whiteSpace: "pre-wrap" }}>
+                  {comment.content}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
