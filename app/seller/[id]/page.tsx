@@ -498,7 +498,7 @@ export default function SellerPage() {
   const quickExt = quickModel ? getModelExt(quickModel) : "";
   const quickViewerSupported = ["stl", "obj"].includes(quickExt);
 
-  const categories = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "SET"];
+  const categories = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기타부속"];
 
   return (
     <>

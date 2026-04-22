@@ -15,8 +15,8 @@ import { SkeletonCard, SkeletonTopCard } from "./components/SkeletonCard";
 type SortType = "latest" | "price-low" | "price-high" | "popular";
 type FavoriteMap = Record<string, boolean>;
 
-const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "세트"];
-const recommendedKeywords = ["반지", "펜던트", "이어링", "세트", "링", "플라워", "큐빅", "체인"];
+const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기타부속"];
+const recommendedKeywords = ["반지", "펜던트", "이어링", "기타부속", "링", "플라워", "큐빅", "체인"];
 const ITEMS_PER_PAGE = 20;
 
 export default function Home() {

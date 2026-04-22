@@ -249,7 +249,7 @@ export default function UploadPage() {
             <option value="PENDANT">PENDANT</option>
             <option value="EARRING">EARRING</option>
             <option value="BRACELET">BRACELET</option>
-            <option value="SET">SET</option>
+            <option value="기타부속">기타부속</option>
           </select>
         </Field>
 

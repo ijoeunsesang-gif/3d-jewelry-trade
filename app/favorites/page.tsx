@@ -19,9 +19,9 @@ type ModelItem = {
 
 type SortType = "latest" | "oldest" | "price-low" | "price-high";
 
-const CATEGORIES = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "SET"];
+const CATEGORIES = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기타부속"];
 const CATEGORY_LABEL: Record<string, string> = {
-  ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", SET: "세트",
+  ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", 기타부속: "기타부속",
 };
 
 export default function FavoritesPage() {
