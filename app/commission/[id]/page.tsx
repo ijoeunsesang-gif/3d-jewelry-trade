@@ -574,7 +574,7 @@ export default function CommissionDetailPage() {
             /* 이미 등록한 경우: 현재 링크 표시 + 수정/삭제 */
             <div>
               <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>등록된 링크</div>
-              <a href={myResult.result_link} target="_blank" rel="noopener noreferrer"
+              <a href={myResult.result_link}
                 style={{ fontSize: 13, color: "#2563eb", wordBreak: "break-all" }}>
                 {myResult.result_link}
               </a>
@@ -947,7 +947,7 @@ export default function CommissionDetailPage() {
           <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>결과물</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {results.map((r) => (
-              <a key={r.id} href={r.result_link} target="_blank" rel="noopener noreferrer" style={{
+              <a key={r.id} href={r.result_link} style={{
                 padding: "8px 16px", background: "#111827", color: "white",
                 borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none",
               }}>
