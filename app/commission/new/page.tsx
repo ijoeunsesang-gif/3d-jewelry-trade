@@ -24,6 +24,7 @@ export default function CommissionNewPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export default function CommissionNewPage() {
           description: description.trim(),
           images: imageUrls,
           status: "open",
+          is_private: isPrivate,
         })
         .select("id")
         .single();
@@ -124,6 +126,43 @@ export default function CommissionNewPage() {
             style={inputStyle}
             maxLength={100}
           />
+        </div>
+
+        {/* 공개 여부 */}
+        <div>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+            공개 여부
+          </label>
+          <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #d1d5db", width: "fit-content" }}>
+            <button
+              type="button"
+              onClick={() => setIsPrivate(false)}
+              style={{
+                padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                border: "none",
+                background: !isPrivate ? "#111827" : "white",
+                color: !isPrivate ? "white" : "#374151",
+              }}
+            >
+              공개 의뢰
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPrivate(true)}
+              style={{
+                padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                border: "none",
+                borderLeft: "1px solid #d1d5db",
+                background: isPrivate ? "#111827" : "white",
+                color: isPrivate ? "white" : "#374151",
+              }}
+            >
+              개인 의뢰
+            </button>
+          </div>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9ca3af" }}>
+            {isPrivate ? "나와 판매자만 볼 수 있습니다." : "누구나 볼 수 있습니다."}
+          </p>
         </div>
 
         {/* 설명 */}

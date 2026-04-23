@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken } from "@/lib/supabase-fetch";
+import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { showError } from "../lib/toast";
 
 const GOLD = "#c9a84c";
 
@@ -23,6 +24,8 @@ const STATUS_BG: Record<string, string> = {
   completed: "#dcfce7",
 };
 
+type Tab = "public" | "private" | "mine" | "bookmarks";
+
 type Commission = {
   id: string;
   title: string;
@@ -31,27 +34,85 @@ type Commission = {
   user_id: string;
   created_at: string;
   nickname: string;
+  is_private: boolean;
 };
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: "public", label: "공개의뢰" },
+  { key: "private", label: "개인의뢰" },
+  { key: "mine", label: "내 의뢰" },
+  { key: "bookmarks", label: "즐겨찾기" },
+];
 
 export default function CommissionListPage() {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<Tab>("public");
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    setIsLoggedIn(!!getAccessToken());
-    fetchCommissions();
+    const token = getAccessToken();
+    let uid: string | null = null;
+    if (token) {
+      setIsLoggedIn(true);
+      const payload = decodeJwt(token) as any;
+      uid = payload?.sub || null;
+      setCurrentUserId(uid);
+      if (uid) loadBookmarks(uid);
+    }
+    fetchCommissions("public", uid);
   }, []);
 
-  const fetchCommissions = async () => {
+  const loadBookmarks = async (uid: string) => {
+    const { data } = await supabase
+      .from("commission_bookmarks")
+      .select("commission_id")
+      .eq("user_id", uid);
+    if (data) {
+      setBookmarkedIds(new Set(data.map((b: any) => b.commission_id)));
+    }
+  };
+
+  const fetchCommissions = async (tab: Tab, uid: string | null) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("commissions")
-        .select("id, title, images, status, user_id, created_at")
-        .order("created_at", { ascending: false });
+      let data: any[] = [];
 
-      if (error || !data) { setCommissions([]); return; }
+      if (tab === "bookmarks") {
+        if (!uid) { setCommissions([]); return; }
+        const { data: bData } = await supabase
+          .from("commission_bookmarks")
+          .select("commission_id")
+          .eq("user_id", uid);
+        const ids = (bData || []).map((b: any) => b.commission_id);
+        if (ids.length === 0) { setCommissions([]); return; }
+        const { data: cData, error } = await supabase
+          .from("commissions")
+          .select("id, title, images, status, user_id, created_at, is_private")
+          .in("id", ids)
+          .order("created_at", { ascending: false });
+        if (error || !cData) { setCommissions([]); return; }
+        data = cData;
+      } else {
+        let query = supabase
+          .from("commissions")
+          .select("id, title, images, status, user_id, created_at, is_private")
+          .order("created_at", { ascending: false });
+
+        if (tab === "public") {
+          query = query.eq("is_private", false);
+        } else if (tab === "private") {
+          query = query.eq("is_private", true);
+        } else if (tab === "mine" && uid) {
+          query = query.eq("user_id", uid);
+        }
+
+        const { data: cData, error } = await query;
+        if (error || !cData) { setCommissions([]); return; }
+        data = cData;
+      }
 
       const userIds = [...new Set(data.map((c: any) => c.user_id))];
       const { data: profiles } = await supabase
@@ -70,10 +131,40 @@ export default function CommissionListPage() {
     }
   };
 
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    if (!isLoggedIn && tab !== "public") return;
+    fetchCommissions(tab, currentUserId);
+  };
+
+  const toggleBookmark = async (e: React.MouseEvent, commissionId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isLoggedIn || !currentUserId) {
+      showError("로그인이 필요합니다.");
+      return;
+    }
+    if (bookmarkedIds.has(commissionId)) {
+      await supabase
+        .from("commission_bookmarks")
+        .delete()
+        .eq("user_id", currentUserId)
+        .eq("commission_id", commissionId);
+      setBookmarkedIds((prev) => { const n = new Set(prev); n.delete(commissionId); return n; });
+    } else {
+      await supabase
+        .from("commission_bookmarks")
+        .insert({ user_id: currentUserId, commission_id: commissionId });
+      setBookmarkedIds((prev) => new Set(prev).add(commissionId));
+    }
+  };
+
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
   };
+
+  const needsLogin = !isLoggedIn && activeTab !== "public";
 
   return (
     <div style={{
@@ -100,7 +191,35 @@ export default function CommissionListPage() {
         )}
       </div>
 
-      {loading ? (
+      {/* 탭 네비게이션 */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "2px solid #e5e7eb" }}>
+        {TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => handleTabChange(key)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "10px 20px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: activeTab === key ? "#111827" : "#6b7280",
+              cursor: "pointer",
+              borderBottom: activeTab === key ? "2px solid #111827" : "2px solid transparent",
+              marginBottom: -2,
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {needsLogin ? (
+        <div style={{ textAlign: "center", padding: "80px 0", color: "#9ca3af" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#6b7280" }}>로그인이 필요합니다</div>
+        </div>
+      ) : loading ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
           {[1, 2, 3, 4].map((i) => (
             <div key={i} style={{ borderRadius: 14, background: "#f3f4f6", height: 240 }} />
@@ -122,11 +241,26 @@ export default function CommissionListPage() {
                 style={{
                   borderRadius: 14, border: "1px solid #e5e7eb", background: "white",
                   overflow: "hidden", boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
-                  transition: "box-shadow 0.15s",
+                  transition: "box-shadow 0.15s", position: "relative",
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(15,23,42,0.10)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(15,23,42,0.04)"; }}
               >
+                {/* 북마크 버튼 */}
+                <button
+                  onClick={(e) => toggleBookmark(e, c.id)}
+                  style={{
+                    position: "absolute", top: 10, right: 10, zIndex: 1,
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: "rgba(255,255,255,0.9)", border: "none",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", fontSize: 18,
+                    color: bookmarkedIds.has(c.id) ? "#f59e0b" : "#9ca3af",
+                  }}
+                >
+                  {bookmarkedIds.has(c.id) ? "★" : "☆"}
+                </button>
+
                 {/* 썸네일 */}
                 <div style={{ width: "100%", aspectRatio: "16/9", background: "#f8fafc", overflow: "hidden" }}>
                   {c.images && c.images[0] ? (
