@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
+import GradeBadge from "../components/GradeBadge";
+import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
 
-type TabId = "basic" | "follow" | "seller" | "business" | "stats";
+type TabId = "basic" | "follow" | "seller" | "business" | "stats" | "grade";
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null };
 
 const GOLD = "#c9a84c";
@@ -54,6 +56,11 @@ export default function ProfilePage() {
   const [monthlyCount, setMonthlyCount] = useState(0);
   const statsLoadedRef = useRef(false);
 
+  // 내 등급
+  const [gradeInfo, setGradeInfo] = useState<{ grade: Grade; totalCount: number; totalAmount: number } | null>(null);
+  const [gradeLoading, setGradeLoading] = useState(false);
+  const gradeLoadedRef = useRef(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -69,6 +76,13 @@ export default function ProfilePage() {
     if (activeTab === "stats" && isSeller && userId && !statsLoadedRef.current) {
       statsLoadedRef.current = true;
       fetchSellerStats(userId);
+    }
+  }, [activeTab, isSeller, userId]);
+
+  useEffect(() => {
+    if (activeTab === "grade" && isSeller && userId && !gradeLoadedRef.current) {
+      gradeLoadedRef.current = true;
+      fetchGradeData(userId);
     }
   }, [activeTab, isSeller, userId]);
 
@@ -162,6 +176,24 @@ export default function ProfilePage() {
       setMonthlyCount(rows.filter((r: any) => r.created_at >= monthStart).length);
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const fetchGradeData = async (uid: string) => {
+    setGradeLoading(true);
+    try {
+      const { data } = await supabase
+        .from("seller_stats")
+        .select("current_grade, total_sales_count, total_sales_amount")
+        .eq("user_id", uid)
+        .maybeSingle();
+      setGradeInfo({
+        grade: ((data?.current_grade) || "sprout") as Grade,
+        totalCount: data?.total_sales_count ?? 0,
+        totalAmount: data?.total_sales_amount ?? 0,
+      });
+    } finally {
+      setGradeLoading(false);
     }
   };
 
@@ -277,6 +309,7 @@ export default function ProfilePage() {
     { id: "seller", label: "판매자 등록" },
     { id: "business", label: "사업자 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
+    { id: "grade", label: "내 등급", sellerOnly: true },
   ];
 
   if (loading) {
@@ -528,6 +561,11 @@ export default function ProfilePage() {
             </div>
           )}
 
+          {/* 내 등급 탭 (seller 전용) */}
+          {activeTab === "grade" && isSeller && (
+            <GradeTab gradeInfo={gradeInfo} gradeLoading={gradeLoading} />
+          )}
+
           {/* 판매 통계 탭 (seller 전용) */}
           {activeTab === "stats" && isSeller && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -565,6 +603,210 @@ export default function ProfilePage() {
         }
       `}</style>
     </main>
+  );
+}
+
+/* ── 내 등급 탭 ── */
+const GRADE_KEYS: Grade[] = ["sprout", "skilled", "pro", "master"];
+
+const GRADE_STYLE: Record<Grade, { color: string; bg: string; border: string; label: string }> = {
+  sprout:  { color: "#374151", bg: "#f9fafb", border: "#d1d5db", label: "새싹" },
+  skilled: { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe", label: "숙련" },
+  pro:     { color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe", label: "프로" },
+  master:  { color: "#b45309", bg: "#fffbeb", border: "#fde68a", label: "마스터" },
+};
+
+function GradeTab({
+  gradeInfo,
+  gradeLoading,
+}: {
+  gradeInfo: { grade: Grade; totalCount: number; totalAmount: number } | null;
+  gradeLoading: boolean;
+}) {
+  const grade     = gradeInfo?.grade      ?? "sprout";
+  const count     = gradeInfo?.totalCount  ?? 0;
+  const amount    = gradeInfo?.totalAmount ?? 0;
+  const cfg       = GRADE_CONFIG[grade];
+  const orderIdx  = gradeOrder(grade);
+  const nextGrade = orderIdx < 3 ? GRADE_KEYS[orderIdx + 1] : null;
+  const nextCfg   = nextGrade ? GRADE_CONFIG[nextGrade] : null;
+
+  const countPct  = nextCfg ? Math.min((count  / nextCfg.minSales)  * 100, 100) : 100;
+  const amountPct = nextCfg ? Math.min((amount / nextCfg.minAmount) * 100, 100) : 100;
+  const countLeft  = nextCfg ? Math.max(0, nextCfg.minSales  - count)  : 0;
+  const amountLeft = nextCfg ? Math.max(0, nextCfg.minAmount - amount) : 0;
+
+  if (gradeLoading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h2 style={sectionTitle}>내 등급</h2>
+        <p style={{ color: "#6b7280", fontSize: 14 }}>불러오는 중...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+      <h2 style={sectionTitle}>내 등급</h2>
+
+      {/* 1. 현재 등급 */}
+      <div style={{
+        border: `1px solid ${cfg.bg === "#dcfce7" ? "#bbf7d0" : cfg.bg}`,
+        borderRadius: 16,
+        padding: "24px 24px",
+        background: cfg.bg,
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+      }}>
+        <GradeBadge grade={grade} size="lg" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4 }}>
+          {[
+            { label: "수수료율", value: `${Math.round(cfg.commission * 100)}%` },
+            { label: "총 판매 건수", value: `${count.toLocaleString("ko-KR")}건` },
+            { label: "누적 판매 금액", value: `${amount.toLocaleString("ko-KR")}원` },
+          ].map(({ label, value }) => (
+            <div key={label} style={{
+              background: "white",
+              borderRadius: 12,
+              padding: "14px 16px",
+              border: "1px solid rgba(0,0,0,0.06)",
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. 다음 등급 진행도 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>다음 등급 진행도</div>
+
+        {nextGrade && nextCfg ? (
+          <>
+            <div style={{
+              fontSize: 13,
+              color: "#374151",
+              background: "#f9fafb",
+              border: "1px solid #e5e7eb",
+              borderRadius: 10,
+              padding: "10px 14px",
+              fontWeight: 600,
+            }}>
+              {GRADE_STYLE[nextGrade].label}까지{" "}
+              {countLeft > 0 && <strong>{countLeft.toLocaleString("ko-KR")}건</strong>}
+              {countLeft > 0 && amountLeft > 0 && ", "}
+              {amountLeft > 0 && <strong>{Math.ceil(amountLeft / 10000).toLocaleString("ko-KR")}만원</strong>}
+              {countLeft === 0 && amountLeft === 0
+                ? " 달성 완료! (등급 갱신 대기 중)"
+                : " 남았어요"}
+            </div>
+
+            <ProgressBar label="판매 건수" current={count} target={nextCfg.minSales} pct={countPct} color={cfg.color} />
+            <ProgressBar label="판매 금액" current={Math.ceil(amount / 10000)} target={Math.ceil(nextCfg.minAmount / 10000)} unit="만원" pct={amountPct} color={cfg.color} />
+          </>
+        ) : (
+          <div style={{
+            textAlign: "center",
+            padding: "28px 20px",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 14,
+            color: "#b45309",
+            fontWeight: 800,
+            fontSize: 16,
+            letterSpacing: "-0.01em",
+          }}>
+            최고 등급 달성!
+          </div>
+        )}
+      </div>
+
+      {/* 3. 전체 등급 안내표 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>전체 등급 안내</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+          {GRADE_KEYS.map((g) => {
+            const s = GRADE_STYLE[g];
+            const c = GRADE_CONFIG[g];
+            const isCurrent = g === grade;
+            return (
+              <div
+                key={g}
+                style={{
+                  border: `1.5px solid ${isCurrent ? s.color : s.border}`,
+                  borderRadius: 14,
+                  padding: "16px 18px",
+                  background: isCurrent ? s.bg : "white",
+                  boxShadow: isCurrent ? `0 0 0 3px ${s.border}` : "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{
+                    fontWeight: 900,
+                    fontSize: 15,
+                    color: s.color,
+                    letterSpacing: "-0.01em",
+                  }}>
+                    {s.label}
+                  </span>
+                  {isCurrent && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: s.color,
+                      background: "white",
+                      border: `1px solid ${s.border}`,
+                      borderRadius: 999,
+                      padding: "2px 8px",
+                      letterSpacing: "0.04em",
+                    }}>
+                      현재
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                  {c.minSales === 0
+                    ? "기본 등급"
+                    : `판매 ${c.minSales.toLocaleString()}건 + ${Math.ceil(c.minAmount / 10000).toLocaleString()}만원`}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>
+                  수수료 {Math.round(c.commission * 100)}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressBar({ label, current, target, pct, color, unit = "건" }: {
+  label: string; current: number; target: number; pct: number; color: string; unit?: string;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>
+          {current.toLocaleString("ko-KR")} / {target.toLocaleString("ko-KR")}{unit}
+        </span>
+      </div>
+      <div style={{ height: 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+        <div style={{
+          height: "100%",
+          width: `${pct}%`,
+          borderRadius: 999,
+          background: color,
+          transition: "width 0.5s ease",
+        }} />
+      </div>
+    </div>
   );
 }
 
