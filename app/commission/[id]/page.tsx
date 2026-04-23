@@ -33,7 +33,7 @@ type Commission = {
   target_seller_id: string | null;
   desired_price: number | null;
   desired_days: number | null;
-  negotiation_status: string | null;
+  negotiation_status: string;
   negotiation_count: number;
   final_price: number | null;
   final_days: number | null;
@@ -384,7 +384,7 @@ export default function CommissionDetailPage() {
 
   const isAuthor = myId === commission.user_id;
   const isTargetSeller = myId === commission.target_seller_id;
-  const negStatus = commission.negotiation_status as string | null;
+  const negStatus = (commission?.negotiation_status ?? '') as string;
 
   // 협의 중: 마지막 제안자 기준 차례 판별
   const lastNeg = negotiations.length > 0 ? negotiations[negotiations.length - 1] : null;
