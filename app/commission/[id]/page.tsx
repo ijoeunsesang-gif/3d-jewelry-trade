@@ -61,6 +61,14 @@ type Negotiation = {
   created_at: string;
 };
 
+type CommissionResult = {
+  id: string;
+  commission_id: string;
+  seller_id: string;
+  result_link: string;
+  nickname: string;
+};
+
 async function sendNotification(
   userId: string,
   type: string,
@@ -106,6 +114,13 @@ export default function CommissionDetailPage() {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
+  // 결과물 링크 (commission_results)
+  const [results, setResults] = useState<CommissionResult[]>([]);
+  const [myResult, setMyResult] = useState<CommissionResult | null>(null);
+  const [resultLink, setResultLink] = useState("");
+  const [resultSaving, setResultSaving] = useState(false);
+  const [resultEditing, setResultEditing] = useState(false);
+
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
@@ -116,7 +131,14 @@ export default function CommissionDetailPage() {
     }
     fetchCommission();
     fetchComments();
+    fetchResults();
   }, [id]);
+
+  useEffect(() => {
+    if (!myId) return;
+    const mine = results.find((r) => r.seller_id === myId) || null;
+    setMyResult(mine);
+  }, [results, myId]);
 
   const fetchCommission = async () => {
     setLoading(true);
@@ -137,6 +159,83 @@ export default function CommissionDetailPage() {
       if (data.is_private) fetchNegotiations();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchResults = async () => {
+    const { data } = await supabase
+      .from("commission_results")
+      .select("*, profiles(nickname)")
+      .eq("commission_id", id);
+    const rows = (data || []).map((r: any) => ({
+      id: r.id,
+      commission_id: r.commission_id,
+      seller_id: r.seller_id,
+      result_link: r.result_link,
+      nickname: (Array.isArray(r.profiles) ? r.profiles[0]?.nickname : r.profiles?.nickname) || "판매자",
+    }));
+    setResults(rows);
+  };
+
+  const handleResultInsert = async () => {
+    if (!resultLink.trim() || !myId) return;
+    setResultSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("commission_results")
+        .insert({ commission_id: id, seller_id: myId, result_link: resultLink.trim() })
+        .select("*, profiles(nickname)")
+        .single();
+      if (error) throw error;
+      const newRow: CommissionResult = {
+        id: data.id, commission_id: data.commission_id, seller_id: data.seller_id,
+        result_link: data.result_link,
+        nickname: (Array.isArray(data.profiles) ? data.profiles[0]?.nickname : data.profiles?.nickname) || "판매자",
+      };
+      setResults((prev) => [...prev, newRow]);
+      setLinkPanelOpen(false);
+      showSuccess("등록되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "등록 실패");
+    } finally {
+      setResultSaving(false);
+    }
+  };
+
+  const handleResultUpdate = async () => {
+    if (!resultLink.trim() || !myResult) return;
+    setResultSaving(true);
+    try {
+      const { error } = await supabase
+        .from("commission_results")
+        .update({ result_link: resultLink.trim() })
+        .eq("id", myResult.id);
+      if (error) throw error;
+      const updated = { ...myResult, result_link: resultLink.trim() };
+      setResults((prev) => prev.map((r) => r.id === myResult.id ? updated : r));
+      setResultEditing(false);
+      showSuccess("수정되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "수정 실패");
+    } finally {
+      setResultSaving(false);
+    }
+  };
+
+  const handleResultDelete = async () => {
+    if (!myResult || !confirm("결과물 링크를 삭제하시겠습니까?")) return;
+    setResultSaving(true);
+    try {
+      const { error } = await supabase.from("commission_results").delete().eq("id", myResult.id);
+      if (error) throw error;
+      setResults((prev) => prev.filter((r) => r.id !== myResult.id));
+      setResultLink("");
+      setResultEditing(false);
+      showSuccess("삭제되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "삭제 실패");
+    } finally {
+      setResultSaving(false);
     }
   };
 
@@ -440,12 +539,18 @@ export default function CommissionDetailPage() {
           </div>
         </div>
         {isSeller && !commission.is_private && (
-          <button type="button" onClick={() => setLinkPanelOpen((p) => !p)} style={{
+          <button type="button" onClick={() => {
+            if (!linkPanelOpen) {
+              setResultLink(myResult?.result_link || "");
+              setResultEditing(false);
+            }
+            setLinkPanelOpen((p) => !p);
+          }} style={{
             flexShrink: 0, border: "1px solid #d1d5db", borderRadius: 10,
             padding: "8px 16px", background: "white",
             fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
           }}>
-            🔗 결과물 링크 등록
+            🔗 {myResult ? "내 결과물 관리" : "결과물 링크 등록"}
           </button>
         )}
       </div>
@@ -453,22 +558,51 @@ export default function CommissionDetailPage() {
       {/* 판매자 링크 패널 */}
       {isSeller && !commission.is_private && linkPanelOpen && (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 20, background: "#fafafa" }}>
-          <input type="url" value={editResultLink} onChange={(e) => setEditResultLink(e.target.value)}
-            placeholder="https://..." style={{
-              height: 44, borderRadius: 10, border: "1px solid #d1d5db",
-              padding: "0 12px", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none",
-            }} />
-          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="button" onClick={handleSave} disabled={saving} style={{
-              height: 38, padding: "0 20px", borderRadius: 10, border: "none",
-              background: saving ? "#d1d5db" : GOLD, color: "white", fontSize: 13, fontWeight: 700,
-              cursor: saving ? "not-allowed" : "pointer",
-            }}>{saving ? "저장 중..." : "저장"}</button>
-            <button type="button" onClick={() => setLinkPanelOpen(false)} style={{
-              height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white",
-              fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151",
-            }}>취소</button>
-          </div>
+          {myResult && !resultEditing ? (
+            /* 이미 등록한 경우: 현재 링크 표시 + 수정/삭제 */
+            <div>
+              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>등록된 링크</div>
+              <a href={myResult.result_link} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 13, color: "#2563eb", wordBreak: "break-all" }}>
+                {myResult.result_link}
+              </a>
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button type="button" onClick={() => { setResultLink(myResult.result_link); setResultEditing(true); }}
+                  style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  수정
+                </button>
+                <button type="button" onClick={handleResultDelete} disabled={resultSaving}
+                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #fca5a5", background: "white", color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: resultSaving ? "not-allowed" : "pointer" }}>
+                  {resultSaving ? "처리 중..." : "삭제"}
+                </button>
+                <button type="button" onClick={() => setLinkPanelOpen(false)}
+                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>
+                  닫기
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* 신규 등록 or 수정 중 */
+            <div>
+              <input type="url" value={resultLink} onChange={(e) => setResultLink(e.target.value)}
+                placeholder="https://..." style={{
+                  height: 44, borderRadius: 10, border: "1px solid #d1d5db",
+                  padding: "0 12px", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none",
+                }} />
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button type="button"
+                  onClick={resultEditing ? handleResultUpdate : handleResultInsert}
+                  disabled={resultSaving}
+                  style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: resultSaving ? "#d1d5db" : GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: resultSaving ? "not-allowed" : "pointer" }}>
+                  {resultSaving ? "처리 중..." : resultEditing ? "수정 저장" : "등록"}
+                </button>
+                <button type="button" onClick={() => { setResultEditing(false); setLinkPanelOpen(false); }}
+                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>
+                  취소
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -796,15 +930,19 @@ export default function CommissionDetailPage() {
       )}
 
       {/* 결과물 링크 */}
-      {commission.result_link && (
+      {results.length > 0 && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>결과물</div>
-          <a href={commission.result_link} target="_blank" rel="noopener noreferrer" style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "10px 18px", borderRadius: 10,
-            background: "#111827", color: "white",
-            textDecoration: "none", fontSize: 13, fontWeight: 700,
-          }}>결과물 보기 →</a>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {results.map((r) => (
+              <a key={r.id} href={r.result_link} target="_blank" rel="noopener noreferrer" style={{
+                padding: "8px 16px", background: "#111827", color: "white",
+                borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none",
+              }}>
+                {r.nickname}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 
