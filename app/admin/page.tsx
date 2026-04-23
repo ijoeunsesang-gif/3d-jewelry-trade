@@ -34,9 +34,27 @@ export default function AdminPage() {
   }, []);
 
   const checkAdmin = async () => {
+    // JWT에서 이메일 추출 (Kakao는 user_metadata에 있을 수 있음)
+    let email = "";
     const token = getAccessToken();
-    const email = token ? ((decodeJwt(token) as any)?.email || "") : "";
-    if (!email || email !== ADMIN_EMAIL) {
+    if (token) {
+      const payload = decodeJwt(token) as any;
+      email = (
+        payload?.email ||
+        payload?.user_metadata?.email ||
+        payload?.user_metadata?.kakao_account?.email ||
+        ""
+      ).trim().toLowerCase();
+    }
+    // JWT에 이메일 없으면 Supabase 세션에서 가져오기
+    if (!email) {
+      const { data } = await supabase.auth.getUser();
+      email = (data?.user?.email || "").trim().toLowerCase();
+    }
+
+    const adminEmail = ADMIN_EMAIL.trim().toLowerCase();
+    if (!email || !adminEmail || email !== adminEmail) {
+      console.warn("admin 접근 거부 — 이메일:", email, "| 설정된 관리자:", adminEmail);
       router.replace("/");
       return;
     }

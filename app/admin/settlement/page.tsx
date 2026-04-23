@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { supabase } from "@/app/lib/supabase-browser";
 import { GRADE_CONFIG, Grade } from "@/lib/grades";
 import GradeBadge from "@/app/components/GradeBadge";
 
@@ -44,13 +45,30 @@ export default function SettlementPage() {
   const [fetching, setFetching] = useState(false);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) { router.push("/admin"); return; }
-    const payload = decodeJwt(token) as any;
-    const email = payload?.email || payload?.user_metadata?.email || "";
-    if (email !== ADMIN_EMAIL) { router.push("/admin"); return; }
-    setAuthorized(true);
-    setLoading(false);
+    (async () => {
+      let email = "";
+      const token = getAccessToken();
+      if (token) {
+        const payload = decodeJwt(token) as any;
+        email = (
+          payload?.email ||
+          payload?.user_metadata?.email ||
+          payload?.user_metadata?.kakao_account?.email ||
+          ""
+        ).trim().toLowerCase();
+      }
+      if (!email) {
+        const { data } = await supabase.auth.getUser();
+        email = (data?.user?.email || "").trim().toLowerCase();
+      }
+      const adminEmail = ADMIN_EMAIL.trim().toLowerCase();
+      if (!email || !adminEmail || email !== adminEmail) {
+        router.push("/admin");
+        return;
+      }
+      setAuthorized(true);
+      setLoading(false);
+    })();
   }, []);
 
   useEffect(() => {
