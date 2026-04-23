@@ -132,12 +132,16 @@ export default function EditModelPage() {
     "thumbnail" | "detailImages" | "modelFile" | "extraFiles" | null
   >(null);
 
+  const R2_URL = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
+
   const getImageUrl = (image?: {
     image_url?: string | null;
     image_path?: string | null;
   }) => {
     if (image?.image_path) {
-      return supabase.storage.from("thumbnails").getPublicUrl(image.image_path).data.publicUrl;
+      const p = image.image_path;
+      if (p.startsWith("http")) return p;
+      return `${R2_URL}/${p}`;
     }
     return image?.image_url || "";
   };
@@ -145,7 +149,9 @@ export default function EditModelPage() {
   const getThumbnailUrl = () => {
     if (!model) return "";
     if (model.thumbnail_path) {
-      return supabase.storage.from("thumbnails").getPublicUrl(model.thumbnail_path).data.publicUrl;
+      const p = model.thumbnail_path;
+      if (p.startsWith("http")) return p;
+      return `${R2_URL}/${p}`;
     }
     return model.thumbnail || "";
   };
@@ -386,18 +392,16 @@ export default function EditModelPage() {
         const ext = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `${saveUserId}/thumb-${Date.now()}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("thumbnails")
-          .upload(path, thumbnailFile, { upsert: true });
-
-        if (uploadError) {
-          console.error("썸네일 업로드 실패:", uploadError);
-          showError("썸네일 업로드에 실패했습니다.");
-          return;
-        }
+        const thumbForm = new FormData();
+        thumbForm.append("file", thumbnailFile);
+        thumbForm.append("bucket", "thumbnails");
+        thumbForm.append("path", path);
+        const thumbRes = await fetch("/api/upload", { method: "POST", body: thumbForm });
+        if (!thumbRes.ok) { showError("썸네일 업로드에 실패했습니다."); return; }
+        const { url } = await thumbRes.json();
 
         thumbnailPath = path;
-        thumbnailUrl = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
+        thumbnailUrl = url;
       }
 
       let modelPath = model.model_file_path || null;
@@ -406,15 +410,12 @@ export default function EditModelPage() {
         const ext = modelFile.name.split(".").pop()?.toLowerCase() || "stl";
         const path = `${saveUserId}/model-${Date.now()}.${ext}`;
 
-        const { error: uploadError } = await supabase.storage
-          .from("models-private")
-          .upload(path, modelFile, { upsert: true });
-
-        if (uploadError) {
-          console.error("대표 모델 파일 업로드 실패:", uploadError);
-          showError("출력파일(대표) 업로드에 실패했습니다.");
-          return;
-        }
+        const modelForm = new FormData();
+        modelForm.append("file", modelFile);
+        modelForm.append("bucket", "models-private");
+        modelForm.append("path", path);
+        const modelRes = await fetch("/api/upload", { method: "POST", body: modelForm });
+        if (!modelRes.ok) { showError("출력파일(대표) 업로드에 실패했습니다."); return; }
 
         modelPath = path;
       }
@@ -446,20 +447,13 @@ export default function EditModelPage() {
           const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
           const path = `${saveUserId}/detail-${Date.now()}-${i}.${ext}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from("thumbnails")
-            .upload(path, file, {
-              upsert: true,
-            });
-
-          if (uploadError) {
-            console.error("추가 이미지 업로드 실패:", uploadError);
-            continue;
-          }
-
-          const publicUrl = supabase.storage
-            .from("thumbnails")
-            .getPublicUrl(path).data.publicUrl;
+          const imgForm = new FormData();
+          imgForm.append("file", file);
+          imgForm.append("bucket", "thumbnails");
+          imgForm.append("path", path);
+          const imgRes = await fetch("/api/upload", { method: "POST", body: imgForm });
+          if (!imgRes.ok) { console.error("추가 이미지 업로드 실패"); continue; }
+          const { url: publicUrl } = await imgRes.json();
 
           imageRows.push({
             model_id: model.id,
@@ -488,16 +482,12 @@ export default function EditModelPage() {
           const ext = file.name.split(".").pop()?.toLowerCase() || "";
           const path = `${saveUserId}/extra-${Date.now()}-${i}.${ext}`;
 
-          const { error: uploadError } = await supabase.storage
-            .from("models-private")
-            .upload(path, file, {
-              upsert: true,
-            });
-
-          if (uploadError) {
-            console.error("추가 파일 업로드 실패:", uploadError);
-            continue;
-          }
+          const extraForm = new FormData();
+          extraForm.append("file", file);
+          extraForm.append("bucket", "models-private");
+          extraForm.append("path", path);
+          const extraRes = await fetch("/api/upload", { method: "POST", body: extraForm });
+          if (!extraRes.ok) { console.error("추가 파일 업로드 실패"); continue; }
 
           fileRows.push({
             model_id: model.id,

@@ -173,9 +173,13 @@ export default function ProfilePage() {
       setPreviewUrl(URL.createObjectURL(file));
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `avatars/${userId}-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("thumbnails").upload(path, file, { upsert: true });
-      if (error) { showError(`이미지 업로드 실패: ${error.message}`); return; }
-      const url = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
+      const avatarForm = new FormData();
+      avatarForm.append("file", file);
+      avatarForm.append("bucket", "thumbnails");
+      avatarForm.append("path", path);
+      const avatarRes = await fetch("/api/upload", { method: "POST", body: avatarForm });
+      if (!avatarRes.ok) { showError("이미지 업로드 실패"); return; }
+      const { url } = await avatarRes.json();
       setAvatarUrl(url);
       setPreviewUrl(url);
     } catch {
@@ -250,9 +254,13 @@ export default function ProfilePage() {
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `business/${userId}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from("thumbnails").upload(path, file, { upsert: true });
-      if (error) throw new Error("사업자 등록증 업로드 실패");
-      const url = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
+      const bizForm = new FormData();
+      bizForm.append("file", file);
+      bizForm.append("bucket", "thumbnails");
+      bizForm.append("path", path);
+      const bizRes = await fetch("/api/upload", { method: "POST", body: bizForm });
+      if (!bizRes.ok) throw new Error("사업자 등록증 업로드 실패");
+      const { url } = await bizRes.json();
       await supabase.from("profiles").update({ business_registration_url: url }).eq("id", userId);
       setBizRegUrl(url);
       showSuccess("사업자 등록증이 업로드되었습니다.");

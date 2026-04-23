@@ -123,11 +123,14 @@ export default function CommissionNewPage() {
         const file = imageFiles[i];
         const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
         const path = `commissions/${userId}/${now}-${i}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("thumbnails").upload(path, file, { upsert: true });
-        if (upErr) throw new Error("이미지 업로드 실패");
-        const { data: urlData } = supabase.storage.from("thumbnails").getPublicUrl(path);
-        imageUrls.push(urlData.publicUrl);
+        const imgForm = new FormData();
+        imgForm.append("file", file);
+        imgForm.append("bucket", "thumbnails");
+        imgForm.append("path", path);
+        const imgRes = await fetch("/api/upload", { method: "POST", body: imgForm });
+        if (!imgRes.ok) throw new Error("이미지 업로드 실패");
+        const { url } = await imgRes.json();
+        imageUrls.push(url);
       }
 
       const insertPayload: Record<string, any> = {

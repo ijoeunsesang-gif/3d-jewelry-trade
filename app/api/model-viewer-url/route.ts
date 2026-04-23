@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { r2SignedUrl } from "@/lib/r2";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -47,21 +48,20 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const { data, error } = await adminSupabase.storage
-        .from("models-private")
-        .createSignedUrl(modelFilePath, 60 * 5);
+      const viewerUrl = await r2SignedUrl(
+        process.env.R2_BUCKET_MODELS_PRIVATE || "models-private",
+        modelFilePath,
+        60 * 5,
+      ).catch((e) => null);
 
-      if (error || !data?.signedUrl) {
+      if (!viewerUrl) {
         return NextResponse.json(
-          {
-            error: `private viewer URL 생성 실패: ${error?.message || "unknown error"}`,
-            path: modelFilePath,
-          },
+          { error: "private viewer URL 생성 실패", path: modelFilePath },
           { status: 500 }
         );
       }
 
-      return NextResponse.json({ viewerUrl: data.signedUrl });
+      return NextResponse.json({ viewerUrl });
     }
 
     // 공개 URL은 인증 없이 접근 가능

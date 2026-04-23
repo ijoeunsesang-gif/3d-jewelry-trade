@@ -78,29 +78,24 @@ export default function UploadPage() {
       const thumbExt = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
       const thumbPath = `${sellerId}/${now}-thumb.${thumbExt}`;
 
-      const { error: thumbUploadError } = await supabase.storage
-        .from("thumbnails")
-        .upload(thumbPath, thumbnailFile, { upsert: true });
-
-      if (thumbUploadError) {
-        showError(`썸네일 업로드 실패: ${thumbUploadError.message}`);
-        return;
-      }
-
-      const thumbnailUrl = supabase.storage.from("thumbnails").getPublicUrl(thumbPath).data.publicUrl;
+      const thumbForm = new FormData();
+      thumbForm.append("file", thumbnailFile);
+      thumbForm.append("bucket", "thumbnails");
+      thumbForm.append("path", thumbPath);
+      const thumbRes = await fetch("/api/upload", { method: "POST", body: thumbForm });
+      if (!thumbRes.ok) { showError("썸네일 업로드 실패"); return; }
+      const { url: thumbnailUrl } = await thumbRes.json();
 
       // 대표 모델 파일 업로드
       const modelExt = modelFile.name.split(".").pop()?.toLowerCase() || "obj";
       const modelPath = `${sellerId}/${now}-model.${modelExt}`;
 
-      const { error: modelUploadError } = await supabase.storage
-        .from("models-private")
-        .upload(modelPath, modelFile, { upsert: true });
-
-      if (modelUploadError) {
-        showError(`모델 파일 업로드 실패: ${modelUploadError.message}`);
-        return;
-      }
+      const modelForm = new FormData();
+      modelForm.append("file", modelFile);
+      modelForm.append("bucket", "models-private");
+      modelForm.append("path", modelPath);
+      const modelRes = await fetch("/api/upload", { method: "POST", body: modelForm });
+      if (!modelRes.ok) { showError("모델 파일 업로드 실패"); return; }
 
       // 모델 DB 저장
       const { data: insertedModel, error: insertModelError } = await supabase
@@ -134,13 +129,13 @@ export default function UploadPage() {
           const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
           const path = `${sellerId}/detail-${now}-${i}.${ext}`;
 
-          const { error } = await supabase.storage
-            .from("thumbnails")
-            .upload(path, file, { upsert: true });
-
-          if (error) { console.error("추가 이미지 업로드 실패:", error); continue; }
-
-          const url = supabase.storage.from("thumbnails").getPublicUrl(path).data.publicUrl;
+          const imgForm = new FormData();
+          imgForm.append("file", file);
+          imgForm.append("bucket", "thumbnails");
+          imgForm.append("path", path);
+          const imgRes = await fetch("/api/upload", { method: "POST", body: imgForm });
+          if (!imgRes.ok) { console.error("추가 이미지 업로드 실패"); continue; }
+          const { url } = await imgRes.json();
 
           imageRows.push({ model_id: insertedModel.id, image_url: url, image_path: path, sort_order: i + 1 });
         }
@@ -160,25 +155,17 @@ export default function UploadPage() {
           const ext = file.name.split(".").pop()?.toLowerCase() || "";
           const path = `${sellerId}/extra-${now}-${i}.${ext}`;
 
-          const { error } = await supabase.storage
-            .from("models-private")
-            .upload(path, file, { upsert: true });
-
-          if (error) { console.error("추가 파일 업로드 실패:", error); continue; }
-
-          const { data: signedData, error: signedError } = await supabase.storage
-            .from("models-private")
-            .createSignedUrl(path, 60 * 60 * 24 * 7);
-
-          if (signedError || !signedData?.signedUrl) {
-            console.error("추가 파일 signed url 생성 실패:", signedError);
-            continue;
-          }
+          const extraForm = new FormData();
+          extraForm.append("file", file);
+          extraForm.append("bucket", "models-private");
+          extraForm.append("path", path);
+          const extraRes = await fetch("/api/upload", { method: "POST", body: extraForm });
+          if (!extraRes.ok) { console.error("추가 파일 업로드 실패"); continue; }
 
           fileRows.push({
             model_id: insertedModel.id,
             file_name: file.name,
-            file_url: signedData.signedUrl,
+            file_url: "",
             file_path: path,
             file_type: ext,
             sort_order: i + 1,

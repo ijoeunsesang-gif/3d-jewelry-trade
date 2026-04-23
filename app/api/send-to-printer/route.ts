@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { r2SignedUrl } from "@/lib/r2";
 
 export const maxDuration = 60; // 첨부파일 다운로드를 위해 60초로 연장
 
@@ -103,9 +104,13 @@ export async function POST(req: NextRequest) {
     let totalAttachmentBytes = 0;
 
     for (const path of pathsToSend) {
-      const { data: signed } = await adminSupabase.storage
-        .from("models-private").createSignedUrl(path, 60 * 60 * 24);
-      if (!signed?.signedUrl) continue;
+      const signedUrl = await r2SignedUrl(
+        process.env.R2_BUCKET_MODELS_PRIVATE || "models-private",
+        path,
+        60 * 60 * 24,
+      ).catch(() => null);
+      if (!signedUrl) continue;
+      const signed = { signedUrl };
 
       const fileName = validPaths.get(path) || path.split("/").pop() || "파일";
       const isMain = path === model.model_file_path;

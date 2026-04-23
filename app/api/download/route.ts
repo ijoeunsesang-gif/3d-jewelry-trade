@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { r2SignedUrl } from "@/lib/r2";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -88,25 +89,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data, error } = await adminSupabase.storage
-      .from("models-private")
-      .createSignedUrl(model.model_file_path, 60 * 3);
+    const signedUrl = await r2SignedUrl(
+      process.env.R2_BUCKET_MODELS_PRIVATE || "models-private",
+      model.model_file_path,
+      60 * 3,
+    ).catch(() => null);
 
-    if (error || !data?.signedUrl) {
-      return NextResponse.json(
-        { error: "signed URL 생성 실패" },
-        { status: 500 }
-      );
+    if (!signedUrl) {
+      return NextResponse.json({ error: "signed URL 생성 실패" }, { status: 500 });
     }
 
     await adminSupabase
       .from("models")
       .update({ download_count: (model.download_count || 0) + 1 })
       .eq("id", modelId);
-      
-    return NextResponse.json({
-      signedUrl: data.signedUrl,
-    });
+
+    return NextResponse.json({ signedUrl });
         
   } catch (error) {
     console.error("다운로드 API 오류:", error);

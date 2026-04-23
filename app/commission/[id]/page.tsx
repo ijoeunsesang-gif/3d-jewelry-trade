@@ -454,10 +454,14 @@ export default function CommissionDetailPage() {
     setNegSubmitting(true);
     try {
       const path = `commission-files/${commission.id}/${file.name}`;
-      const { error } = await supabase.storage.from("commission-files").upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data: urlData } = supabase.storage.from("commission-files").getPublicUrl(path);
-      setUploadedFileUrl(urlData.publicUrl);
+      const commForm = new FormData();
+      commForm.append("file", file);
+      commForm.append("bucket", "thumbnails");
+      commForm.append("path", path);
+      const commRes = await fetch("/api/upload", { method: "POST", body: commForm });
+      if (!commRes.ok) throw new Error("파일 업로드 실패");
+      const { url: commUrl } = await commRes.json();
+      setUploadedFileUrl(commUrl);
       await supabase.from("commissions").update({
         negotiation_status: "completed",
         status: "completed",

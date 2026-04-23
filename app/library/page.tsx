@@ -89,7 +89,9 @@ export default function LibraryPage() {
 
   const getThumbnailUrl = (item: PurchasedModel) => {
     if (item.thumbnail_path) {
-      return supabase.storage.from("thumbnails").getPublicUrl(item.thumbnail_path).data.publicUrl;
+      const p = item.thumbnail_path;
+      if (p.startsWith("http")) return p;
+      return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p}`;
     }
     return item.thumbnail || "";
   };
