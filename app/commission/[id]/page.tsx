@@ -384,7 +384,7 @@ export default function CommissionDetailPage() {
 
   const isAuthor = myId === commission.user_id;
   const isTargetSeller = myId === commission.target_seller_id;
-  const negStatus = commission.negotiation_status;
+  const negStatus = commission.negotiation_status as string | null;
 
   // 협의 중: 마지막 제안자 기준 차례 판별
   const lastNeg = negotiations.length > 0 ? negotiations[negotiations.length - 1] : null;
