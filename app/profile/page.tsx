@@ -6,7 +6,8 @@ import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
-type TabId = "basic" | "seller" | "business" | "stats";
+type TabId = "basic" | "follow" | "seller" | "business" | "stats";
+type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null };
 
 const GOLD = "#c9a84c";
 const DARK = "#111827";
@@ -41,6 +42,12 @@ export default function ProfilePage() {
   const [bizRegUrl, setBizRegUrl] = useState("");
   const [bizRegPreview, setBizRegPreview] = useState("");
 
+  // 팔로우
+  const [following, setFollowing] = useState<FollowProfile[]>([]);
+  const [followers, setFollowers] = useState<FollowProfile[]>([]);
+  const [followLoading, setFollowLoading] = useState(false);
+  const followLoadedRef = useRef(false);
+
   // 판매 통계
   const [productCount, setProductCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
@@ -50,6 +57,13 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "follow" && userId && !followLoadedRef.current) {
+      followLoadedRef.current = true;
+      fetchFollowData(userId);
+    }
+  }, [activeTab, userId]);
 
   useEffect(() => {
     if (activeTab === "stats" && isSeller && userId && !statsLoadedRef.current) {
@@ -101,6 +115,33 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchFollowData = async (uid: string) => {
+    setFollowLoading(true);
+    try {
+      const [{ data: followingRows }, { data: followerRows }] = await Promise.all([
+        supabase.from("follows").select("following_id").eq("follower_id", uid),
+        supabase.from("follows").select("follower_id").eq("following_id", uid),
+      ]);
+      const followingIds = (followingRows || []).map((r: any) => r.following_id);
+      const followerIds = (followerRows || []).map((r: any) => r.follower_id);
+      const allIds = [...new Set([...followingIds, ...followerIds])];
+      if (allIds.length === 0) { setFollowing([]); setFollowers([]); return; }
+      const { data: profiles } = await supabase
+        .from("profiles").select("id, nickname, avatar_url, bio").in("id", allIds);
+      const map: Record<string, FollowProfile> = {};
+      (profiles || []).forEach((p: any) => { map[p.id] = { id: p.id, nickname: p.nickname || "익명", avatar_url: p.avatar_url, bio: p.bio }; });
+      setFollowing(followingIds.map((id: string) => map[id]).filter(Boolean));
+      setFollowers(followerIds.map((id: string) => map[id]).filter(Boolean));
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async (targetId: string) => {
+    await supabase.from("follows").delete().eq("follower_id", userId).eq("following_id", targetId);
+    setFollowing((prev) => prev.filter((p) => p.id !== targetId));
   };
 
   const fetchSellerStats = async (uid: string) => {
@@ -224,6 +265,7 @@ export default function ProfilePage() {
 
   const tabs: { id: TabId; label: string; sellerOnly?: boolean }[] = [
     { id: "basic", label: "기본 정보" },
+    { id: "follow", label: "팔로우" },
     { id: "seller", label: "판매자 등록" },
     { id: "business", label: "사업자 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
@@ -332,6 +374,71 @@ export default function ProfilePage() {
               <button type="button" onClick={handleSave} disabled={saving} style={{ ...actionBtn, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
                 {saving ? "저장 중..." : "저장하기"}
               </button>
+            </div>
+          )}
+
+          {/* 팔로우 탭 */}
+          {activeTab === "follow" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              <h2 style={sectionTitle}>팔로우</h2>
+              {followLoading ? (
+                <p style={{ color: "#6b7280", fontSize: 14 }}>불러오는 중...</p>
+              ) : (
+                <>
+                  {/* 내가 팔로우한 판매자 */}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>
+                      내가 팔로우한 판매자 ({following.length})
+                    </div>
+                    {following.length === 0 ? (
+                      <p style={{ fontSize: 14, color: "#9ca3af" }}>팔로우한 판매자가 없습니다.</p>
+                    ) : (
+                      following.map((p) => (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
+                          <img src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
+                            style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>{p.nickname}</div>
+                            {p.bio && (
+                              <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {p.bio}
+                              </div>
+                            )}
+                          </div>
+                          <button type="button" onClick={() => handleUnfollow(p.id)} style={{
+                            marginLeft: "auto", fontSize: 12, color: "#ef4444",
+                            border: "1px solid #ef4444", borderRadius: 8,
+                            padding: "4px 10px", background: "white", cursor: "pointer", flexShrink: 0,
+                          }}>
+                            팔로우 취소
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* 구분선 */}
+                  <div style={{ height: 1, background: "#e5e7eb" }} />
+
+                  {/* 나를 팔로우한 유저 */}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#374151", marginBottom: 12 }}>
+                      나를 팔로우한 유저 ({followers.length})
+                    </div>
+                    {followers.length === 0 ? (
+                      <p style={{ fontSize: 14, color: "#9ca3af" }}>팔로워가 없습니다.</p>
+                    ) : (
+                      followers.map((p) => (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
+                          <img src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
+                            style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+                          <div style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>{p.nickname}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
