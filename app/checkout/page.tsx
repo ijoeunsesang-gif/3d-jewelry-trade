@@ -55,16 +55,26 @@ function CheckoutContent() {
         return;
       }
       const payload = decodeJwt(token) as any;
-      setBuyerEmail(payload?.email || "");
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const email =
+          user.email ||
+          user.user_metadata?.email ||
+          user.user_metadata?.kakao_account?.email ||
+          user.identities?.[0]?.identity_data?.email ||
+          payload?.email ||
+          "";
+        setBuyerEmail(email);
+
         const name =
           user.user_metadata?.full_name ||
           user.user_metadata?.name ||
           user.user_metadata?.nickname ||
           "";
         setBuyerName(name);
+      } else {
+        setBuyerEmail(payload?.email || "");
       }
 
       if (mode === "direct") {
