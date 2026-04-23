@@ -205,6 +205,9 @@ export default function CommissionDetailPage() {
       };
       setResults((prev) => [...prev, newRow]);
       setLinkPanelOpen(false);
+      if (commission?.user_id && commission.user_id !== myId) {
+        await sendNotification(commission.user_id, "result_link", "결과물 링크 등록", "판매자가 결과물 링크를 등록했습니다.", `/commission/${id}`);
+      }
       showSuccess("등록되었습니다.");
     } catch (e: any) {
       showError(e.message || "등록 실패");
@@ -312,6 +315,9 @@ export default function CommissionDetailPage() {
       if (error) throw error;
       setCommentText("");
       await fetchComments();
+      if (commission?.user_id && commission.user_id !== myId) {
+        await sendNotification(commission.user_id, "comment", "새 댓글", "의뢰에 새 댓글이 달렸습니다.", `/commission/${id}`);
+      }
     } catch (e: any) {
       showError(e.message || "댓글 등록 실패");
     } finally {
