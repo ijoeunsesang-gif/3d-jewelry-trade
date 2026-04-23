@@ -254,7 +254,8 @@ export default function CommissionListPage() {
                     width: 32, height: 32, borderRadius: "50%",
                     background: "rgba(255,255,255,0.9)", border: "none",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", fontSize: 18,
+                    lineHeight: 1, padding: 0,
+                    cursor: "pointer", fontSize: 20,
                     color: bookmarkedIds.has(c.id) ? "#f59e0b" : "#9ca3af",
                   }}
                 >
