@@ -103,8 +103,8 @@ export default function CommissionListPage() {
 
         if (tab === "public") {
           query = query.eq("is_private", false);
-        } else if (tab === "private") {
-          query = query.eq("is_private", true);
+        } else if (tab === "private" && uid) {
+          query = query.eq("is_private", true).or(`user_id.eq.${uid},target_seller_id.eq.${uid}`);
         } else if (tab === "mine" && uid) {
           query = query.eq("user_id", uid);
         }
