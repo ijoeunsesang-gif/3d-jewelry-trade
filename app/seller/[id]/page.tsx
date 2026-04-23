@@ -7,6 +7,8 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
+import GradeBadge from "../../components/GradeBadge";
+import { Grade } from "@/lib/grades";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
@@ -537,18 +539,35 @@ export default function SellerPage() {
               textAlign: "center",
             }}
           >
-            <img
-              src={seller?.avatar_url || "/default-avatar.png"}
-              alt={seller?.nickname || "seller"}
-              style={{
-                width: 108,
-                height: 108,
+            {(() => {
+              const grade = (seller?.grade || "sprout") as Grade;
+              const hasRing = grade === "pro" || grade === "master";
+              const ringStyle = hasRing ? {
+                padding: 3,
                 borderRadius: "50%",
-                objectFit: "cover",
-                border: "1px solid #e5e7eb",
-                background: "#f8fafc",
-              }}
-            />
+                background: grade === "master"
+                  ? "linear-gradient(135deg, #f59e0b, #d97706, #fbbf24)"
+                  : "linear-gradient(135deg, #7c3aed, #6d28d9, #a78bfa)",
+                display: "inline-block",
+              } : {};
+              return (
+                <div style={ringStyle}>
+                  <img
+                    src={seller?.avatar_url || "/default-avatar.png"}
+                    alt={seller?.nickname || "seller"}
+                    style={{
+                      width: 108,
+                      height: 108,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: hasRing ? "3px solid white" : "1px solid #e5e7eb",
+                      background: "#f8fafc",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              );
+            })()}
 
             <h1
               style={{
@@ -560,6 +579,12 @@ export default function SellerPage() {
             >
               {seller?.nickname || "판매자"}
             </h1>
+
+            {seller?.grade && seller.grade !== "sprout" && (
+              <div style={{ marginBottom: 6 }}>
+                <GradeBadge grade={seller.grade as Grade} size="md" />
+              </div>
+            )}
 
             <p
               style={{

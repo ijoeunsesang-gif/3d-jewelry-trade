@@ -105,6 +105,23 @@ function PaymentSuccessContent() {
         if (dbError) {
           console.error("구매 저장 실패:", dbError);
         }
+
+        // 판매자 등급 업데이트
+        const gradePayload = pending.items.map((item) => ({
+          modelId: item.id,
+          amount: item.price,
+        }));
+        const gradeToken = getAccessToken();
+        if (gradeToken) {
+          fetch("/api/grade/update", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${gradeToken}`,
+            },
+            body: JSON.stringify({ purchases: gradePayload }),
+          }).catch((e) => console.error("등급 업데이트 실패:", e));
+        }
       }
 
       // 완료 처리

@@ -102,8 +102,28 @@ export default function AdminPage() {
       padding: "36px 20px 80px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
-      <h1 style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#111827" }}>관리자 페이지</h1>
-      <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 15 }}>1:1 문의 관리</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 36, fontWeight: 900, color: "#111827" }}>관리자 페이지</h1>
+          <p style={{ margin: "8px 0 0", color: "#6b7280", fontSize: 15 }}>1:1 문의 관리</p>
+        </div>
+        <button
+          onClick={() => router.push("/admin/settlement")}
+          style={{
+            height: 44,
+            padding: "0 20px",
+            borderRadius: 14,
+            border: "1px solid #d1d5db",
+            background: "white",
+            color: "#111827",
+            fontWeight: 800,
+            cursor: "pointer",
+            fontSize: 14,
+          }}
+        >
+          정산 관리 →
+        </button>
+      </div>
 
       {/* 필터 */}
       <div style={{ display: "flex", gap: 8, marginTop: 28, flexWrap: "wrap" }}>
