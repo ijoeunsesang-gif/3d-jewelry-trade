@@ -76,10 +76,12 @@ async function sendNotification(
   content: string,
   link: string,
 ) {
-  await supabase.from("notifications").insert({
-    user_id: userId, type, title, content, link, is_read: false,
+  console.log("알림 발송 시도:", userId, type, content);
+  const { error } = await supabase.from("notifications").insert({
+    user_id: userId, type, message: `${title}: ${content}`, link, is_read: false,
   });
-  window.dispatchEvent(new Event("notifications-updated"));
+  if (error) console.error("알림 insert 실패:", error);
+  else window.dispatchEvent(new Event("notifications-updated"));
 }
 
 export default function CommissionDetailPage() {
