@@ -57,6 +57,16 @@ function CheckoutContent() {
       const payload = decodeJwt(token) as any;
       setBuyerEmail(payload?.email || "");
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const name =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.user_metadata?.nickname ||
+          "";
+        setBuyerName(name);
+      }
+
       if (mode === "direct") {
         const pendingOrder = JSON.parse(
           localStorage.getItem("pendingOrder") || "null"
