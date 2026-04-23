@@ -7,6 +7,7 @@ export type ProfileItem = {
   avatar_url?: string | null;
   bio?: string | null;
   created_at?: string | null;
+  grade?: string | null;
 };
 
 export async function getProfile(userId?: string | null): Promise<ProfileItem | null> {
@@ -17,7 +18,7 @@ export async function getProfile(userId?: string | null): Promise<ProfileItem | 
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, email, nickname, avatar_url, bio, created_at")
+    .select("id, email, nickname, avatar_url, bio, created_at, grade")
     .eq("id", userId)
     .maybeSingle();
 

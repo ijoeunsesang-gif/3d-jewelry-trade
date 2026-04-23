@@ -8,6 +8,8 @@ import { supabase } from "../../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { getProfile } from "../../lib/getProfile";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
+import GradeBadge from "../../components/GradeBadge";
+import { Grade } from "@/lib/grades";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
@@ -750,8 +752,11 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                 }}
               />
               <div>
-                <div style={{ fontWeight: 800 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 800 }}>
                   {seller.nickname || "판매자"}
+                  {seller.grade && (
+                    <GradeBadge grade={seller.grade as Grade} size="sm" />
+                  )}
                 </div>
                 <div style={{ fontSize: 12, color: "#6b7280" }}>
                   판매자 페이지 이동

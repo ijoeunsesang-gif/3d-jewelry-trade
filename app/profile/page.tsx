@@ -659,7 +659,7 @@ function GradeTab({
         flexDirection: "column",
         gap: 14,
       }}>
-        <GradeBadge grade={grade} size="lg" />
+        <GradeBadge grade={grade} size="xl" />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4 }}>
           {[
             { label: "수수료율", value: `${Math.round(cfg.commission * 100)}%` },
