@@ -513,7 +513,7 @@ export default function CommissionDetailPage() {
     }}>
       <Link href="/commission" style={{
         display: "inline-flex", alignItems: "center", gap: 4,
-        color: "#6b7280", textDecoration: "none", fontSize: 14, marginBottom: 24,
+        color: "#6b7280", textDecoration: "none", fontSize: 28, fontWeight: 700, marginBottom: 24,
       }}>
         ← 목록으로
       </Link>

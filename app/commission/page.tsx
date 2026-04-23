@@ -35,6 +35,7 @@ type Commission = {
   created_at: string;
   nickname: string;
   is_private: boolean;
+  commission_results?: { count: number }[];
 };
 
 const TABS: { key: Tab; label: string }[] = [
@@ -90,7 +91,7 @@ export default function CommissionListPage() {
         if (ids.length === 0) { setCommissions([]); return; }
         const { data: cData, error } = await supabase
           .from("commissions")
-          .select("id, title, images, status, user_id, created_at, is_private")
+          .select("id, title, images, status, user_id, created_at, is_private, commission_results(count)")
           .in("id", ids)
           .order("created_at", { ascending: false });
         if (error || !cData) { setCommissions([]); return; }
@@ -98,7 +99,7 @@ export default function CommissionListPage() {
       } else {
         let query = supabase
           .from("commissions")
-          .select("id, title, images, status, user_id, created_at, is_private")
+          .select("id, title, images, status, user_id, created_at, is_private, commission_results(count)")
           .order("created_at", { ascending: false });
 
         if (tab === "public") {
@@ -284,14 +285,20 @@ export default function CommissionListPage() {
                 {/* 카드 내용 */}
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700,
-                      color: STATUS_COLOR[c.status] || "#374151",
-                      background: STATUS_BG[c.status] || "#f3f4f6",
-                      padding: "2px 9px", borderRadius: 999,
-                    }}>
-                      {STATUS_LABEL[c.status] || c.status}
-                    </span>
+                    {(() => {
+                      const resultCount = c.commission_results?.[0]?.count ?? 0;
+                      const showResultBadge = c.status === "open" && resultCount >= 1;
+                      return (
+                        <span style={{
+                          fontSize: 11, fontWeight: 700,
+                          color: showResultBadge ? "#16a34a" : (STATUS_COLOR[c.status] || "#374151"),
+                          background: showResultBadge ? "#dcfce7" : (STATUS_BG[c.status] || "#f3f4f6"),
+                          padding: "2px 9px", borderRadius: 999,
+                        }}>
+                          {showResultBadge ? `링크 ${resultCount}개` : (STATUS_LABEL[c.status] || c.status)}
+                        </span>
+                      );
+                    })()}
                     <span style={{ fontSize: 11, color: "#9ca3af" }}>{formatDate(c.created_at)}</span>
                   </div>
                   <div style={{
