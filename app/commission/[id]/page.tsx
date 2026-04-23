@@ -165,16 +165,25 @@ export default function CommissionDetailPage() {
   const fetchResults = async () => {
     const { data } = await supabase
       .from("commission_results")
-      .select("*, profiles(nickname)")
+      .select("id, commission_id, seller_id, result_link")
       .eq("commission_id", id);
-    const rows = (data || []).map((r: any) => ({
+    const rows = data || [];
+    if (rows.length === 0) { setResults([]); return; }
+
+    const sellerIds = rows.map((r: any) => r.seller_id);
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("id, nickname")
+      .in("id", sellerIds);
+    const profileMap = Object.fromEntries((profilesData || []).map((p: any) => [p.id, p.nickname]));
+
+    setResults(rows.map((r: any) => ({
       id: r.id,
       commission_id: r.commission_id,
       seller_id: r.seller_id,
       result_link: r.result_link,
-      nickname: (Array.isArray(r.profiles) ? r.profiles[0]?.nickname : r.profiles?.nickname) || "판매자",
-    }));
-    setResults(rows);
+      nickname: profileMap[r.seller_id] || "판매자",
+    })));
   };
 
   const handleResultInsert = async () => {
@@ -184,13 +193,15 @@ export default function CommissionDetailPage() {
       const { data, error } = await supabase
         .from("commission_results")
         .insert({ commission_id: id, seller_id: myId, result_link: resultLink.trim() })
-        .select("*, profiles(nickname)")
+        .select("id, commission_id, seller_id, result_link")
         .single();
       if (error) throw error;
+      const { data: profile } = await supabase
+        .from("profiles").select("nickname").eq("id", myId).single();
       const newRow: CommissionResult = {
         id: data.id, commission_id: data.commission_id, seller_id: data.seller_id,
         result_link: data.result_link,
-        nickname: (Array.isArray(data.profiles) ? data.profiles[0]?.nickname : data.profiles?.nickname) || "판매자",
+        nickname: profile?.nickname || "판매자",
       };
       setResults((prev) => [...prev, newRow]);
       setLinkPanelOpen(false);
