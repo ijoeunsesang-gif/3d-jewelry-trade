@@ -512,8 +512,9 @@ export default function CommissionDetailPage() {
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
       <Link href="/commission" style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        color: "#6b7280", textDecoration: "none", fontSize: 28, fontWeight: 700, marginBottom: 24,
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        fontSize: 18, fontWeight: 700, color: '#111827',
+        textDecoration: 'none', marginBottom: 16, cursor: 'pointer',
       }}>
         ← 목록으로
       </Link>
