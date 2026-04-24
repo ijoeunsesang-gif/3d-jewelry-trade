@@ -288,6 +288,7 @@ export default function ProfilePage() {
     try {
       const now = new Date().toISOString();
       const { error } = await supabase.from("profiles").update({
+        role: "seller",
         seller_applied_at: now,
         bank_name: bankName,
         account_holder: accountHolder,
@@ -296,10 +297,12 @@ export default function ProfilePage() {
         business_name: businessName || null,
       }).eq("id", userId);
       if (error) throw error;
+      setIsSeller(true);
       setSellerAppliedAt(now);
-      showSuccess("신청이 완료되었습니다. 검토 후 연락드립니다.");
+      showSuccess("판매자 등록이 완료되었습니다!");
+      router.push("/upload");
     } catch (e: any) {
-      showError(e.message || "신청 실패. 다시 시도해주세요.");
+      showError(e.message || "등록 실패. 다시 시도해주세요.");
     } finally {
       setSellerRegistering(false);
     }
@@ -633,22 +636,8 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              {/* ─ 심사 중 ─ */}
-              {!isSeller && sellerAppliedAt && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#d97706", fontSize: 13, fontWeight: 700 }}>
-                    ⏳ 심사 중입니다.
-                  </div>
-                  {bankName && (
-                    <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "14px 18px", background: "white", fontSize: 13, color: "#6b7280" }}>
-                      신청 계좌: <strong style={{ color: "#111827" }}>{bankName} {maskAccount(accountNumber)}</strong>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* ─ 미신청 or 수정 모드 → 폼 ─ */}
-              {(!sellerAppliedAt || (isSeller && settlementEditing)) && (
+              {(!isSeller || settlementEditing) && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
                   {/* 정산 정보 섹션 */}
