@@ -300,7 +300,6 @@ export default function ProfilePage() {
       setIsSeller(true);
       setSellerAppliedAt(now);
       showSuccess("판매자 등록이 완료되었습니다!");
-      router.push("/upload");
     } catch (e: any) {
       showError(e.message || "등록 실패. 다시 시도해주세요.");
     } finally {
