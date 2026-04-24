@@ -891,10 +891,11 @@ function GradeTab({
         background: cfg.bg,
         display: "flex",
         flexDirection: "column",
+        alignItems: "center",
         gap: 14,
       }}>
         <GradeBadge grade={grade} size="xl" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4, width: "100%" }}>
           {[
             { label: "수수료율", value: `${Math.round(cfg.commission * 100)}%` },
             { label: "총 판매 건수", value: `${count.toLocaleString("ko-KR")}건` },
@@ -905,6 +906,7 @@ function GradeTab({
               borderRadius: 12,
               padding: "14px 16px",
               border: "1px solid rgba(0,0,0,0.06)",
+              textAlign: "center",
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</div>
               <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{value}</div>
