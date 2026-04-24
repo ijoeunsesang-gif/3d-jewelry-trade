@@ -289,9 +289,8 @@ export default function Header() {
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* 섹션 2: 다운로드 / 판매통계 / 찜 / 장바구니 */}
+        {/* 섹션 2: 다운로드 / 찜 / 장바구니 */}
         <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>내 다운로드</MyMenuLink>
-        <MyMenuLink href="/sales"     icon={<IconDropChart   active={pathname.startsWith("/sales")}     />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/sales")}>판매통계</MyMenuLink>
         <MyMenuLink href="/favorites" icon={<IconDropHeart   active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>찜</MyMenuLink>
         <MyMenuLink href="/cart"      icon={<IconDropCart    active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>장바구니</MyMenuLink>
 

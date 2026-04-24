@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -10,6 +10,9 @@ import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
 
 type TabId = "basic" | "follow" | "seller" | "stats" | "grade";
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null };
+type PurchaseRow = { id: string; model_id: string; price: number; created_at: string };
+type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
+type PeriodType = "7days" | "30days" | "all" | "monthly";
 
 const GOLD = "#c9a84c";
 const DARK = "#111827";
@@ -31,7 +34,6 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [sellerRegistering, setSellerRegistering] = useState(false);
   const [bizUploading, setBizUploading] = useState(false);
-  const [statsLoading, setStatsLoading] = useState(false);
 
   // 계정 정보
   const [userId, setUserId] = useState("");
@@ -67,12 +69,6 @@ export default function ProfilePage() {
   const [followLoading, setFollowLoading] = useState(false);
   const followLoadedRef = useRef(false);
 
-  // 판매 통계
-  const [productCount, setProductCount] = useState(0);
-  const [salesCount, setSalesCount] = useState(0);
-  const [monthlyCount, setMonthlyCount] = useState(0);
-  const statsLoadedRef = useRef(false);
-
   // 내 등급
   const [gradeInfo, setGradeInfo] = useState<{ grade: Grade; totalCount: number; totalAmount: number } | null>(null);
   const [gradeLoading, setGradeLoading] = useState(false);
@@ -88,13 +84,6 @@ export default function ProfilePage() {
       fetchFollowData(userId);
     }
   }, [activeTab, userId]);
-
-  useEffect(() => {
-    if (activeTab === "stats" && isSeller && userId && !statsLoadedRef.current) {
-      statsLoadedRef.current = true;
-      fetchSellerStats(userId);
-    }
-  }, [activeTab, isSeller, userId]);
 
   useEffect(() => {
     if (activeTab === "grade" && isSeller && userId && !gradeLoadedRef.current) {
@@ -178,27 +167,6 @@ export default function ProfilePage() {
   const handleUnfollow = async (targetId: string) => {
     await supabase.from("follows").delete().eq("follower_id", userId).eq("following_id", targetId);
     setFollowing((prev) => prev.filter((p) => p.id !== targetId));
-  };
-
-  const fetchSellerStats = async (uid: string) => {
-    setStatsLoading(true);
-    try {
-      const { data: models } = await sbAuthFetch("models", `?select=id&seller_id=eq.${uid}`);
-      const modelIds = ((models as any[]) || []).map((m: any) => m.id);
-      setProductCount(modelIds.length);
-      if (modelIds.length === 0) return;
-
-      const { data: purchases } = await sbAuthFetch(
-        "purchases",
-        `?select=id,created_at&model_id=in.(${modelIds.join(",")})`
-      );
-      const rows = (purchases as any[]) || [];
-      setSalesCount(rows.length);
-      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-      setMonthlyCount(rows.filter((r: any) => r.created_at >= monthStart).length);
-    } finally {
-      setStatsLoading(false);
-    }
   };
 
   const fetchGradeData = async (uid: string) => {
@@ -764,18 +732,7 @@ export default function ProfilePage() {
 
           {/* 판매 통계 탭 (seller 전용) */}
           {activeTab === "stats" && isSeller && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <h2 style={sectionTitle}>판매 통계</h2>
-              {statsLoading ? (
-                <p style={{ color: "#6b7280", fontSize: 14 }}>통계를 불러오는 중...</p>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
-                  <StatCard label="등록 상품" value={productCount} unit="개" />
-                  <StatCard label="총 판매" value={salesCount} unit="건" />
-                  <StatCard label="이번 달" value={monthlyCount} unit="건" highlight />
-                </div>
-              )}
-            </div>
+            <SalesTab userId={userId} />
           )}
 
         </section>
@@ -1006,18 +963,216 @@ function ProgressBar({ label, current, target, pct, color, unit = "건" }: {
   );
 }
 
-function StatCard({ label, value, unit, highlight }: { label: string; value: number; unit: string; highlight?: boolean }) {
+/* ── 판매 통계 탭 ── */
+function SalesTab({ userId }: { userId: string }) {
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [salesModels, setSalesModels] = useState<ModelRow[]>([]);
+  const [salesPurchases, setSalesPurchases] = useState<PurchaseRow[]>([]);
+  const [period, setPeriod] = useState<PeriodType>("7days");
+  const salesLoadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!userId || salesLoadedRef.current) return;
+    salesLoadedRef.current = true;
+    (async () => {
+      try {
+        setSalesLoading(true);
+        const { data: myModels, error: modelError } = await sbAuthFetch("models", `?select=id,title,thumbnail,thumbnail_path,seller_id&seller_id=eq.${userId}`);
+        if (modelError) { setSalesLoading(false); return; }
+        setSalesModels((myModels as ModelRow[]) || []);
+        const modelIds = ((myModels as ModelRow[]) || []).map((m) => m.id);
+        if (modelIds.length === 0) { setSalesPurchases([]); setSalesLoading(false); return; }
+        const { data: purchaseData, error: purchaseError } = await sbAuthFetch("purchases", `?select=id,model_id,price,created_at&model_id=in.(${modelIds.join(",")})&order=created_at.desc`);
+        if (purchaseError) { setSalesLoading(false); return; }
+        setSalesPurchases((purchaseData as PurchaseRow[]) || []);
+      } catch (e) {
+        console.error("판매 통계 불러오기 오류:", e);
+      } finally {
+        setSalesLoading(false);
+      }
+    })();
+  }, [userId]);
+
+  const filteredPurchases = useMemo(() => {
+    if (period === "all" || period === "monthly") return salesPurchases;
+    const days = period === "7days" ? 7 : 30;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return salesPurchases.filter((row) => new Date(row.created_at) >= cutoff);
+  }, [salesPurchases, period]);
+
+  const modelMap = useMemo(() => {
+    const map = new Map<string, ModelRow>();
+    salesModels.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [salesModels]);
+
+  const totalSalesCount = filteredPurchases.length;
+  const totalRevenue = filteredPurchases.reduce((sum, row) => sum + (row.price || 0), 0);
+  const averagePrice = totalSalesCount > 0 ? Math.round(totalRevenue / totalSalesCount) : 0;
+
+  const topModels = useMemo(() => {
+    const grouped = new Map<string, { modelId: string; title: string; count: number; revenue: number }>();
+    filteredPurchases.forEach((purchase) => {
+      const model = modelMap.get(purchase.model_id);
+      const current = grouped.get(purchase.model_id);
+      if (current) { current.count += 1; current.revenue += purchase.price || 0; }
+      else { grouped.set(purchase.model_id, { modelId: purchase.model_id, title: model?.title || "알 수 없는 모델", count: 1, revenue: purchase.price || 0 }); }
+    });
+    return Array.from(grouped.values()).sort((a, b) => b.revenue - a.revenue);
+  }, [filteredPurchases, modelMap]);
+
+  const chartData = useMemo(() => {
+    if (period === "monthly") {
+      const monthMap = new Map<string, { label: string; revenue: number; count: number }>();
+      salesPurchases.forEach((row) => {
+        const date = new Date(row.created_at);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const current = monthMap.get(key);
+        if (current) { current.revenue += row.price || 0; current.count += 1; }
+        else { monthMap.set(key, { label: key, revenue: row.price || 0, count: 1 }); }
+      });
+      return Array.from(monthMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+    }
+    const chartDays = period === "30days" ? 10 : 7;
+    const today = new Date();
+    const result: { label: string; revenue: number; count: number }[] = [];
+    for (let i = chartDays - 1; i >= 0; i -= 1) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const key = `${date.getFullYear()}-${mm}-${dd}`;
+      const dayRows = filteredPurchases.filter((row) => row.created_at.slice(0, 10) === key);
+      result.push({ label: `${mm}/${dd}`, revenue: dayRows.reduce((sum, row) => sum + (row.price || 0), 0), count: dayRows.length });
+    }
+    return result;
+  }, [filteredPurchases, salesPurchases, period]);
+
+  const maxRevenue = Math.max(...chartData.map((d) => d.revenue), 1);
+
+  const getThumbUrl = (model?: ModelRow) => {
+    if (!model) return "";
+    if (model.thumbnail_path) return supabase.storage.from("thumbnails").getPublicUrl(model.thumbnail_path).data.publicUrl;
+    return model.thumbnail || "";
+  };
+
+  if (salesLoading) {
+    return <div style={{ padding: "20px 0" }}><p style={{ color: "#6b7280" }}>판매 통계 불러오는 중...</p></div>;
+  }
+
   return (
-    <div style={{
-      border: "1px solid #e5e7eb", borderRadius: 14, padding: 20,
-      display: "flex", flexDirection: "column", alignItems: "center",
-      textAlign: "center", gap: 8, background: "white",
-    }}>
-      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
-        <span style={{ fontSize: 32, fontWeight: 900, color: highlight ? GOLD : "#111827" }}>{value}</span>
-        <span style={{ fontSize: 13, color: "#9ca3af", fontWeight: 700 }}>{unit}</span>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <h2 style={sectionTitle}>판매 통계</h2>
+        <select
+          value={period}
+          onChange={(e) => setPeriod(e.target.value as PeriodType)}
+          style={{ height: 38, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 10px", background: "white", fontWeight: 700, color: "#111827", outline: "none", fontSize: 13 }}
+        >
+          <option value="7days">최근 7일</option>
+          <option value="30days">최근 30일</option>
+          <option value="all">전체 기간</option>
+          <option value="monthly">월별 보기</option>
+        </select>
       </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }} className="sales-summary-grid">
+        <SalesStatCard title="총 판매 수" value={`${totalSalesCount}건`} sub="선택한 기간 기준" />
+        <SalesStatCard title="총 매출" value={`${totalRevenue.toLocaleString("ko-KR")}원`} sub="선택한 기간 기준" />
+        <SalesStatCard title="평균 판매가" value={`${averagePrice.toLocaleString("ko-KR")}원`} sub="판매 1건당 평균" />
+        <SalesStatCard title="등록 모델 수" value={`${salesModels.length}개`} sub="현재 등록된 모델" />
+      </div>
+
+      <div style={{ border: "1px solid #e5e7eb", borderRadius: 18, background: "white", padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 6 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{period === "monthly" ? "월별 매출 흐름" : "매출 흐름"}</div>
+          <span style={{ color: "#6b7280", fontSize: 12, fontWeight: 700 }}>{period === "monthly" ? "월 단위 집계" : "선택 기간 기준"}</span>
+        </div>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: period === "monthly" ? `repeat(${Math.max(chartData.length, 1)}, minmax(0, 1fr))` : "repeat(10, minmax(0, 1fr))",
+          gap: 4,
+          alignItems: "end",
+          minHeight: 180,
+        }}>
+          {chartData.map((day, idx) => (
+            <div key={day.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "end", gap: 5 }}>
+              <div style={{ fontSize: 10, color: "#111827", fontWeight: 800, textAlign: "center", wordBreak: "keep-all" }}>
+                {day.revenue > 0 ? `${day.revenue.toLocaleString("ko-KR")}원` : "-"}
+              </div>
+              <div style={{ width: "100%", maxWidth: 80, borderRadius: 12, background: "linear-gradient(180deg,#22c55e 0%,#16a34a 100%)", minHeight: 5, height: `${Math.max((day.revenue / maxRevenue) * 140, day.revenue > 0 ? 10 : 5)}px` }} />
+              <div style={{ fontSize: 10, fontWeight: 800, color: "#111827", whiteSpace: "nowrap" }}>{idx % 2 === 0 ? day.label : ""}</div>
+              <div style={{ fontSize: 10, color: "#6b7280" }}>{day.count}건</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }} className="sales-two-col">
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 18, background: "white", padding: 18 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 12 }}>베스트셀러 모델</div>
+          {topModels.length === 0 ? (
+            <p style={{ color: "#6b7280", fontSize: 13 }}>아직 판매된 모델이 없습니다.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {topModels.slice(0, 5).map((item, idx) => (
+                <div key={item.modelId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eef2f7" }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 999, background: "#111827", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, flexShrink: 0 }}>{idx + 1}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{item.title}</div>
+                    <div style={{ marginTop: 2, fontSize: 11, color: "#6b7280" }}>판매 {item.count}건</div>
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 900, color: "#16a34a" }}>{item.revenue.toLocaleString("ko-KR")}원</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 18, background: "white", padding: 18 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 12 }}>최근 판매 내역</div>
+          {filteredPurchases.length === 0 ? (
+            <p style={{ color: "#6b7280", fontSize: 13 }}>표시할 판매 내역이 없습니다.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {filteredPurchases.slice(0, 5).map((row) => {
+                const model = modelMap.get(row.model_id);
+                const thumb = getThumbUrl(model);
+                return (
+                  <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eef2f7" }}>
+                    {thumb
+                      ? <img src={thumb} alt={model?.title || "thumb"} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+                      : <div style={{ width: 48, height: 48, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6", color: "#111827", fontWeight: 900, flexShrink: 0, fontSize: 11 }}>3D</div>
+                    }
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{model?.title || "알 수 없는 모델"}</div>
+                      <div style={{ marginTop: 3, color: "#6b7280", fontSize: 11 }}>{new Date(row.created_at).toLocaleDateString("ko-KR")}</div>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>{row.price.toLocaleString("ko-KR")}원</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 500px) {
+          .sales-two-col { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function SalesStatCard({ title, value, sub }: { title: string; value: string; sub: string }) {
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: "14px 16px" }}>
+      <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 700 }}>{title}</div>
+      <div style={{ marginTop: 8, fontSize: 22, lineHeight: 1.1, fontWeight: 900, color: "#111827" }}>{value}</div>
+      <div style={{ marginTop: 5, color: "#9ca3af", fontSize: 11 }}>{sub}</div>
     </div>
   );
 }
