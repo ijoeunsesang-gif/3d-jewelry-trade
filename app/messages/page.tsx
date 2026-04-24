@@ -6,6 +6,9 @@ import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 import type { ProfileItem } from "../lib/getProfile";
+import GradeBadge from "../components/GradeBadge";
+import { Grade } from "@/lib/grades";
+import { Phone } from "lucide-react";
 
 type ConversationItem = {
   id: string;
@@ -117,7 +120,7 @@ function MessagesContent() {
       );
 
       if (otherIds.length > 0) {
-        const { data: profileRows } = await sbFetch("profiles", `?id=in.(${otherIds.join(",")})`);
+        const { data: profileRows } = await sbFetch("profiles", `?select=id,nickname,avatar_url,bio,grade,phone_number&id=in.(${otherIds.join(",")})`);
 
         const nextMap: Record<string, ProfileItem> = {};
         (profileRows || []).forEach((row: ProfileItem) => {
@@ -424,12 +427,19 @@ function MessagesContent() {
                   />
 
                   <div>
-                    <div style={{ fontWeight: 900, color: "#111827" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 900, color: "#111827" }}>
                       {targetProfile.nickname || "사용자"}
+                      {targetProfile.grade && <GradeBadge grade={targetProfile.grade as Grade} size="sm" />}
                     </div>
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>
-                      대화 중
-                    </div>
+                    {targetProfile.phone_number && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#6b7280", marginTop: 3 }}>
+                        <Phone size={11} color="#16a34a" strokeWidth={2.5} />
+                        {targetProfile.phone_number}
+                      </div>
+                    )}
+                    {!targetProfile.phone_number && (
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>대화 중</div>
+                    )}
                   </div>
                 </div>
 
