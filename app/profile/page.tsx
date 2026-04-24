@@ -43,6 +43,8 @@ export default function ProfilePage() {
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [accountError, setAccountError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
 
@@ -215,6 +217,11 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!userId) return;
+    if (phoneNumber && !/^01[016789]-\d{3,4}-\d{4}$/.test(phoneNumber)) {
+      setPhoneError("올바른 휴대폰 번호 형식이 아닙니다. (예: 010-1234-5678)");
+      return;
+    }
+    setPhoneError("");
     setSaving(true);
     try {
       const { data: existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
@@ -282,6 +289,12 @@ export default function ProfilePage() {
       showError("예금주명, 은행명, 계좌번호는 필수 입력 항목입니다.");
       return;
     }
+    const acctDigits = accountNumber.replace(/\D/g, "");
+    if (acctDigits.length < 10 || acctDigits.length > 14) {
+      setAccountError("올바른 계좌번호를 입력해주세요. (숫자만 10~14자리)");
+      return;
+    }
+    setAccountError("");
     setSellerRegistering(true);
     try {
       const now = new Date().toISOString();
@@ -310,6 +323,12 @@ export default function ProfilePage() {
       showError("예금주명, 은행명, 계좌번호는 필수 입력 항목입니다.");
       return;
     }
+    const acctDigits = accountNumber.replace(/\D/g, "");
+    if (acctDigits.length < 10 || acctDigits.length > 14) {
+      setAccountError("올바른 계좌번호를 입력해주세요. (숫자만 10~14자리)");
+      return;
+    }
+    setAccountError("");
     setSettlementSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({
@@ -457,12 +476,15 @@ export default function ProfilePage() {
                 <label style={labelStyle}>연락처 <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "1px 7px", borderRadius: 999 }}>선택</span></label>
                 <input
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                  onChange={(e) => { setPhoneNumber(formatPhoneNumber(e.target.value)); setPhoneError(""); }}
                   placeholder="010-0000-0000"
                   inputMode="numeric"
-                  style={inputStyle}
+                  style={{ ...inputStyle, ...(phoneError ? { borderColor: "#ef4444" } : {}) }}
                 />
-                <p style={helperText}>판매자 페이지에 공개됩니다.</p>
+                {phoneError
+                  ? <p style={{ margin: 0, fontSize: 12, color: "#ef4444", fontWeight: 600 }}>{phoneError}</p>
+                  : <p style={helperText}>판매자 페이지에 공개됩니다.</p>
+                }
               </div>
 
               <div style={fieldWrap}>
@@ -703,13 +725,14 @@ export default function ProfilePage() {
                     <div style={fieldWrap}>
                       <label style={labelStyle}>계좌번호</label>
                       <input
-                        style={inputStyle}
+                        style={{ ...inputStyle, ...(accountError ? { borderColor: "#ef4444" } : {}) }}
                         type="text"
                         inputMode="numeric"
                         placeholder="숫자만 입력 (예: 123456789012)"
                         value={accountNumber}
-                        onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+                        onChange={(e) => { setAccountNumber(e.target.value.replace(/\D/g, "")); setAccountError(""); }}
                       />
+                      {accountError && <p style={{ margin: 0, fontSize: 12, color: "#ef4444", fontWeight: 600 }}>{accountError}</p>}
                     </div>
                   </div>
 
