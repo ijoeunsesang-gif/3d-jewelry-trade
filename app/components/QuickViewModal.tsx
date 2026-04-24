@@ -6,6 +6,8 @@ import styles from "../page.module.css";
 import type { ModelItem } from "./ModelCard";
 import type { ProfileItem } from "../lib/getProfile";
 import ErrorBoundary from "./ErrorBoundary";
+import GradeBadge from "./GradeBadge";
+import { Grade } from "@/lib/grades";
 
 const ModelViewer = dynamic(() => import("./ModelViewer"), { ssr: false });
 
@@ -101,8 +103,11 @@ export default function QuickViewModal({
                   }}
                 />
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 800, fontSize: 16 }}>
                     {seller.nickname || "판매자"}
+                    {seller.grade && (
+                      <GradeBadge grade={seller.grade as Grade} size="sm" />
+                    )}
                   </div>
                   <div style={{ fontSize: 14, color: "#6b7280" }}>
                     판매자 페이지 이동

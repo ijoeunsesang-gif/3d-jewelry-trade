@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
+import GradeBadge from "../../components/GradeBadge";
+import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 
@@ -67,6 +69,7 @@ type CommissionResult = {
   seller_id: string;
   result_link: string;
   nickname: string;
+  grade?: string | null;
 };
 
 async function sendNotification(
@@ -175,16 +178,17 @@ export default function CommissionDetailPage() {
     const sellerIds = rows.map((r: any) => r.seller_id);
     const { data: profilesData } = await supabase
       .from("profiles")
-      .select("id, nickname")
+      .select("id, nickname, grade")
       .in("id", sellerIds);
-    const profileMap = Object.fromEntries((profilesData || []).map((p: any) => [p.id, p.nickname]));
+    const profileMap = Object.fromEntries((profilesData || []).map((p: any) => [p.id, { nickname: p.nickname, grade: p.grade }]));
 
     setResults(rows.map((r: any) => ({
       id: r.id,
       commission_id: r.commission_id,
       seller_id: r.seller_id,
       result_link: r.result_link,
-      nickname: profileMap[r.seller_id] || "판매자",
+      nickname: profileMap[r.seller_id]?.nickname || "판매자",
+      grade: profileMap[r.seller_id]?.grade || null,
     })));
   };
 
@@ -199,11 +203,12 @@ export default function CommissionDetailPage() {
         .single();
       if (error) throw error;
       const { data: profile } = await supabase
-        .from("profiles").select("nickname").eq("id", myId).single();
+        .from("profiles").select("nickname, grade").eq("id", myId).single();
       const newRow: CommissionResult = {
         id: data.id, commission_id: data.commission_id, seller_id: data.seller_id,
         result_link: data.result_link,
         nickname: profile?.nickname || "판매자",
+        grade: (profile as any)?.grade || null,
       };
       setResults((prev) => [...prev, newRow]);
       setLinkPanelOpen(false);
@@ -962,8 +967,10 @@ export default function CommissionDetailPage() {
               <a key={r.id} href={r.result_link} style={{
                 padding: "8px 16px", background: "#111827", color: "white",
                 borderRadius: 10, fontSize: 13, fontWeight: 700, textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 6,
               }}>
                 {r.nickname}
+                {r.grade && <GradeBadge grade={r.grade as Grade} size="sm" />}
               </a>
             ))}
           </div>
