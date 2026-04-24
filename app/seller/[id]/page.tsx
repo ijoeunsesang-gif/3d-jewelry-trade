@@ -597,6 +597,12 @@ export default function SellerPage() {
             >
               {seller?.bio || "소개가 아직 없습니다."}
             </p>
+
+            {seller?.phone_number && (
+              <div style={{ marginTop: 10, fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                📞 {seller.phone_number}
+              </div>
+            )}
           </div>
 
           {currentUserId && currentUserId !== id && (

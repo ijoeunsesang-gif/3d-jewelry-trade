@@ -42,6 +42,7 @@ export default function ProfilePage() {
   const [isSocialUser, setIsSocialUser] = useState(false);
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
 
@@ -130,6 +131,7 @@ export default function ProfilePage() {
         setAccountNumber(profile.account_number || "");
         setBusinessNumber(profile.business_number || "");
         setBusinessName(profile.business_name || "");
+        setPhoneNumber(profile.phone_number || "");
       } else {
         const defaultNickname = email_?.split("@")[0] || "user";
         await supabase.from("profiles").insert({ id: uid, email: email_ || "", nickname: defaultNickname, bio: "", avatar_url: "" });
@@ -218,10 +220,10 @@ export default function ProfilePage() {
       const { data: existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
       const exists = (existingArr as any[])?.[0];
       if (exists) {
-        const { error } = await supabase.from("profiles").update({ nickname, bio, avatar_url: avatarUrl }).eq("id", userId);
+        const { error } = await supabase.from("profiles").update({ nickname, bio, avatar_url: avatarUrl, phone_number: phoneNumber || null }).eq("id", userId);
         if (error) { showError("프로필 저장에 실패했습니다."); return; }
       } else {
-        const { error } = await supabase.from("profiles").insert({ id: userId, email, nickname, bio, avatar_url: avatarUrl });
+        const { error } = await supabase.from("profiles").insert({ id: userId, email, nickname, bio, avatar_url: avatarUrl, phone_number: phoneNumber || null });
         if (error) { showError("프로필 저장에 실패했습니다."); return; }
       }
 
@@ -438,6 +440,18 @@ export default function ProfilePage() {
               <div style={fieldWrap}>
                 <label style={labelStyle}>소개글</label>
                 <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="소개를 입력하세요" style={textareaStyle} />
+              </div>
+
+              <div style={fieldWrap}>
+                <label style={labelStyle}>연락처 <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af" }}>선택</span></label>
+                <input
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
+                  placeholder="010-0000-0000"
+                  inputMode="numeric"
+                  style={inputStyle}
+                />
+                <p style={helperText}>판매자 페이지에 공개됩니다.</p>
               </div>
 
               <button type="button" onClick={handleSave} disabled={saving} style={{ ...actionBtn, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
@@ -1191,6 +1205,13 @@ function maskBusinessNumber(num: string) {
   const d = num.replace(/\D/g, "");
   if (d.length !== 10) return num;
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-****${d.slice(-1)}`;
+}
+
+function formatPhoneNumber(val: string) {
+  const d = val.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
 }
 
 function formatBusinessNumber(val: string) {
