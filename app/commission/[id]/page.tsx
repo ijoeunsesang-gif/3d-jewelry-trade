@@ -545,11 +545,11 @@ export default function CommissionDetailPage() {
             </h1>
             <span style={{
               flexShrink: 0, fontSize: 12, fontWeight: 700,
-              color: STATUS_COLOR[commission.status] || "#374151",
-              background: STATUS_BG[commission.status] || "#f3f4f6",
+              color: results.length > 0 ? "#16a34a" : (STATUS_COLOR[commission.status] || "#374151"),
+              background: results.length > 0 ? "#dcfce7" : (STATUS_BG[commission.status] || "#f3f4f6"),
               padding: "4px 12px", borderRadius: 999,
             }}>
-              {STATUS_LABEL[commission.status] || commission.status}
+              {results.length > 0 ? `링크 ${results.length}개` : (STATUS_LABEL[commission.status] || commission.status)}
             </span>
             {commission.is_private && (
               <span style={{
