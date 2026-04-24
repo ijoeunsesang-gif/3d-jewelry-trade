@@ -8,7 +8,7 @@ import { showError, showInfo, showSuccess } from "../lib/toast";
 import GradeBadge from "../components/GradeBadge";
 import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
 
-type TabId = "basic" | "follow" | "seller" | "business" | "stats" | "grade";
+type TabId = "basic" | "follow" | "seller" | "stats" | "grade";
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null };
 
 const GOLD = "#c9a84c";
@@ -40,9 +40,19 @@ export default function ProfilePage() {
   const [isSeller, setIsSeller] = useState(false);
   const [sellerAppliedAt, setSellerAppliedAt] = useState<string | null>(null);
 
-  // 사업자 등록
+  // 정산 정보
+  const [bankName, setBankName] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [settlementEditing, setSettlementEditing] = useState(false);
+  const [settlementSaving, setSettlementSaving] = useState(false);
+
+  // 사업자 정보
   const [bizRegUrl, setBizRegUrl] = useState("");
   const [bizRegPreview, setBizRegPreview] = useState("");
+  const [businessNumber, setBusinessNumber] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [bizInfoOpen, setBizInfoOpen] = useState(false);
 
   // 팔로우
   const [following, setFollowing] = useState<FollowProfile[]>([]);
@@ -119,6 +129,11 @@ export default function ProfilePage() {
         setIsSeller(profile.role === "seller");
         setSellerAppliedAt(profile.seller_applied_at || null);
         setBizRegUrl(profile.business_registration_url || "");
+        setBankName(profile.bank_name || "");
+        setAccountHolder(profile.account_holder || "");
+        setAccountNumber(profile.account_number || "");
+        setBusinessNumber(profile.business_number || "");
+        setBusinessName(profile.business_name || "");
       } else {
         const defaultNickname = email_?.split("@")[0] || "user";
         await supabase.from("profiles").insert({ id: uid, email: email_ || "", nickname: defaultNickname, bio: "", avatar_url: "" });
@@ -265,10 +280,21 @@ export default function ProfilePage() {
   };
 
   const handleSellerApply = async () => {
+    if (!bankName || !accountHolder || !accountNumber) {
+      showError("예금주명, 은행명, 계좌번호는 필수 입력 항목입니다.");
+      return;
+    }
     setSellerRegistering(true);
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase.from("profiles").update({ seller_applied_at: now }).eq("id", userId);
+      const { error } = await supabase.from("profiles").update({
+        seller_applied_at: now,
+        bank_name: bankName,
+        account_holder: accountHolder,
+        account_number: accountNumber,
+        business_number: businessNumber || null,
+        business_name: businessName || null,
+      }).eq("id", userId);
       if (error) throw error;
       setSellerAppliedAt(now);
       showSuccess("신청이 완료되었습니다. 검토 후 연락드립니다.");
@@ -279,20 +305,44 @@ export default function ProfilePage() {
     }
   };
 
-  const handleBizUpload = async (file: File, previewSrc: string) => {
+  const handleSettlementSave = async () => {
+    if (!bankName || !accountHolder || !accountNumber) {
+      showError("예금주명, 은행명, 계좌번호는 필수 입력 항목입니다.");
+      return;
+    }
+    setSettlementSaving(true);
+    try {
+      const { error } = await supabase.from("profiles").update({
+        bank_name: bankName,
+        account_holder: accountHolder,
+        account_number: accountNumber,
+        business_number: businessNumber || null,
+        business_name: businessName || null,
+      }).eq("id", userId);
+      if (error) throw error;
+      setSettlementEditing(false);
+      showSuccess("정산 정보가 저장되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "저장 실패");
+    } finally {
+      setSettlementSaving(false);
+    }
+  };
+
+  const handleBizLicenseUpload = async (file: File) => {
     if (!file || !userId) return;
-    setBizRegPreview(previewSrc);
+    setBizRegPreview(URL.createObjectURL(file));
     setBizUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `business/${userId}/${Date.now()}.${ext}`;
-      const bizForm = new FormData();
-      bizForm.append("file", file);
-      bizForm.append("bucket", "thumbnails");
-      bizForm.append("path", path);
-      const bizRes = await fetch("/api/upload", { method: "POST", body: bizForm });
-      if (!bizRes.ok) throw new Error("사업자 등록증 업로드 실패");
-      const { url } = await bizRes.json();
+      const form = new FormData();
+      form.append("file", file);
+      form.append("bucket", "thumbnails");
+      form.append("path", path);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (!res.ok) throw new Error("업로드 실패");
+      const { url } = await res.json();
       await supabase.from("profiles").update({ business_registration_url: url }).eq("id", userId);
       setBizRegUrl(url);
       showSuccess("사업자 등록증이 업로드되었습니다.");
@@ -303,11 +353,12 @@ export default function ProfilePage() {
     }
   };
 
+  const handleBizUpload = handleBizLicenseUpload;
+
   const tabs: { id: TabId; label: string; sellerOnly?: boolean }[] = [
     { id: "basic", label: "기본 정보" },
     { id: "follow", label: "팔로우" },
     { id: "seller", label: "판매자 등록" },
-    { id: "business", label: "사업자 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
     { id: "grade", label: "내 등급", sellerOnly: true },
   ];
@@ -485,78 +536,228 @@ export default function ProfilePage() {
 
           {/* 판매자 등록 탭 */}
           {activeTab === "seller" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               <h2 style={sectionTitle}>판매자 등록</h2>
 
-              {isSeller ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 700 }}>
-                  ✓ 판매자 인증 완료
-                </span>
-              ) : sellerAppliedAt ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#d97706", fontSize: 13, fontWeight: 700 }}>
-                  ⏳ 심사 중입니다.
-                </span>
-              ) : (
+              {/* ─ 안내문 패널 ─ */}
+              <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+                {/* 수수료 표 */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 8 }}>등급별 수수료</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                    {(["sprout","skilled","pro","master"] as const).map((g) => {
+                      const cfg = GRADE_CONFIG[g];
+                      return (
+                        <div key={g} style={{ background: cfg.bg, borderRadius: 10, padding: "10px 8px", textAlign: "center" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: cfg.color }}>{cfg.label}</div>
+                          <div style={{ fontSize: 17, fontWeight: 900, color: cfg.color, marginTop: 2 }}>{Math.round(cfg.commission * 100)}%</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* 정산 주기 */}
+                <div style={{ fontSize: 13, color: "#374151" }}>
+                  <span style={{ fontWeight: 800 }}>정산 주기:</span> 매월 말일 기준 익월 10일 정산
+                </div>
+                {/* 업로드 주의사항 */}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 6 }}>업로드 주의사항</div>
+                  <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 3 }}>
+                    {[
+                      "본인이 직접 제작한 3D 파일만 업로드 가능",
+                      "타인의 저작물 무단 사용 및 도용 금지",
+                      "상업적 사용이 가능한 파일만 등록",
+                      "지원 포맷: STL / OBJ / 3DM",
+                      "허위 정보 등록 시 판매자 자격 박탈",
+                    ].map((t) => (
+                      <li key={t} style={{ fontSize: 12, color: "#6b7280" }}>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* ─ 승인 완료 → 정보 표시 ─ */}
+              {isSeller && !settlementEditing && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <p style={{ margin: 0, fontSize: 14, color: "#374151" }}>
-                    판매자 등록을 신청하면 검토 후 승인됩니다.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleSellerApply}
-                    disabled={sellerRegistering}
-                    style={{ ...actionBtn, opacity: sellerRegistering ? 0.6 : 1, cursor: sellerRegistering ? "not-allowed" : "pointer" }}
-                  >
-                    {sellerRegistering ? "신청 중..." : "판매자 신청하기"}
-                  </button>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 700 }}>
+                    ✓ 판매자 인증 완료
+                  </div>
+
+                  {/* 정산 정보 표시 */}
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>정산 계좌</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
+                      <span style={{ color: "#6b7280", fontWeight: 600 }}>예금주</span>
+                      <span style={{ color: "#111827", fontWeight: 700 }}>{accountHolder || "—"}</span>
+                      <span style={{ color: "#6b7280", fontWeight: 600 }}>은행</span>
+                      <span style={{ color: "#111827", fontWeight: 700 }}>{bankName || "—"}</span>
+                      <span style={{ color: "#6b7280", fontWeight: 600 }}>계좌번호</span>
+                      <span style={{ color: "#111827", fontWeight: 700, fontFamily: "monospace" }}>
+                        {accountNumber ? `${bankName} ${maskAccount(accountNumber)}` : "—"}
+                      </span>
+                    </div>
+                    <button type="button" onClick={() => setSettlementEditing(true)} style={{ ...actionBtn, marginTop: 4, alignSelf: "flex-start" }}>
+                      정보 수정
+                    </button>
+                  </div>
+
+                  {/* 사업자 정보 토글 */}
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden", background: "white" }}>
+                    <button type="button" onClick={() => setBizInfoOpen((v) => !v)} style={{ width: "100%", padding: "14px 20px", background: "none", border: "none", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14, fontWeight: 800, color: "#111827" }}>
+                      <span>사업자 정보</span>
+                      <span style={{ fontSize: 18, color: "#9ca3af" }}>{bizInfoOpen ? "▲" : "▼"}</span>
+                    </button>
+                    {bizInfoOpen && (
+                      <div style={{ padding: "0 20px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
+                          <span style={{ color: "#6b7280", fontWeight: 600 }}>사업자번호</span>
+                          <span style={{ color: "#111827", fontWeight: 700, fontFamily: "monospace" }}>
+                            {businessNumber ? maskBusinessNumber(businessNumber) : "—"}
+                          </span>
+                          <span style={{ color: "#6b7280", fontWeight: 600 }}>상호명</span>
+                          <span style={{ color: "#111827", fontWeight: 700 }}>{businessName || "—"}</span>
+                          <span style={{ color: "#6b7280", fontWeight: 600 }}>사업자등록증</span>
+                          <span>
+                            {bizRegUrl
+                              ? <a href={bizRegUrl} target="_blank" rel="noopener noreferrer" style={{ color: GOLD, fontWeight: 700, textDecoration: "none", fontSize: 13 }}>보기</a>
+                              : <span style={{ color: "#9ca3af" }}>—</span>}
+                          </span>
+                        </div>
+                        <button type="button" onClick={() => { setSettlementEditing(true); setBizInfoOpen(false); }} style={{ ...actionBtn, alignSelf: "flex-start", marginTop: 4 }}>
+                          정보 수정
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* 사업자 등록 탭 */}
-          {activeTab === "business" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <h2 style={sectionTitle}>사업자 등록</h2>
-
-              {(bizRegPreview || bizRegUrl) && (
-                <img
-                  src={bizRegPreview || bizRegUrl}
-                  alt="사업자 등록증"
-                  style={{ maxWidth: 340, borderRadius: 12, border: "1px solid #e5e7eb" }}
-                />
+              {/* ─ 심사 중 ─ */}
+              {!isSeller && sellerAppliedAt && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#d97706", fontSize: 13, fontWeight: 700 }}>
+                    ⏳ 심사 중입니다.
+                  </div>
+                  {bankName && (
+                    <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "14px 18px", background: "white", fontSize: 13, color: "#6b7280" }}>
+                      신청 계좌: <strong style={{ color: "#111827" }}>{bankName} {maskAccount(accountNumber)}</strong>
+                    </div>
+                  )}
+                </div>
               )}
 
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                {bizRegUrl && !bizRegPreview && (
-                  <a href={bizRegUrl} target="_blank" rel="noopener noreferrer" style={{ color: GOLD, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
-                    🔗 등록증 보기
-                  </a>
-                )}
-                <label style={{
-                  height: 46, padding: "0 20px", borderRadius: 12,
-                  border: bizRegUrl ? "1px solid #d1d5db" : "1px dashed #d1d5db",
-                  background: bizRegUrl ? "white" : "#f8fafc",
-                  color: "#374151", fontSize: 14, fontWeight: 700,
-                  display: "inline-flex", alignItems: "center",
-                  cursor: bizUploading ? "not-allowed" : "pointer",
-                  opacity: bizUploading ? 0.6 : 1,
-                }}>
-                  {bizUploading ? "업로드 중..." : bizRegUrl ? "재업로드" : "사업자 등록증 업로드"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    disabled={bizUploading}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleBizUpload(f, URL.createObjectURL(f));
-                    }}
-                  />
-                </label>
-              </div>
-              {!bizRegUrl && !bizRegPreview && (
-                <p style={helperText}>JPG, PNG 등 이미지 파일을 업로드해주세요.</p>
+              {/* ─ 미신청 or 수정 모드 → 폼 ─ */}
+              {(!sellerAppliedAt || (isSeller && settlementEditing)) && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                  {/* 정산 정보 섹션 */}
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>정산 정보 <span style={{ fontSize: 11, color: "#ef4444" }}>필수</span></div>
+
+                    <div style={fieldWrap}>
+                      <label style={labelStyle}>예금주명</label>
+                      <input
+                        style={inputStyle}
+                        placeholder="홍길동"
+                        value={accountHolder}
+                        onChange={(e) => setAccountHolder(e.target.value)}
+                      />
+                    </div>
+
+                    <div style={fieldWrap}>
+                      <label style={labelStyle}>은행명</label>
+                      <select
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                      >
+                        <option value="">은행 선택</option>
+                        {["국민","신한","하나","우리","농협","기업","카카오","토스","SC제일","부산","대구","광주","전북","제주","새마을","신협","우체국"].map((b) => (
+                          <option key={b} value={b + "은행"}>{b}은행</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={fieldWrap}>
+                      <label style={labelStyle}>계좌번호</label>
+                      <input
+                        style={inputStyle}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="숫자만 입력 (예: 123456789012)"
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 사업자 정보 섹션 */}
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>사업자 정보 <span style={{ fontSize: 11, color: "#9ca3af" }}>선택</span></div>
+
+                    <div style={fieldWrap}>
+                      <label style={labelStyle}>사업자등록번호</label>
+                      <input
+                        style={inputStyle}
+                        placeholder="000-00-00000"
+                        value={businessNumber}
+                        onChange={(e) => setBusinessNumber(formatBusinessNumber(e.target.value))}
+                        maxLength={12}
+                      />
+                    </div>
+
+                    <div style={fieldWrap}>
+                      <label style={labelStyle}>상호명</label>
+                      <input
+                        style={inputStyle}
+                        placeholder="회사명 또는 상호"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                      />
+                    </div>
+
+                    <div style={fieldWrap}>
+                      <label style={labelStyle}>사업자등록증</label>
+                      {(bizRegPreview || bizRegUrl) && (
+                        <img src={bizRegPreview || bizRegUrl} alt="사업자 등록증" style={{ maxWidth: 280, borderRadius: 10, border: "1px solid #e5e7eb", marginBottom: 4 }} />
+                      )}
+                      <label style={{
+                        height: 44, padding: "0 18px", borderRadius: 12,
+                        border: "1px dashed #d1d5db", background: "#f8fafc",
+                        color: "#374151", fontSize: 13, fontWeight: 700,
+                        display: "inline-flex", alignItems: "center", alignSelf: "flex-start",
+                        cursor: bizUploading ? "not-allowed" : "pointer",
+                        opacity: bizUploading ? 0.6 : 1,
+                      }}>
+                        {bizUploading ? "업로드 중..." : bizRegUrl ? "재업로드" : "이미지 첨부"}
+                        <input type="file" accept="image/*" style={{ display: "none" }} disabled={bizUploading}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleBizLicenseUpload(f); }}
+                        />
+                      </label>
+                      <p style={helperText}>JPG, PNG 이미지 파일</p>
+                    </div>
+                  </div>
+
+                  {/* 제출 버튼 */}
+                  {isSeller ? (
+                    <div style={{ display: "flex", gap: 10 }}>
+                      <button type="button" onClick={handleSettlementSave} disabled={settlementSaving}
+                        style={{ ...actionBtn, opacity: settlementSaving ? 0.6 : 1, cursor: settlementSaving ? "not-allowed" : "pointer" }}>
+                        {settlementSaving ? "저장 중..." : "저장"}
+                      </button>
+                      <button type="button" onClick={() => setSettlementEditing(false)}
+                        style={{ height: 48, padding: "0 20px", borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={handleSellerApply} disabled={sellerRegistering}
+                      style={{ ...actionBtn, opacity: sellerRegistering ? 0.6 : 1, cursor: sellerRegistering ? "not-allowed" : "pointer" }}>
+                      {sellerRegistering ? "신청 중..." : "판매자 신청하기"}
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -824,6 +1025,29 @@ function StatCard({ label, value, unit, highlight }: { label: string; value: num
       </div>
     </div>
   );
+}
+
+/* ── 헬퍼 함수 ── */
+function maskAccount(num: string) {
+  const d = num.replace(/\D/g, "");
+  if (d.length < 6) return num;
+  const first = d.slice(0, 3);
+  const last = d.slice(-3);
+  const stars = "*".repeat(Math.min(d.length - 6, 8));
+  return `${first}-${stars}-${last}`;
+}
+
+function maskBusinessNumber(num: string) {
+  const d = num.replace(/\D/g, "");
+  if (d.length !== 10) return num;
+  return `${d.slice(0, 3)}-${d.slice(3, 5)}-****${d.slice(-1)}`;
+}
+
+function formatBusinessNumber(val: string) {
+  const d = val.replace(/\D/g, "").slice(0, 10);
+  if (d.length <= 3) return d;
+  if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
 }
 
 /* ── 스타일 상수 ── */
