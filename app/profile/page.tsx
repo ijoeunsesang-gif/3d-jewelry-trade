@@ -610,7 +610,7 @@ export default function ProfilePage() {
 const GRADE_KEYS: Grade[] = ["sprout", "skilled", "pro", "master"];
 
 const GRADE_STYLE: Record<Grade, { color: string; bg: string; border: string; label: string }> = {
-  sprout:  { color: "#374151", bg: "#f9fafb", border: "#d1d5db", label: "새싹" },
+  sprout:  { color: "#374151", bg: "#f9fafb", border: "#d1d5db", label: "입문" },
   skilled: { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe", label: "숙련" },
   pro:     { color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe", label: "프로" },
   master:  { color: "#b45309", bg: "#fffbeb", border: "#fde68a", label: "마스터" },
