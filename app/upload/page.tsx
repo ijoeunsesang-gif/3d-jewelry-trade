@@ -21,6 +21,18 @@ export default function UploadPage() {
   const [extraFiles, setExtraFiles] = useState<File[]>([]);
 
   const [uploading, setUploading] = useState(false);
+  const [sellerCheck, setSellerCheck] = useState<"loading" | "ok" | "blocked">("loading");
+
+  useEffect(() => {
+    const check = async () => {
+      const token = getAccessToken();
+      if (!token) { router.replace("/auth"); return; }
+      const uid = (decodeJwt(token) as any)?.sub as string;
+      const { data } = await supabase.from("profiles").select("role").eq("id", uid).maybeSingle();
+      setSellerCheck(data?.role === "seller" ? "ok" : "blocked");
+    };
+    check();
+  }, []);
 
   const uploadBoxStyle: React.CSSProperties = {
     border: "1px dashed #cbd5e1",
@@ -187,6 +199,49 @@ export default function UploadPage() {
       setUploading(false);
     }
   };
+
+  if (sellerCheck === "loading") {
+    return (
+      <main style={{ maxWidth: 980, margin: "0 auto", padding: "80px 20px", fontFamily: 'system-ui, sans-serif' }}>
+        <p style={{ color: "#6b7280" }}>확인 중...</p>
+      </main>
+    );
+  }
+
+  if (sellerCheck === "blocked") {
+    return (
+      <main style={{
+        maxWidth: 980, margin: "0 auto", padding: "80px 20px",
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <div style={{
+          border: "1px solid #e5e7eb", borderRadius: 24, padding: "48px 40px",
+          background: "white", textAlign: "center", maxWidth: 440,
+          boxShadow: "0 6px 24px rgba(15,23,42,0.06)",
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <h2 style={{ margin: "0 0 10px", fontSize: 22, fontWeight: 900, color: "#111827" }}>
+            판매자 등록이 필요합니다
+          </h2>
+          <p style={{ margin: "0 0 6px", fontSize: 15, color: "#6b7280", lineHeight: 1.7 }}>
+            판매자 등록 후 상품을 업로드할 수 있어요.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/profile?tab=seller")}
+            style={{
+              marginTop: 28, height: 52, padding: "0 32px", borderRadius: 14,
+              border: "none", background: "#111827", color: "white",
+              fontWeight: 800, fontSize: 16, cursor: "pointer",
+            }}
+          >
+            판매자 등록하기
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main

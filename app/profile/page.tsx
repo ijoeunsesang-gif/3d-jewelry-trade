@@ -18,6 +18,13 @@ export default function ProfilePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("basic");
 
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t && ["basic","follow","seller","stats","grade"].includes(t)) {
+      setActiveTab(t as TabId);
+    }
+  }, []);
+
   // 로딩 상태
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
