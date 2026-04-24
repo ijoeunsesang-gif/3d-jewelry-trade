@@ -219,12 +219,33 @@ export default function ProfilePage() {
     try {
       const { data: existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
       const exists = (existingArr as any[])?.[0];
+
+      const coreFields = { nickname, bio, avatar_url: avatarUrl };
+      const allFields = { ...coreFields, phone_number: phoneNumber || null };
+
       if (exists) {
-        const { error } = await supabase.from("profiles").update({ nickname, bio, avatar_url: avatarUrl, phone_number: phoneNumber || null }).eq("id", userId);
-        if (error) { showError("프로필 저장에 실패했습니다."); return; }
+        const { error } = await supabase.from("profiles").update(allFields).eq("id", userId);
+        if (error) {
+          console.error("프로필 저장 실패:", error.message, error);
+          // phone_number 컬럼 미생성 시 기본 필드만 재시도
+          const { error: fallbackError } = await supabase.from("profiles").update(coreFields).eq("id", userId);
+          if (fallbackError) {
+            console.error("프로필 저장 폴백 실패:", fallbackError.message);
+            showError(fallbackError.message || "프로필 저장에 실패했습니다.");
+            return;
+          }
+        }
       } else {
-        const { error } = await supabase.from("profiles").insert({ id: userId, email, nickname, bio, avatar_url: avatarUrl, phone_number: phoneNumber || null });
-        if (error) { showError("프로필 저장에 실패했습니다."); return; }
+        const { error } = await supabase.from("profiles").insert({ id: userId, email, ...allFields });
+        if (error) {
+          console.error("프로필 저장 실패:", error.message, error);
+          const { error: fallbackError } = await supabase.from("profiles").insert({ id: userId, email, ...coreFields });
+          if (fallbackError) {
+            console.error("프로필 저장 폴백 실패:", fallbackError.message);
+            showError(fallbackError.message || "프로필 저장에 실패했습니다.");
+            return;
+          }
+        }
       }
 
       if (email.trim() && email !== initialEmailRef.current) {
