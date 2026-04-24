@@ -336,10 +336,10 @@ export default function ProfilePage() {
 
   const tabs: { id: TabId; label: string; sellerOnly?: boolean }[] = [
     { id: "basic", label: "기본 정보" },
+    { id: "grade", label: "내 등급", sellerOnly: true },
     { id: "follow", label: "팔로우" },
     { id: "seller", label: "판매자 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
-    { id: "grade", label: "내 등급", sellerOnly: true },
   ];
 
   if (loading) {
@@ -433,17 +433,7 @@ export default function ProfilePage() {
               </div>
 
               <div style={fieldWrap}>
-                <label style={labelStyle}>닉네임</label>
-                <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임 입력" style={inputStyle} />
-              </div>
-
-              <div style={fieldWrap}>
-                <label style={labelStyle}>소개글</label>
-                <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="소개를 입력하세요" style={textareaStyle} />
-              </div>
-
-              <div style={fieldWrap}>
-                <label style={labelStyle}>연락처 <span style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af" }}>선택</span></label>
+                <label style={labelStyle}>연락처 <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "1px 7px", borderRadius: 999 }}>선택</span></label>
                 <input
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
@@ -452,6 +442,16 @@ export default function ProfilePage() {
                   style={inputStyle}
                 />
                 <p style={helperText}>판매자 페이지에 공개됩니다.</p>
+              </div>
+
+              <div style={fieldWrap}>
+                <label style={labelStyle}>닉네임</label>
+                <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임 입력" style={inputStyle} />
+              </div>
+
+              <div style={fieldWrap}>
+                <label style={labelStyle}>소개글</label>
+                <textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="소개를 입력하세요" style={textareaStyle} />
               </div>
 
               <button type="button" onClick={handleSave} disabled={saving} style={{ ...actionBtn, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
@@ -671,7 +671,7 @@ export default function ProfilePage() {
 
                   {/* 사업자 정보 섹션 */}
                   <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>사업자 정보 <span style={{ fontSize: 11, color: "#9ca3af" }}>선택</span></div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>사업자 정보 <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "1px 7px", borderRadius: 999 }}>선택</span></div>
 
                     <div style={fieldWrap}>
                       <label style={labelStyle}>사업자등록번호</label>
