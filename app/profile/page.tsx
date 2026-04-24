@@ -9,7 +9,7 @@ import GradeBadge from "../components/GradeBadge";
 import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
 
 type TabId = "basic" | "follow" | "seller" | "stats" | "grade";
-type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null };
+type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
 type PurchaseRow = { id: string; model_id: string; price: number; created_at: string };
 type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
 type PeriodType = "7days" | "30days" | "all" | "monthly";
@@ -156,9 +156,9 @@ export default function ProfilePage() {
       const allIds = [...new Set([...followingIds, ...followerIds])];
       if (allIds.length === 0) { setFollowing([]); setFollowers([]); return; }
       const { data: profiles } = await supabase
-        .from("profiles").select("id, nickname, avatar_url, bio").in("id", allIds);
+        .from("profiles").select("id, nickname, avatar_url, bio, grade, phone_number").in("id", allIds);
       const map: Record<string, FollowProfile> = {};
-      (profiles || []).forEach((p: any) => { map[p.id] = { id: p.id, nickname: p.nickname || "익명", avatar_url: p.avatar_url, bio: p.bio }; });
+      (profiles || []).forEach((p: any) => { map[p.id] = { id: p.id, nickname: p.nickname || "익명", avatar_url: p.avatar_url, bio: p.bio, grade: p.grade, phone_number: p.phone_number }; });
       setFollowing(followingIds.map((id: string) => map[id]).filter(Boolean));
       setFollowers(followerIds.map((id: string) => map[id]).filter(Boolean));
     } finally {
@@ -499,13 +499,22 @@ export default function ProfilePage() {
                     ) : (
                       following.map((p) => (
                         <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
-                          <img src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
-                            style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>{p.nickname}</div>
-                            {p.bio && (
-                              <div style={{ fontSize: 12, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {p.bio}
+                          <img
+                            src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
+                            onClick={() => router.push(`/seller/${p.id}`)}
+                            style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb", cursor: "pointer" }}
+                          />
+                          <div
+                            style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+                            onClick={() => router.push(`/seller/${p.id}`)}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 14, color: "#111827" }}>
+                              {p.nickname}
+                              {p.grade && <GradeBadge grade={p.grade as Grade} size="sm" />}
+                            </div>
+                            {p.phone_number && (
+                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                                📞 {p.phone_number}
                               </div>
                             )}
                           </div>
@@ -533,10 +542,24 @@ export default function ProfilePage() {
                       <p style={{ fontSize: 14, color: "#9ca3af" }}>팔로워가 없습니다.</p>
                     ) : (
                       followers.map((p) => (
-                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
+                        <div
+                          key={p.id}
+                          onClick={() => router.push(`/seller/${p.id}`)}
+                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
+                        >
                           <img src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
                             style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
-                          <div style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>{p.nickname}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 14, color: "#111827" }}>
+                              {p.nickname}
+                              {p.grade && <GradeBadge grade={p.grade as Grade} size="sm" />}
+                            </div>
+                            {p.phone_number && (
+                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                                📞 {p.phone_number}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))
                     )}
