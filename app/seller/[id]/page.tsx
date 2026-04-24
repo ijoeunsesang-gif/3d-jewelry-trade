@@ -9,6 +9,7 @@ import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
+import { Phone } from "lucide-react";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
@@ -599,8 +600,9 @@ export default function SellerPage() {
             </p>
 
             {seller?.phone_number && (
-              <div style={{ marginTop: 10, fontSize: 13, color: "#374151", fontWeight: 600 }}>
-                📞 {seller.phone_number}
+              <div style={{ marginTop: 10, fontSize: 13, color: "#374151", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                <Phone size={13} color="#16a34a" strokeWidth={2.5} />
+                {seller.phone_number}
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import GradeBadge from "../components/GradeBadge";
 import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
+import { Phone } from "lucide-react";
 
 type TabId = "basic" | "follow" | "seller" | "stats" | "grade";
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
@@ -535,8 +536,9 @@ export default function ProfilePage() {
                               {p.grade && <GradeBadge grade={p.grade as Grade} size="sm" />}
                             </div>
                             {p.phone_number && (
-                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                                📞 {p.phone_number}
+                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                                <Phone size={11} color="#16a34a" strokeWidth={2.5} />
+                                {p.phone_number}
                               </div>
                             )}
                           </div>
@@ -577,8 +579,9 @@ export default function ProfilePage() {
                               {p.grade && <GradeBadge grade={p.grade as Grade} size="sm" />}
                             </div>
                             {p.phone_number && (
-                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
-                                📞 {p.phone_number}
+                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
+                                <Phone size={11} color="#16a34a" strokeWidth={2.5} />
+                                {p.phone_number}
                               </div>
                             )}
                           </div>
