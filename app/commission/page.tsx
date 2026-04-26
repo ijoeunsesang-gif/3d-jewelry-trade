@@ -9,19 +9,22 @@ import { showError } from "../lib/toast";
 const GOLD = "#c9a84c";
 
 const STATUS_LABEL: Record<string, string> = {
-  open: "의뢰중",
-  in_progress: "작업중",
-  completed: "완료",
+  open: "의뢰중", in_progress: "작업중", completed: "완료",
+  pending: "의뢰중", negotiating: "협의중", payment: "결제중",
+  working: "작업중", downloaded: "다운완료",
+  rejected: "거절됨", cancelled: "취소됨",
 };
 const STATUS_COLOR: Record<string, string> = {
-  open: "#2563eb",
-  in_progress: "#d97706",
-  completed: "#16a34a",
+  open: "#2563eb", in_progress: "#d97706", completed: "#16a34a",
+  pending: "#2563eb", negotiating: "#7c3aed", payment: "#d97706",
+  working: "#ea580c", downloaded: "#16a34a",
+  rejected: "#dc2626", cancelled: "#6b7280",
 };
 const STATUS_BG: Record<string, string> = {
-  open: "#dbeafe",
-  in_progress: "#fef3c7",
-  completed: "#dcfce7",
+  open: "#dbeafe", in_progress: "#fef3c7", completed: "#dcfce7",
+  pending: "#dbeafe", negotiating: "#ede9fe", payment: "#fef3c7",
+  working: "#fff7ed", downloaded: "#dcfce7",
+  rejected: "#fef2f2", cancelled: "#f3f4f6",
 };
 
 type Tab = "public" | "private" | "mine" | "bookmarks";
@@ -287,7 +290,7 @@ export default function CommissionListPage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     {(() => {
                       const resultCount = c.commission_results?.[0]?.count ?? 0;
-                      const showResultBadge = c.status === "open" && resultCount >= 1;
+                      const showResultBadge = !c.is_private && c.status === "open" && resultCount >= 1;
                       return (
                         <span style={{
                           fontSize: 11, fontWeight: 700,

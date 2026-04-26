@@ -11,15 +11,48 @@ import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 
-const STATUS_LABEL: Record<string, string> = {
+const PRIVATE_STEPS = ["pending", "negotiating", "payment", "working", "completed", "downloaded"];
+const PRIVATE_STEP_LABELS: Record<string, string> = {
+  pending: "의뢰중", negotiating: "협의중", payment: "결제중",
+  working: "작업중", completed: "작업완료", downloaded: "다운완료",
+};
+const PRIVATE_STATUS_LABEL: Record<string, string> = {
+  ...PRIVATE_STEP_LABELS, rejected: "거절됨", cancelled: "취소됨",
+};
+const PRIVATE_STATUS_COLOR: Record<string, string> = {
+  pending: "#2563eb", negotiating: "#7c3aed", payment: "#d97706",
+  working: "#ea580c", completed: "#16a34a", downloaded: "#16a34a",
+  rejected: "#dc2626", cancelled: "#6b7280",
+};
+const PRIVATE_STATUS_BG: Record<string, string> = {
+  pending: "#dbeafe", negotiating: "#ede9fe", payment: "#fef3c7",
+  working: "#fff7ed", completed: "#dcfce7", downloaded: "#dcfce7",
+  rejected: "#fef2f2", cancelled: "#f3f4f6",
+};
+
+const PUBLIC_STATUS_LABEL: Record<string, string> = {
   open: "의뢰중", in_progress: "작업중", completed: "완료",
 };
-const STATUS_COLOR: Record<string, string> = {
+const PUBLIC_STATUS_COLOR: Record<string, string> = {
   open: "#2563eb", in_progress: "#d97706", completed: "#16a34a",
 };
-const STATUS_BG: Record<string, string> = {
+const PUBLIC_STATUS_BG: Record<string, string> = {
   open: "#dbeafe", in_progress: "#fef3c7", completed: "#dcfce7",
 };
+
+const REJECT_REASONS = [
+  "작업 가능 기간이 맞지 않음",
+  "요청 작업 범위가 맞지 않음",
+  "현재 작업량이 많아 수락 불가",
+  "기타",
+];
+const CANCEL_REASONS = [
+  "가격이 맞지 않음",
+  "작업 기간이 맞지 않음",
+  "다른 판매자에게 의뢰 예정",
+  "단순 변심",
+  "기타",
+];
 
 type Commission = {
   id: string;
@@ -35,11 +68,12 @@ type Commission = {
   target_seller_id: string | null;
   desired_price: number | null;
   desired_days: number | null;
-  negotiation_status?: string;
   negotiation_count: number;
   final_price: number | null;
   final_days: number | null;
   revision_count: number;
+  rejection_reason: string | null;
+  cancellation_reason: string | null;
   cancel_reason: string | null;
 };
 
@@ -72,14 +106,7 @@ type CommissionResult = {
   grade?: string | null;
 };
 
-async function sendNotification(
-  userId: string,
-  type: string,
-  title: string,
-  content: string,
-  link: string,
-) {
-  console.log("알림 발송 시도:", userId, type, content);
+async function sendNotification(userId: string, type: string, title: string, content: string, link: string) {
   const { error } = await supabase.from("notifications").insert({
     user_id: userId, type, message: `${title}: ${content}`, link, is_read: false,
   });
@@ -95,18 +122,15 @@ export default function CommissionDetailPage() {
   const [myId, setMyId] = useState<string | null>(null);
   const [isSeller, setIsSeller] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [editResultLink, setEditResultLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
 
-  // 댓글
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // 협의 관련
   const [negotiations, setNegotiations] = useState<Negotiation[]>([]);
   const [negLoading, setNegLoading] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
@@ -114,12 +138,16 @@ export default function CommissionDetailPage() {
   const [proposeDays, setProposeDays] = useState("");
   const [proposeMsg, setProposeMsg] = useState("");
   const [negSubmitting, setNegSubmitting] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState("");
-  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rejectReasonIdx, setRejectReasonIdx] = useState(-1);
+  const [rejectReasonOther, setRejectReasonOther] = useState("");
+  const [cancelReasonIdx, setCancelReasonIdx] = useState(-1);
+  const [cancelReasonOther, setCancelReasonOther] = useState("");
+
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
-  // 결과물 링크 (commission_results)
   const [results, setResults] = useState<CommissionResult[]>([]);
   const [myResult, setMyResult] = useState<CommissionResult | null>(null);
   const [resultLink, setResultLink] = useState("");
@@ -141,8 +169,7 @@ export default function CommissionDetailPage() {
 
   useEffect(() => {
     if (!myId) return;
-    const mine = results.find((r) => r.seller_id === myId) || null;
-    setMyResult(mine);
+    setMyResult(results.find((r) => r.seller_id === myId) || null);
   }, [results, myId]);
 
   const fetchCommission = async () => {
@@ -150,17 +177,12 @@ export default function CommissionDetailPage() {
     try {
       const { data, error } = await supabase
         .from("commissions")
-        .select("id, user_id, title, description, images, status, result_link, created_at, is_private, target_seller_id, desired_price, desired_days, negotiation_status, negotiation_count, final_price, final_days, revision_count, cancel_reason")
+        .select("id, user_id, title, description, images, status, result_link, created_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason")
         .eq("id", id)
         .single();
       if (error || !data) return;
-
-      const { data: profile } = await supabase
-        .from("profiles").select("nickname").eq("id", data.user_id).single();
-      const c: Commission = { ...data, nickname: profile?.nickname || "익명" };
-      setCommission(c);
-      setEditResultLink(c.result_link || "");
-
+      const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", data.user_id).single();
+      setCommission({ ...data, nickname: profile?.nickname || "익명" });
       if (data.is_private) fetchNegotiations();
     } finally {
       setLoading(false);
@@ -168,79 +190,43 @@ export default function CommissionDetailPage() {
   };
 
   const fetchResults = async () => {
-    const { data } = await supabase
-      .from("commission_results")
-      .select("id, commission_id, seller_id, result_link")
-      .eq("commission_id", id);
+    const { data } = await supabase.from("commission_results").select("id, commission_id, seller_id, result_link").eq("commission_id", id);
     const rows = data || [];
-    if (rows.length === 0) { setResults([]); return; }
-
-    const sellerIds = rows.map((r: any) => r.seller_id);
-    const { data: profilesData } = await supabase
-      .from("profiles")
-      .select("id, nickname, grade")
-      .in("id", sellerIds);
-    const profileMap = Object.fromEntries((profilesData || []).map((p: any) => [p.id, { nickname: p.nickname, grade: p.grade }]));
-
-    setResults(rows.map((r: any) => ({
-      id: r.id,
-      commission_id: r.commission_id,
-      seller_id: r.seller_id,
-      result_link: r.result_link,
-      nickname: profileMap[r.seller_id]?.nickname || "판매자",
-      grade: profileMap[r.seller_id]?.grade || null,
-    })));
+    if (!rows.length) { setResults([]); return; }
+    const { data: profilesData } = await supabase.from("profiles").select("id, nickname, grade").in("id", rows.map((r: any) => r.seller_id));
+    const pm = Object.fromEntries((profilesData || []).map((p: any) => [p.id, p]));
+    setResults(rows.map((r: any) => ({ ...r, nickname: pm[r.seller_id]?.nickname || "판매자", grade: pm[r.seller_id]?.grade || null })));
   };
 
   const handleResultInsert = async () => {
     if (!resultLink.trim() || !myId) return;
     setResultSaving(true);
     try {
-      const { data, error } = await supabase
-        .from("commission_results")
+      const { data, error } = await supabase.from("commission_results")
         .insert({ commission_id: id, seller_id: myId, result_link: resultLink.trim() })
-        .select("id, commission_id, seller_id, result_link")
-        .single();
+        .select("id, commission_id, seller_id, result_link").single();
       if (error) throw error;
-      const { data: profile } = await supabase
-        .from("profiles").select("nickname, grade").eq("id", myId).single();
-      const newRow: CommissionResult = {
-        id: data.id, commission_id: data.commission_id, seller_id: data.seller_id,
-        result_link: data.result_link,
-        nickname: profile?.nickname || "판매자",
-        grade: (profile as any)?.grade || null,
-      };
-      setResults((prev) => [...prev, newRow]);
+      const { data: profile } = await supabase.from("profiles").select("nickname, grade").eq("id", myId).single();
+      setResults((prev) => [...prev, { id: data.id, commission_id: data.commission_id, seller_id: data.seller_id, result_link: data.result_link, nickname: profile?.nickname || "판매자", grade: (profile as any)?.grade || null }]);
       setLinkPanelOpen(false);
-      if (commission?.user_id && commission.user_id !== myId) {
+      if (commission?.user_id && commission.user_id !== myId)
         await sendNotification(commission.user_id, "result_link", "결과물 링크 등록", "판매자가 결과물 링크를 등록했습니다.", `/commission/${id}`);
-      }
       showSuccess("등록되었습니다.");
-    } catch (e: any) {
-      showError(e.message || "등록 실패");
-    } finally {
-      setResultSaving(false);
-    }
+    } catch (e: any) { showError(e.message || "등록 실패"); }
+    finally { setResultSaving(false); }
   };
 
   const handleResultUpdate = async () => {
     if (!resultLink.trim() || !myResult) return;
     setResultSaving(true);
     try {
-      const { error } = await supabase
-        .from("commission_results")
-        .update({ result_link: resultLink.trim() })
-        .eq("id", myResult.id);
+      const { error } = await supabase.from("commission_results").update({ result_link: resultLink.trim() }).eq("id", myResult.id);
       if (error) throw error;
-      const updated = { ...myResult, result_link: resultLink.trim() };
-      setResults((prev) => prev.map((r) => r.id === myResult.id ? updated : r));
+      setResults((prev) => prev.map((r) => r.id === myResult.id ? { ...r, result_link: resultLink.trim() } : r));
       setResultEditing(false);
       showSuccess("수정되었습니다.");
-    } catch (e: any) {
-      showError(e.message || "수정 실패");
-    } finally {
-      setResultSaving(false);
-    }
+    } catch (e: any) { showError(e.message || "수정 실패"); }
+    finally { setResultSaving(false); }
   };
 
   const handleResultDelete = async () => {
@@ -250,23 +236,15 @@ export default function CommissionDetailPage() {
       const { error } = await supabase.from("commission_results").delete().eq("id", myResult.id);
       if (error) throw error;
       setResults((prev) => prev.filter((r) => r.id !== myResult.id));
-      setResultLink("");
-      setResultEditing(false);
+      setResultLink(""); setResultEditing(false);
       showSuccess("삭제되었습니다.");
-    } catch (e: any) {
-      showError(e.message || "삭제 실패");
-    } finally {
-      setResultSaving(false);
-    }
+    } catch (e: any) { showError(e.message || "삭제 실패"); }
+    finally { setResultSaving(false); }
   };
 
   const fetchNegotiations = async () => {
     setNegLoading(true);
-    const { data } = await supabase
-      .from("commission_negotiations")
-      .select("*")
-      .eq("commission_id", id)
-      .order("round", { ascending: true });
+    const { data } = await supabase.from("commission_negotiations").select("*").eq("commission_id", id).order("round", { ascending: true });
     setNegotiations((data as Negotiation[]) || []);
     setNegLoading(false);
   };
@@ -274,34 +252,11 @@ export default function CommissionDetailPage() {
   const fetchComments = async () => {
     setCommentsLoading(true);
     try {
-      const { data } = await supabase
-        .from("commission_comments")
+      const { data } = await supabase.from("commission_comments")
         .select("id, commission_id, user_id, content, created_at, profiles(nickname)")
-        .eq("commission_id", id)
-        .order("created_at", { ascending: false });
+        .eq("commission_id", id).order("created_at", { ascending: false });
       setComments((data as Comment[]) || []);
-    } finally {
-      setCommentsLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    if (!commission) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("commissions").update({
-        result_link: editResultLink.trim() || null,
-        updated_at: new Date().toISOString(),
-      }).eq("id", commission.id);
-      if (error) throw error;
-      setCommission((prev) => prev ? { ...prev, result_link: editResultLink.trim() || null } : prev);
-      setLinkPanelOpen(false);
-      showSuccess("저장되었습니다.");
-    } catch (e: any) {
-      showError(e.message || "저장 실패");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setCommentsLoading(false); }
   };
 
   const handleDelete = async () => {
@@ -316,20 +271,14 @@ export default function CommissionDetailPage() {
     if (!commentText.trim() || !myId) return;
     setSubmittingComment(true);
     try {
-      const { error } = await supabase.from("commission_comments").insert({
-        commission_id: id, user_id: myId, content: commentText.trim(),
-      });
+      const { error } = await supabase.from("commission_comments").insert({ commission_id: id, user_id: myId, content: commentText.trim() });
       if (error) throw error;
       setCommentText("");
       await fetchComments();
-      if (commission?.user_id && commission.user_id !== myId) {
+      if (commission?.user_id && commission.user_id !== myId)
         await sendNotification(commission.user_id, "comment", "새 댓글", "의뢰에 새 댓글이 달렸습니다.", `/commission/${id}`);
-      }
-    } catch (e: any) {
-      showError(e.message || "댓글 등록 실패");
-    } finally {
-      setSubmittingComment(false);
-    }
+    } catch (e: any) { showError(e.message || "댓글 등록 실패"); }
+    finally { setSubmittingComment(false); }
   };
 
   const handleDeleteComment = async (commentId: string) => {
@@ -337,119 +286,79 @@ export default function CommissionDetailPage() {
     if (!error) setComments((prev) => prev.filter((c) => c.id !== commentId));
   };
 
-  // ─── 협의 액션 ───
+  // ─── 개인의뢰 액션 ───
 
-  const handleAccept = async () => {
+  const handleSellerAccept = async () => {
     if (!commission) return;
     setNegSubmitting(true);
     try {
       await supabase.from("commissions").update({
-        negotiation_status: "agreed",
+        status: "negotiating",
         final_price: commission.desired_price,
         final_days: commission.desired_days,
       }).eq("id", id);
-      await Promise.all([
-        sendNotification(commission.user_id, "negotiation", "협의 완료", "협의가 완료되었습니다.", `/commission/${id}`),
-        sendNotification(commission.target_seller_id!, "negotiation", "협의 완료", "협의가 완료되었습니다.", `/commission/${id}`),
-      ]);
+      await sendNotification(commission.user_id, "negotiation", "의뢰 수락", "판매자가 의뢰를 수락했습니다. 협의를 진행해주세요.", `/commission/${id}`);
       await fetchCommission();
+      showSuccess("수락되었습니다.");
     } catch { showError("처리 실패"); }
     setNegSubmitting(false);
   };
 
-  const handlePropose = async (isInitial: boolean) => {
+  const handlePropose = async () => {
     if (!commission || !myId) return;
     const price = parseInt(proposePrice);
     const days = parseInt(proposeDays);
     if (!price || !days) { showError("비용과 기간을 입력해주세요."); return; }
-
     setNegSubmitting(true);
     try {
       const newCount = commission.negotiation_count + 1;
-      const newRound = negotiations.length + 1;
-
       await supabase.from("commission_negotiations").insert({
-        commission_id: id,
-        proposer_id: myId,
-        price,
-        days,
-        message: proposeMsg.trim(),
-        round: newRound,
+        commission_id: id, proposer_id: myId, price, days,
+        message: proposeMsg.trim(), round: negotiations.length + 1,
       });
       await supabase.from("commissions").update({
-        negotiation_status: "negotiating",
-        negotiation_count: newCount,
+        status: "negotiating", negotiation_count: newCount,
+        final_price: price, final_days: days,
       }).eq("id", id);
-
       const isRequester = myId === commission.user_id;
       const targetId = isRequester ? commission.target_seller_id! : commission.user_id;
-      const notifContent = isRequester
-        ? "의뢰자가 재협의를 요청했습니다."
-        : "판매자가 비용/기간을 제안했습니다.";
-      const notifTitle = isRequester ? "재협의 요청" : "판매자 제안";
-      await sendNotification(targetId, "negotiation", notifTitle, notifContent, `/commission/${id}`);
-
-      setProposeOpen(false);
-      setProposePrice("");
-      setProposeDays("");
-      setProposeMsg("");
-      await fetchCommission();
-      await fetchNegotiations();
+      await sendNotification(targetId, "negotiation", "협의 제안",
+        isRequester ? "의뢰자가 새 조건을 제안했습니다." : "판매자가 새 조건을 제안했습니다.", `/commission/${id}`);
+      setProposeOpen(false); setProposePrice(""); setProposeDays(""); setProposeMsg("");
+      await fetchCommission(); await fetchNegotiations();
     } catch { showError("제안 전송 실패"); }
     setNegSubmitting(false);
   };
 
-  const handleAgreeNeg = async () => {
-    if (!commission || !negotiations.length) return;
-    const last = negotiations[negotiations.length - 1];
+  const handleNegotiationComplete = async () => {
+    if (!commission) return;
+    const lastNeg = negotiations.length > 0 ? negotiations[negotiations.length - 1] : null;
+    const finalP = lastNeg ? lastNeg.price : commission.final_price;
+    const finalD = lastNeg ? lastNeg.days : commission.final_days;
     setNegSubmitting(true);
     try {
       await supabase.from("commissions").update({
-        negotiation_status: "agreed",
-        final_price: last.price,
-        final_days: last.days,
+        status: "payment", final_price: finalP, final_days: finalD,
       }).eq("id", id);
       await Promise.all([
-        sendNotification(commission.user_id, "negotiation", "협의 완료", "협의가 완료되었습니다.", `/commission/${id}`),
-        sendNotification(commission.target_seller_id!, "negotiation", "협의 완료", "협의가 완료되었습니다.", `/commission/${id}`),
+        sendNotification(commission.user_id, "negotiation", "협의완료", "협의가 완료되었습니다. 결제를 진행해주세요.", `/commission/${id}`),
+        sendNotification(commission.target_seller_id!, "negotiation", "협의완료", "협의가 완료되었습니다. 결제 대기 중입니다.", `/commission/${id}`),
       ]);
       await fetchCommission();
+      showSuccess("협의완료 처리되었습니다.");
     } catch { showError("처리 실패"); }
     setNegSubmitting(false);
   };
 
-  const handleCancel = async () => {
+  const handlePaymentComplete = async () => {
     if (!commission) return;
     setNegSubmitting(true);
     try {
-      await supabase.from("commissions").update({
-        negotiation_status: "cancelled",
-        cancel_reason: cancelReason.trim() || null,
-      }).eq("id", id);
-      const isRequester = myId === commission.user_id;
-      const targetId = isRequester ? commission.target_seller_id! : commission.user_id;
-      await sendNotification(targetId, "negotiation", "의뢰 취소", "의뢰가 취소되었습니다.", `/commission/${id}`);
-      setCancelOpen(false);
+      await supabase.from("commissions").update({ status: "working" }).eq("id", id);
+      await sendNotification(commission.target_seller_id!, "negotiation", "결제완료", "결제가 완료되었습니다. 작업을 시작해주세요.", `/commission/${id}`);
       await fetchCommission();
-    } catch { showError("취소 실패"); }
-    setNegSubmitting(false);
-  };
-
-  const handleRevision = async () => {
-    if (!commission) return;
-    const newCount = commission.revision_count + 1;
-    setNegSubmitting(true);
-    try {
-      await supabase.from("commissions").update({ revision_count: newCount }).eq("id", id);
-      await sendNotification(
-        commission.target_seller_id!,
-        "revision", "수정 요청",
-        `수정 요청이 왔습니다 (${newCount}/2회)`,
-        `/commission/${id}`,
-      );
-      setCommission((prev) => prev ? { ...prev, revision_count: newCount } : prev);
-      showSuccess("수정 요청이 전송되었습니다.");
-    } catch { showError("수정 요청 실패"); }
+      showSuccess("결제가 완료되었습니다.");
+    } catch { showError("처리 실패"); }
     setNegSubmitting(false);
   };
 
@@ -459,37 +368,88 @@ export default function CommissionDetailPage() {
     setNegSubmitting(true);
     try {
       const path = `commission-files/${commission.id}/${file.name}`;
-      const commForm = new FormData();
-      commForm.append("file", file);
-      commForm.append("bucket", "thumbnails");
-      commForm.append("path", path);
-      const commRes = await fetch("/api/upload", { method: "POST", body: commForm });
-      if (!commRes.ok) throw new Error("파일 업로드 실패");
-      const { url: commUrl } = await commRes.json();
-      setUploadedFileUrl(commUrl);
-      await supabase.from("commissions").update({
-        negotiation_status: "completed",
-        status: "completed",
-      }).eq("id", id);
-      await sendNotification(commission.user_id, "file_upload", "파일 업로드", "파일이 업로드되었습니다.", `/commission/${id}`);
+      const form = new FormData();
+      form.append("file", file); form.append("bucket", "thumbnails"); form.append("path", path);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (!res.ok) throw new Error("파일 업로드 실패");
+      const { url } = await res.json();
+      await supabase.from("commissions").update({ status: "completed", result_link: url }).eq("id", id);
+      await sendNotification(commission.user_id, "file_upload", "결과물 업로드", "판매자가 결과물을 업로드했습니다. 확인해주세요.", `/commission/${id}`);
       await fetchCommission();
-      showSuccess("파일이 업로드되었습니다.");
+      showSuccess("결과물이 업로드되었습니다.");
     } catch { showError("파일 업로드 실패"); }
     setNegSubmitting(false);
     e.target.value = "";
   };
 
-  const formatDate = (iso: string) => {
+  const handleDownload = async () => {
+    if (!commission?.result_link) return;
+    window.open(commission.result_link, "_blank");
+    if (commission.status !== "downloaded") {
+      await supabase.from("commissions").update({ status: "downloaded" }).eq("id", id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "negotiation", "다운로드 완료", "구매자가 결과물을 다운로드했습니다. 거래가 완료되었습니다.", `/commission/${id}`);
+      await fetchCommission();
+    }
+  };
+
+  const handleRevision = async () => {
+    if (!commission) return;
+    const newCount = commission.revision_count + 1;
+    setNegSubmitting(true);
+    try {
+      await supabase.from("commissions").update({ revision_count: newCount }).eq("id", id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "revision", "수정 요청", `수정 요청이 왔습니다 (${newCount}/2회)`, `/commission/${id}`);
+      setCommission((prev) => prev ? { ...prev, revision_count: newCount } : prev);
+      showSuccess("수정 요청이 전송되었습니다.");
+    } catch { showError("수정 요청 실패"); }
+    setNegSubmitting(false);
+  };
+
+  const handleReject = async () => {
+    if (rejectReasonIdx < 0) { showError("사유를 선택해주세요."); return; }
+    const isOther = rejectReasonIdx === REJECT_REASONS.length - 1;
+    const reason = isOther ? rejectReasonOther.trim() : REJECT_REASONS[rejectReasonIdx];
+    if (isOther && !reason) { showError("사유를 직접 입력해주세요."); return; }
+    if (!commission) return;
+    setNegSubmitting(true);
+    try {
+      await supabase.from("commissions").update({ status: "rejected", rejection_reason: reason }).eq("id", id);
+      await sendNotification(commission.user_id, "negotiation", "의뢰 거절", "판매자가 의뢰를 거절했습니다.", `/commission/${id}`);
+      setRejectModalOpen(false);
+      await fetchCommission();
+    } catch { showError("처리 실패"); }
+    setNegSubmitting(false);
+  };
+
+  const handleCancel = async () => {
+    if (cancelReasonIdx < 0) { showError("사유를 선택해주세요."); return; }
+    const isOther = cancelReasonIdx === CANCEL_REASONS.length - 1;
+    const reason = isOther ? cancelReasonOther.trim() : CANCEL_REASONS[cancelReasonIdx];
+    if (isOther && !reason) { showError("사유를 직접 입력해주세요."); return; }
+    if (!commission) return;
+    setNegSubmitting(true);
+    try {
+      await supabase.from("commissions").update({ status: "cancelled", cancellation_reason: reason }).eq("id", id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "negotiation", "의뢰 취소", "구매자가 의뢰를 취소했습니다.", `/commission/${id}`);
+      setCancelModalOpen(false);
+      await fetchCommission();
+    } catch { showError("취소 실패"); }
+    setNegSubmitting(false);
+  };
+
+  const fd = (iso: string) => {
     const d = new Date(iso);
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
   };
-
-  const formatDateTime = (iso: string) =>
+  const fdt = (iso: string) =>
     new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px", fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "40px 20px", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ height: 28, background: "#f3f4f6", borderRadius: 8, marginBottom: 20, width: "55%" }} />
         <div style={{ height: 360, background: "#f3f4f6", borderRadius: 14, marginBottom: 16 }} />
         <div style={{ height: 120, background: "#f3f4f6", borderRadius: 14 }} />
@@ -499,7 +459,7 @@ export default function CommissionDetailPage() {
 
   if (!commission) {
     return (
-      <div style={{ maxWidth: 800, margin: "0 auto", padding: "80px 20px", textAlign: "center", fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ maxWidth: 800, margin: "0 auto", padding: "80px 20px", textAlign: "center", fontFamily: "system-ui, sans-serif" }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>😢</div>
         <div style={{ fontSize: 18, fontWeight: 700, color: "#111827" }}>의뢰를 찾을 수 없습니다</div>
         <Link href="/commission" style={{ display: "inline-block", marginTop: 20, color: GOLD, textDecoration: "none", fontWeight: 700 }}>
@@ -511,27 +471,70 @@ export default function CommissionDetailPage() {
 
   const isAuthor = myId === commission.user_id;
   const isTargetSeller = myId === commission.target_seller_id;
-  const negStatus: string = commission?.negotiation_status ?? '';
+  const status = commission.status;
 
-  // 협의 중: 마지막 제안자 기준 차례 판별
+  const canReject = isTargetSeller && ["pending", "negotiating"].includes(status);
+  const canCancel = isAuthor && ["pending", "negotiating"].includes(status);
+
   const lastNeg = negotiations.length > 0 ? negotiations[negotiations.length - 1] : null;
-  const isMyTurnToRespond = commission.is_private && negStatus === "negotiating" && lastNeg
-    ? lastNeg.proposer_id !== myId
-    : false;
+  const isMyTurnToRespond = status === "negotiating" && !!lastNeg && lastNeg.proposer_id !== myId;
 
-  const canCancel = commission.is_private && isAuthor &&
-    (["agreed", "completed", "negotiating", "pending"] as string[]).includes(negStatus);
+  const statusLabel = commission.is_private
+    ? (PRIVATE_STATUS_LABEL[status] || status)
+    : (results.length > 0 ? `링크 ${results.length}개` : (PUBLIC_STATUS_LABEL[status] || status));
+  const statusColor = commission.is_private
+    ? (PRIVATE_STATUS_COLOR[status] || "#374151")
+    : (results.length > 0 ? "#16a34a" : (PUBLIC_STATUS_COLOR[status] || "#374151"));
+  const statusBg = commission.is_private
+    ? (PRIVATE_STATUS_BG[status] || "#f3f4f6")
+    : (results.length > 0 ? "#dcfce7" : (PUBLIC_STATUS_BG[status] || "#f3f4f6"));
+
+  const stepIdx = PRIVATE_STEPS.indexOf(status);
+
+  // Build progress bar elements
+  const progressEls: React.ReactNode[] = [];
+  PRIVATE_STEPS.forEach((step, i) => {
+    const isDone = stepIdx > i;
+    const isActive = step === status;
+    progressEls.push(
+      <div key={`s${i}`} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 0 }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: "50%",
+          background: isDone ? "#111827" : isActive ? GOLD : "#e5e7eb",
+          color: isDone || isActive ? "white" : "#9ca3af",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 700, flexShrink: 0,
+        }}>
+          {isDone ? "✓" : i + 1}
+        </div>
+        <div style={{
+          fontSize: 10, marginTop: 4, textAlign: "center",
+          color: isActive ? GOLD : isDone ? "#111827" : "#9ca3af",
+          fontWeight: isActive ? 700 : 500, lineHeight: 1.2, wordBreak: "keep-all",
+        }}>
+          {PRIVATE_STEP_LABELS[step]}
+        </div>
+      </div>
+    );
+    if (i < PRIVATE_STEPS.length - 1) {
+      progressEls.push(
+        <div key={`l${i}`} style={{
+          height: 2, flex: 0.8, background: stepIdx > i ? "#111827" : "#e5e7eb",
+          marginBottom: 18, minWidth: 6, flexShrink: 0,
+        }} />
+      );
+    }
+  });
 
   return (
     <div style={{
-      maxWidth: 800, margin: "0 auto",
-      padding: "32px 20px 80px",
+      maxWidth: 800, margin: "0 auto", padding: "32px 20px 80px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
       <Link href="/commission" style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        fontSize: 18, fontWeight: 700, color: '#111827',
-        textDecoration: 'none', marginBottom: 16, cursor: 'pointer',
+        display: "inline-flex", alignItems: "center", gap: 6,
+        fontSize: 18, fontWeight: 700, color: "#111827",
+        textDecoration: "none", marginBottom: 16, cursor: "pointer",
       }}>
         ← 목록으로
       </Link>
@@ -543,20 +546,11 @@ export default function CommissionDetailPage() {
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#111827", lineHeight: 1.35, flex: 1 }}>
               {commission.title}
             </h1>
-            <span style={{
-              flexShrink: 0, fontSize: 12, fontWeight: 700,
-              color: results.length > 0 ? "#16a34a" : (STATUS_COLOR[commission.status] || "#374151"),
-              background: results.length > 0 ? "#dcfce7" : (STATUS_BG[commission.status] || "#f3f4f6"),
-              padding: "4px 12px", borderRadius: 999,
-            }}>
-              {results.length > 0 ? `링크 ${results.length}개` : (STATUS_LABEL[commission.status] || commission.status)}
+            <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: statusColor, background: statusBg, padding: "4px 12px", borderRadius: 999 }}>
+              {statusLabel}
             </span>
             {commission.is_private && (
-              <span style={{
-                flexShrink: 0, fontSize: 12, fontWeight: 700,
-                color: "#7c3aed", background: "#ede9fe",
-                padding: "4px 12px", borderRadius: 999,
-              }}>
+              <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: "#7c3aed", background: "#ede9fe", padding: "4px 12px", borderRadius: 999 }}>
                 개인의뢰
               </span>
             )}
@@ -564,15 +558,12 @@ export default function CommissionDetailPage() {
           <div style={{ display: "flex", gap: 10, fontSize: 13, color: "#6b7280" }}>
             <span>{commission.nickname}</span>
             <span>·</span>
-            <span>{formatDate(commission.created_at)}</span>
+            <span>{fd(commission.created_at)}</span>
           </div>
         </div>
         {isSeller && !commission.is_private && (
           <button type="button" onClick={() => {
-            if (!linkPanelOpen) {
-              setResultLink(myResult?.result_link || "");
-              setResultEditing(false);
-            }
+            if (!linkPanelOpen) { setResultLink(myResult?.result_link || ""); setResultEditing(false); }
             setLinkPanelOpen((p) => !p);
           }} style={{
             flexShrink: 0, border: "1px solid #d1d5db", borderRadius: 10,
@@ -584,51 +575,33 @@ export default function CommissionDetailPage() {
         )}
       </div>
 
-      {/* 판매자 링크 패널 */}
+      {/* 링크 패널 (공개의뢰 판매자) */}
       {isSeller && !commission.is_private && linkPanelOpen && (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 20, background: "#fafafa" }}>
           {myResult && !resultEditing ? (
-            /* 이미 등록한 경우: 현재 링크 표시 + 수정/삭제 */
             <div>
               <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 6 }}>등록된 링크</div>
-              <a href={myResult.result_link}
-                style={{ fontSize: 13, color: "#2563eb", wordBreak: "break-all" }}>
-                {myResult.result_link}
-              </a>
+              <a href={myResult.result_link} style={{ fontSize: 13, color: "#2563eb", wordBreak: "break-all" }}>{myResult.result_link}</a>
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button type="button" onClick={() => { setResultLink(myResult.result_link); setResultEditing(true); }}
-                  style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  수정
-                </button>
+                  style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>수정</button>
                 <button type="button" onClick={handleResultDelete} disabled={resultSaving}
                   style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #fca5a5", background: "white", color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: resultSaving ? "not-allowed" : "pointer" }}>
-                  {resultSaving ? "처리 중..." : "삭제"}
-                </button>
+                  {resultSaving ? "처리 중..." : "삭제"}</button>
                 <button type="button" onClick={() => setLinkPanelOpen(false)}
-                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>
-                  닫기
-                </button>
+                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>닫기</button>
               </div>
             </div>
           ) : (
-            /* 신규 등록 or 수정 중 */
             <div>
-              <input type="url" value={resultLink} onChange={(e) => setResultLink(e.target.value)}
-                placeholder="https://..." style={{
-                  height: 44, borderRadius: 10, border: "1px solid #d1d5db",
-                  padding: "0 12px", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none",
-                }} />
+              <input type="url" value={resultLink} onChange={(e) => setResultLink(e.target.value)} placeholder="https://..."
+                style={{ height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" }} />
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button type="button"
-                  onClick={resultEditing ? handleResultUpdate : handleResultInsert}
-                  disabled={resultSaving}
+                <button type="button" onClick={resultEditing ? handleResultUpdate : handleResultInsert} disabled={resultSaving}
                   style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: resultSaving ? "#d1d5db" : GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: resultSaving ? "not-allowed" : "pointer" }}>
-                  {resultSaving ? "처리 중..." : resultEditing ? "수정 저장" : "등록"}
-                </button>
+                  {resultSaving ? "처리 중..." : resultEditing ? "수정 저장" : "등록"}</button>
                 <button type="button" onClick={() => { setResultEditing(false); setLinkPanelOpen(false); }}
-                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>
-                  취소
-                </button>
+                  style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>취소</button>
               </div>
             </div>
           )}
@@ -639,8 +612,7 @@ export default function CommissionDetailPage() {
       {commission.images && commission.images.length > 0 ? (
         <div style={{ marginBottom: 28 }}>
           <div style={{ width: "100%", aspectRatio: "16/9", borderRadius: 14, overflow: "hidden", background: "#f8fafc", marginBottom: 10 }}>
-            <img src={commission.images[selectedImage]} alt={commission.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={commission.images[selectedImage]} alt={commission.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
           {commission.images.length > 1 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -656,35 +628,30 @@ export default function CommissionDetailPage() {
           )}
         </div>
       ) : (
-        <div style={{
-          width: "100%", aspectRatio: "16/9", borderRadius: 14, background: "#f8fafc",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#d1d5db", fontSize: 48, marginBottom: 28,
-        }}>📋</div>
+        <div style={{ width: "100%", aspectRatio: "16/9", borderRadius: 14, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center", color: "#d1d5db", fontSize: 48, marginBottom: 28 }}>📋</div>
       )}
 
       {/* 설명 */}
       {commission.description && (
-        <div style={{
-          background: "#f8fafc", borderRadius: 14, padding: "18px 20px",
-          fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 28, whiteSpace: "pre-wrap",
-        }}>
+        <div style={{ background: "#f8fafc", borderRadius: 14, padding: "18px 20px", fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 28, whiteSpace: "pre-wrap" }}>
           {commission.description}
         </div>
       )}
 
-      {/* ─── 개인 의뢰 협의 패널 ─── */}
+      {/* ─── 개인 의뢰 패널 ─── */}
       {commission.is_private && (isAuthor || isTargetSeller) && (
-        <div style={{
-          border: "1px solid #e5e7eb", borderRadius: 16, padding: 20,
-          marginBottom: 28, background: "#fafafa",
-        }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
-            개인 의뢰 협의
-          </div>
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20, marginBottom: 28, background: "#fafafa" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>개인 의뢰 진행 상황</div>
 
-          {/* ── pending ── */}
-          {negStatus === "pending" && (
+          {/* 프로그레스 바 */}
+          {!["rejected", "cancelled"].includes(status) && (
+            <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 24 }}>
+              {progressEls}
+            </div>
+          )}
+
+          {/* ── 의뢰중 (pending) ── */}
+          {status === "pending" && (
             <>
               <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
                 <div style={{ flex: 1, background: "white", border: "1px solid #e5e7eb", borderRadius: 10, padding: "12px 16px" }}>
@@ -700,15 +667,14 @@ export default function CommissionDetailPage() {
                   </div>
                 </div>
               </div>
-
-              {isTargetSeller && (
+              {isTargetSeller && !proposeOpen && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <button onClick={handleAccept} disabled={negSubmitting} style={{
+                  <button onClick={handleSellerAccept} disabled={negSubmitting} style={{
                     height: 44, borderRadius: 10, border: "none",
                     background: negSubmitting ? "#d1d5db" : "#111827",
                     color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
                   }}>
-                    수락하기 (희망 비용/기간 동의)
+                    {negSubmitting ? "처리 중..." : "수락하기"}
                   </button>
                   <button onClick={() => {
                     setProposePrice(commission.desired_price?.toString() || "");
@@ -722,107 +688,157 @@ export default function CommissionDetailPage() {
                   </button>
                 </div>
               )}
-
+              {proposeOpen && status === "pending" && (
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "white" }}>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                    <input type="number" value={proposePrice} onChange={(e) => setProposePrice(e.target.value)} placeholder="비용 (원)"
+                      style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
+                    <input type="number" value={proposeDays} onChange={(e) => setProposeDays(e.target.value)} placeholder="기간 (일)"
+                      style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
+                  </div>
+                  <textarea value={proposeMsg} onChange={(e) => setProposeMsg(e.target.value)} placeholder="메시지 (선택)" rows={2}
+                    style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: "inherit" }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={handlePropose} disabled={negSubmitting} style={{
+                      flex: 1, height: 40, borderRadius: 8, border: "none",
+                      background: negSubmitting ? "#d1d5db" : "#111827",
+                      color: "white", fontSize: 13, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+                    }}>{negSubmitting ? "전송 중..." : "제안 전송"}</button>
+                    <button onClick={() => setProposeOpen(false)} style={{
+                      flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", background: "white",
+                      color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}>취소</button>
+                  </div>
+                </div>
+              )}
               {isAuthor && (
-                <div style={{
-                  padding: "14px 16px", borderRadius: 10, background: "#fffbeb",
-                  border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600,
-                }}>
+                <div style={{ padding: "14px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
                   판매자 응답 대기 중...
                 </div>
               )}
             </>
           )}
 
-          {/* ── negotiating ── */}
-          {negStatus === "negotiating" && (
+          {/* ── 협의중 (negotiating) ── */}
+          {status === "negotiating" && (
             <>
-              {/* 협의 히스토리 */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
-                {negLoading ? (
-                  <div style={{ fontSize: 13, color: "#9ca3af" }}>불러오는 중...</div>
-                ) : negotiations.map((neg) => {
-                  const isMine = neg.proposer_id === myId;
-                  return (
-                    <div key={neg.id} style={{
-                      display: "flex", flexDirection: "column",
-                      alignItems: isMine ? "flex-end" : "flex-start",
-                    }}>
-                      <div style={{
-                        maxWidth: "80%", background: isMine ? "#111827" : "white",
-                        color: isMine ? "white" : "#111827",
-                        border: isMine ? "none" : "1px solid #e5e7eb",
-                        borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-                        padding: "12px 14px",
-                      }}>
-                        <div style={{ display: "flex", gap: 12, marginBottom: neg.message ? 8 : 0 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700 }}>
-                            {neg.price.toLocaleString()}원
-                          </span>
-                          <span style={{ fontSize: 13, fontWeight: 700 }}>
-                            {neg.days}일
-                          </span>
-                          <span style={{ fontSize: 11, opacity: 0.6, alignSelf: "center" }}>
-                            라운드 {neg.round}
-                          </span>
-                        </div>
-                        {neg.message && (
-                          <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{neg.message}</div>
-                        )}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>
-                        {formatDateTime(neg.created_at)}
-                      </div>
+              {/* 현재 합의 조건 */}
+              {(commission.final_price != null || commission.final_days != null) && (
+                <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+                  <div style={{ flex: 1, background: "white", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>현재 합의 비용</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                      {commission.final_price != null ? `${commission.final_price.toLocaleString()}원` : "미지정"}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                  <div style={{ flex: 1, background: "white", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 2 }}>현재 합의 기간</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                      {commission.final_days != null ? `${commission.final_days}일` : "미지정"}
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {/* 내 차례 입력 폼 */}
+              {/* 협의 히스토리 */}
+              {negotiations.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+                  {negLoading ? (
+                    <div style={{ fontSize: 13, color: "#9ca3af" }}>불러오는 중...</div>
+                  ) : negotiations.map((neg) => {
+                    const isMine = neg.proposer_id === myId;
+                    return (
+                      <div key={neg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start" }}>
+                        <div style={{
+                          maxWidth: "80%",
+                          background: isMine ? "#111827" : "white",
+                          color: isMine ? "white" : "#111827",
+                          border: isMine ? "none" : "1px solid #e5e7eb",
+                          borderRadius: isMine ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                          padding: "12px 14px",
+                        }}>
+                          <div style={{ display: "flex", gap: 12, marginBottom: neg.message ? 8 : 0 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700 }}>{neg.price.toLocaleString()}원</span>
+                            <span style={{ fontSize: 13, fontWeight: 700 }}>{neg.days}일</span>
+                            <span style={{ fontSize: 11, opacity: 0.6, alignSelf: "center" }}>라운드 {neg.round}</span>
+                          </div>
+                          {neg.message && <div style={{ fontSize: 13, whiteSpace: "pre-wrap" }}>{neg.message}</div>}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{fdt(neg.created_at)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 내 차례 재제안 폼 */}
               {isMyTurnToRespond && (
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "white" }}>
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "white", marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, color: "#7c3aed", fontWeight: 700, marginBottom: 8 }}>상대방이 새 조건을 제안했습니다. 재제안하거나 협의완료를 눌러주세요.</div>
                   <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
                     <input type="number" value={proposePrice} onChange={(e) => setProposePrice(e.target.value)}
-                      placeholder={`비용 (원) - 이전: ${lastNeg?.price.toLocaleString()}`}
+                      placeholder={`비용 (이전: ${lastNeg?.price.toLocaleString()}원)`}
                       style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
                     <input type="number" value={proposeDays} onChange={(e) => setProposeDays(e.target.value)}
-                      placeholder={`기간 (일) - 이전: ${lastNeg?.days}`}
+                      placeholder={`기간 (이전: ${lastNeg?.days}일)`}
                       style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
                   </div>
-                  <textarea value={proposeMsg} onChange={(e) => setProposeMsg(e.target.value)}
-                    placeholder="메시지 (선택)" rows={2}
+                  <textarea value={proposeMsg} onChange={(e) => setProposeMsg(e.target.value)} placeholder="메시지 (선택)" rows={2}
                     style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: "inherit" }} />
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={handleAgreeNeg} disabled={negSubmitting} style={{
+                    <button onClick={handlePropose} disabled={negSubmitting} style={{
                       flex: 1, height: 40, borderRadius: 8, border: "none",
-                      background: negSubmitting ? "#d1d5db" : "#16a34a",
+                      background: negSubmitting ? "#d1d5db" : "#111827",
                       color: "white", fontSize: 13, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
-                    }}>동의하기</button>
-                    {commission.negotiation_count < 3 ? (
-                      <button onClick={() => handlePropose(false)} disabled={negSubmitting} style={{
-                        flex: 1, height: 40, borderRadius: 8, border: "none",
-                        background: negSubmitting ? "#d1d5db" : "#111827",
-                        color: "white", fontSize: 13, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
-                      }}>재제안</button>
-                    ) : (
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#9ca3af" }}>
-                        최대 협의 횟수 초과
-                      </div>
-                    )}
+                    }}>재제안</button>
                   </div>
                 </div>
               )}
 
-              {!isMyTurnToRespond && (
-                <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
-                  상대방 응답 대기 중...
+              {/* 새 제안 버튼 (내 차례가 아닐 때) */}
+              {!isMyTurnToRespond && !proposeOpen && (
+                <button onClick={() => { setProposePrice(commission.final_price?.toString() || ""); setProposeDays(commission.final_days?.toString() || ""); setProposeOpen(true); }}
+                  style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>
+                  협의 제안하기
+                </button>
+              )}
+              {!isMyTurnToRespond && proposeOpen && (
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "white", marginBottom: 10 }}>
+                  <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                    <input type="number" value={proposePrice} onChange={(e) => setProposePrice(e.target.value)} placeholder="비용 (원)"
+                      style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
+                    <input type="number" value={proposeDays} onChange={(e) => setProposeDays(e.target.value)} placeholder="기간 (일)"
+                      style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
+                  </div>
+                  <textarea value={proposeMsg} onChange={(e) => setProposeMsg(e.target.value)} placeholder="메시지 (선택)" rows={2}
+                    style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: "inherit" }} />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={handlePropose} disabled={negSubmitting} style={{
+                      flex: 1, height: 40, borderRadius: 8, border: "none",
+                      background: negSubmitting ? "#d1d5db" : "#111827",
+                      color: "white", fontSize: 13, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+                    }}>{negSubmitting ? "전송 중..." : "제안 전송"}</button>
+                    <button onClick={() => setProposeOpen(false)} style={{
+                      flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", background: "white",
+                      color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}>취소</button>
+                  </div>
                 </div>
               )}
+
+              {/* 협의완료 버튼 */}
+              <button onClick={handleNegotiationComplete} disabled={negSubmitting} style={{
+                width: "100%", height: 44, borderRadius: 10, border: "none",
+                background: negSubmitting ? "#d1d5db" : "#16a34a",
+                color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+              }}>
+                {negSubmitting ? "처리 중..." : "협의완료 → 결제 단계로"}
+              </button>
             </>
           )}
 
-          {/* ── agreed ── */}
-          {negStatus === "agreed" && (
+          {/* ── 결제중 (payment) ── */}
+          {status === "payment" && (
             <div>
               <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
                 <div style={{ flex: 1, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: "12px 16px" }}>
@@ -839,42 +855,70 @@ export default function CommissionDetailPage() {
                 </div>
               </div>
               {isAuthor && (
-                <button disabled style={{
+                <button onClick={handlePaymentComplete} disabled={negSubmitting} style={{
                   width: "100%", height: 44, borderRadius: 10, border: "none",
-                  background: "#e5e7eb", color: "#9ca3af", fontSize: 14, fontWeight: 700, cursor: "not-allowed",
-                }}>결제하기 (준비중)</button>
+                  background: negSubmitting ? "#d1d5db" : GOLD,
+                  color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+                }}>
+                  {negSubmitting ? "처리 중..." : "결제하기"}
+                </button>
               )}
               {isTargetSeller && (
                 <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
-                  결제 대기 중...
+                  결제 대기 중... 구매자가 결제를 완료하면 작업을 시작해주세요.
                 </div>
               )}
             </div>
           )}
 
-          {/* ── completed ── */}
-          {negStatus === "completed" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* ── 작업중 (working) ── */}
+          {status === "working" && (
+            <div>
+              <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
+                <div style={{ flex: 1, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "12px 16px" }}>
+                  <div style={{ fontSize: 12, color: "#ea580c", marginBottom: 4, fontWeight: 600 }}>합의 비용</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>
+                    {commission.final_price != null ? `${commission.final_price.toLocaleString()}원` : "-"}
+                  </div>
+                </div>
+                <div style={{ flex: 1, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "12px 16px" }}>
+                  <div style={{ fontSize: 12, color: "#ea580c", marginBottom: 4, fontWeight: 600 }}>합의 기간</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>
+                    {commission.final_days != null ? `${commission.final_days}일` : "-"}
+                  </div>
+                </div>
+              </div>
               {isTargetSeller && (
                 <>
                   <button onClick={() => fileUploadRef.current?.click()} disabled={negSubmitting} style={{
-                    height: 44, borderRadius: 10, border: "1px dashed #d1d5db", background: "white",
+                    width: "100%", height: 44, borderRadius: 10, border: "1px dashed #d1d5db", background: "white",
                     color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
                   }}>
-                    {negSubmitting ? "업로드 중..." : "파일 업로드"}
+                    {negSubmitting ? "업로드 중..." : "결과물 업로드"}
                   </button>
                   <input ref={fileUploadRef} type="file" style={{ display: "none" }} onChange={handleFileUpload} />
                 </>
               )}
               {isAuthor && (
+                <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
+                  작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── 작업완료 (completed) ── */}
+          {status === "completed" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 14, color: "#166534", fontWeight: 600 }}>
+                결과물이 업로드되었습니다. 확인 후 다운로드해주세요.
+              </div>
+              {isAuthor && (
                 <div style={{ display: "flex", gap: 10 }}>
-                  {uploadedFileUrl && (
-                    <a href={uploadedFileUrl} target="_blank" rel="noopener noreferrer" style={{
-                      flex: 1, height: 44, borderRadius: 10, border: "none",
-                      background: "#111827", color: "white", fontSize: 14, fontWeight: 700,
-                      display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none",
-                    }}>파일 다운로드</a>
-                  )}
+                  <button onClick={handleDownload} style={{
+                    flex: 1, height: 44, borderRadius: 10, border: "none",
+                    background: "#111827", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  }}>파일 다운로드</button>
                   {commission.revision_count < 2 && (
                     <button onClick={handleRevision} disabled={negSubmitting} style={{
                       flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
@@ -885,80 +929,83 @@ export default function CommissionDetailPage() {
                   )}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* ── cancelled ── */}
-          {negStatus === "cancelled" && (
-            <div style={{ padding: "14px 16px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca", fontSize: 14, color: "#991b1b", fontWeight: 600 }}>
-              취소된 의뢰입니다.
-              {commission.cancel_reason && (
-                <div style={{ marginTop: 6, fontSize: 13, fontWeight: 400, color: "#dc2626" }}>
-                  사유: {commission.cancel_reason}
+              {isTargetSeller && (
+                <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
+                  구매자가 파일을 다운로드하면 거래가 완료됩니다.
                 </div>
               )}
             </div>
           )}
 
-          {/* 협의 제안 입력창 (pending 상태 판매자 제안) */}
-          {proposeOpen && negStatus === "pending" && (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "white", marginTop: 12 }}>
-              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-                <input type="number" value={proposePrice} onChange={(e) => setProposePrice(e.target.value)}
-                  placeholder="비용 (원)" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
-                <input type="number" value={proposeDays} onChange={(e) => setProposeDays(e.target.value)}
-                  placeholder="기간 (일)" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 10px", fontSize: 13, outline: "none" }} />
+          {/* ── 다운완료 (downloaded) ── */}
+          {status === "downloaded" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ padding: "20px 16px", borderRadius: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", textAlign: "center" }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>🎉</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#166534" }}>거래가 완료되었습니다!</div>
+                <div style={{ fontSize: 13, color: "#16a34a", marginTop: 4 }}>구매자가 결과물을 다운로드했습니다.</div>
               </div>
-              <textarea value={proposeMsg} onChange={(e) => setProposeMsg(e.target.value)}
-                placeholder="메시지 (선택)" rows={2}
-                style={{ width: "100%", borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: "inherit" }} />
-              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button onClick={() => handlePropose(true)} disabled={negSubmitting} style={{
-                  flex: 1, height: 40, borderRadius: 8, border: "none",
-                  background: negSubmitting ? "#d1d5db" : "#111827",
-                  color: "white", fontSize: 13, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
-                }}>제안 전송</button>
-                <button onClick={() => setProposeOpen(false)} style={{
-                  flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", background: "white",
-                  color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>취소</button>
+              {commission.result_link && (
+                <a href={commission.result_link} target="_blank" rel="noopener noreferrer" style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
+                  color: "#374151", fontSize: 14, fontWeight: 700, textDecoration: "none",
+                }}>파일 다시 다운로드</a>
+              )}
+            </div>
+          )}
+
+          {/* ── 거절됨 (rejected) ── */}
+          {status === "rejected" && (
+            <div>
+              <div style={{ padding: "14px 16px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#991b1b" }}>판매자가 의뢰를 거절했습니다.</div>
+                {commission.rejection_reason && (
+                  <div style={{ marginTop: 10, padding: "10px 12px", background: "white", borderRadius: 8, fontSize: 13, color: "#dc2626", borderLeft: "3px solid #fca5a5" }}>
+                    <span style={{ fontWeight: 700 }}>거절 사유: </span>{commission.rejection_reason}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* 취소 요청 */}
-          {canCancel && negStatus !== "cancelled" && (
-            <div style={{ marginTop: 16, borderTop: "1px solid #f3f4f6", paddingTop: 14 }}>
-              {!cancelOpen ? (
-                <button onClick={() => setCancelOpen(true)} style={{
+          {/* ── 취소됨 (cancelled) ── */}
+          {status === "cancelled" && (
+            <div>
+              <div style={{ padding: "14px 16px", borderRadius: 10, background: "#f3f4f6", border: "1px solid #d1d5db" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#374151" }}>의뢰가 취소되었습니다.</div>
+                {(commission.cancellation_reason || commission.cancel_reason) && (
+                  <div style={{ marginTop: 10, padding: "10px 12px", background: "white", borderRadius: 8, fontSize: 13, color: "#6b7280", borderLeft: "3px solid #d1d5db" }}>
+                    <span style={{ fontWeight: 700 }}>취소 사유: </span>{commission.cancellation_reason || commission.cancel_reason}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 거절/취소 버튼 */}
+          {(canReject || canCancel) && (
+            <div style={{ marginTop: 16, borderTop: "1px solid #f3f4f6", paddingTop: 14, display: "flex", gap: 8 }}>
+              {canReject && (
+                <button onClick={() => { setRejectReasonIdx(-1); setRejectReasonOther(""); setRejectModalOpen(true); }} style={{
                   height: 36, padding: "0 16px", borderRadius: 8,
                   border: "1px solid #fca5a5", background: "white",
                   color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>취소 요청</button>
-              ) : (
-                <div>
-                  <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
-                    placeholder="취소 사유 (선택)" rows={2}
-                    style={{ width: "100%", borderRadius: 8, border: "1px solid #fca5a5", padding: "8px 10px", fontSize: 13, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: "inherit", marginBottom: 8 }} />
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button onClick={handleCancel} disabled={negSubmitting} style={{
-                      flex: 1, height: 38, borderRadius: 8, border: "none",
-                      background: negSubmitting ? "#d1d5db" : "#dc2626",
-                      color: "white", fontSize: 13, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
-                    }}>확인</button>
-                    <button onClick={() => setCancelOpen(false)} style={{
-                      flex: 1, height: 38, borderRadius: 8, border: "1px solid #d1d5db", background: "white",
-                      color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                    }}>닫기</button>
-                  </div>
-                </div>
+                }}>거절하기</button>
+              )}
+              {canCancel && (
+                <button onClick={() => { setCancelReasonIdx(-1); setCancelReasonOther(""); setCancelModalOpen(true); }} style={{
+                  height: 36, padding: "0 16px", borderRadius: 8,
+                  border: "1px solid #fca5a5", background: "white",
+                  color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                }}>취소하기</button>
               )}
             </div>
           )}
         </div>
       )}
 
-      {/* 결과물 링크 */}
+      {/* 결과물 링크 (공개의뢰) */}
       {results.length > 0 && (
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>결과물</div>
@@ -977,30 +1024,25 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
-      {/* 작성자 삭제 버튼 */}
+      {/* 삭제 버튼 */}
       {isAuthor && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
           <button type="button" onClick={handleDelete} disabled={deleting} style={{
-            padding: "8px 18px", borderRadius: 8,
-            border: "1px solid #fca5a5", background: "white",
-            color: "#dc2626", fontSize: 13, fontWeight: 700,
-            cursor: deleting ? "not-allowed" : "pointer",
+            padding: "8px 18px", borderRadius: 8, border: "1px solid #fca5a5", background: "white",
+            color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer",
           }}>
             {deleting ? "삭제 중..." : "삭제"}
           </button>
         </div>
       )}
 
-      {/* 댓글 섹션 (공개 의뢰만) */}
+      {/* 댓글 (공개의뢰) */}
       {!commission.is_private && (
         <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: 28 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
-            댓글 {comments.length}개
-          </div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>댓글 {comments.length}개</div>
           {myId ? (
             <div style={{ marginBottom: 24 }}>
-              <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)}
-                placeholder="댓글을 입력하세요" rows={3}
+              <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="댓글을 입력하세요" rows={3}
                 style={{ width: "100%", borderRadius: 12, border: "1px solid #d1d5db", padding: "12px", fontSize: 14, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: "system-ui, -apple-system, sans-serif" }} />
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
                 <button type="button" onClick={handleAddComment} disabled={submittingComment || !commentText.trim()} style={{
@@ -1031,22 +1073,83 @@ export default function CommissionDetailPage() {
                       {(Array.isArray(comment.profiles) ? comment.profiles[0]?.nickname : comment.profiles?.nickname) || "익명"}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 11, color: "#9ca3af" }}>{formatDate(comment.created_at)}</span>
+                      <span style={{ fontSize: 11, color: "#9ca3af" }}>{fd(comment.created_at)}</span>
                       {myId === comment.user_id && (
-                        <button type="button" onClick={() => handleDeleteComment(comment.id)} style={{
-                          background: "none", border: "none", padding: 0,
-                          color: "#d1d5db", fontSize: 11, cursor: "pointer", fontWeight: 700,
-                        }}>삭제</button>
+                        <button type="button" onClick={() => handleDeleteComment(comment.id)} style={{ background: "none", border: "none", padding: 0, color: "#d1d5db", fontSize: 11, cursor: "pointer", fontWeight: 700 }}>삭제</button>
                       )}
                     </div>
                   </div>
-                  <div style={{ fontSize: 14, color: "#374151", marginTop: 4, whiteSpace: "pre-wrap" }}>
-                    {comment.content}
-                  </div>
+                  <div style={{ fontSize: 14, color: "#374151", marginTop: 4, whiteSpace: "pre-wrap" }}>{comment.content}</div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ─── 거절 모달 ─── */}
+      {rejectModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 24, maxWidth: 440, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#111827", marginBottom: 4 }}>의뢰 거절</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>거절 사유를 선택해주세요.</div>
+            {REJECT_REASONS.map((reason, i) => (
+              <label key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderBottom: i < REJECT_REASONS.length - 1 ? "1px solid #f3f4f6" : "none", cursor: "pointer" }}>
+                <input type="radio" name="rejectReason" checked={rejectReasonIdx === i} onChange={() => setRejectReasonIdx(i)}
+                  style={{ width: 16, height: 16, accentColor: "#dc2626", cursor: "pointer" }} />
+                <span style={{ fontSize: 14, color: "#374151" }}>{reason}</span>
+              </label>
+            ))}
+            {rejectReasonIdx === REJECT_REASONS.length - 1 && (
+              <textarea value={rejectReasonOther} onChange={(e) => setRejectReasonOther(e.target.value)}
+                placeholder="직접 입력하세요" rows={2}
+                style={{ width: "100%", marginTop: 10, borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, boxSizing: "border-box", outline: "none", fontFamily: "inherit", resize: "vertical" }} />
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={handleReject} disabled={negSubmitting} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "none",
+                background: negSubmitting ? "#d1d5db" : "#dc2626",
+                color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+              }}>{negSubmitting ? "처리 중..." : "확인"}</button>
+              <button onClick={() => setRejectModalOpen(false)} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
+                color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 취소 모달 ─── */}
+      {cancelModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 24, maxWidth: 440, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#111827", marginBottom: 4 }}>의뢰 취소</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>취소 사유를 선택해주세요.</div>
+            {CANCEL_REASONS.map((reason, i) => (
+              <label key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderBottom: i < CANCEL_REASONS.length - 1 ? "1px solid #f3f4f6" : "none", cursor: "pointer" }}>
+                <input type="radio" name="cancelReason" checked={cancelReasonIdx === i} onChange={() => setCancelReasonIdx(i)}
+                  style={{ width: 16, height: 16, accentColor: "#dc2626", cursor: "pointer" }} />
+                <span style={{ fontSize: 14, color: "#374151" }}>{reason}</span>
+              </label>
+            ))}
+            {cancelReasonIdx === CANCEL_REASONS.length - 1 && (
+              <textarea value={cancelReasonOther} onChange={(e) => setCancelReasonOther(e.target.value)}
+                placeholder="직접 입력하세요" rows={2}
+                style={{ width: "100%", marginTop: 10, borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, boxSizing: "border-box", outline: "none", fontFamily: "inherit", resize: "vertical" }} />
+            )}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={handleCancel} disabled={negSubmitting} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "none",
+                background: negSubmitting ? "#d1d5db" : "#dc2626",
+                color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+              }}>{negSubmitting ? "처리 중..." : "확인"}</button>
+              <button onClick={() => setCancelModalOpen(false)} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
+                color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}>닫기</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
