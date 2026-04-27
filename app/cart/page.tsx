@@ -26,6 +26,9 @@ export default function CartPage() {
 
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("cart") || "[]");
+    if (savedCart.length > 0) {
+      console.log("[cart] thumbUrl 형태 확인:", savedCart.map((i: CartItem) => ({ id: i.id, thumbUrl: i.thumbUrl })));
+    }
     setCartItems(savedCart);
     window.dispatchEvent(new Event("cart-reset"));
   }, []);
