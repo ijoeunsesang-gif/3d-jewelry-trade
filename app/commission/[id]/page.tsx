@@ -180,7 +180,7 @@ export default function CommissionDetailPage() {
         .select("id, user_id, title, description, images, status, result_link, created_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason")
         .eq("id", id)
         .single();
-      if (error || !data) return;
+      if (error || !data) { console.error("fetchCommission error:", error); return; }
       const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", data.user_id).single();
       setCommission({ ...data, nickname: profile?.nickname || "익명" });
       if (data.is_private) fetchNegotiations();
