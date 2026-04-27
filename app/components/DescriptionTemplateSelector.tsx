@@ -38,7 +38,7 @@ export default function DescriptionTemplateSelector({
   placeholder = "모델 설명을 입력하세요.",
 }: Props) {
   const [templates, setTemplates] = useState<DescriptionTemplate[]>([]);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<DescriptionTemplate | null>(null);
   const [editingName, setEditingName] = useState("");
 
@@ -65,13 +65,19 @@ export default function DescriptionTemplateSelector({
   useEffect(() => {
     loadTemplates();
 
-    // 다른 탭에서 템플릿이 변경되면 동기화
     const onStorage = (e: StorageEvent) => {
       if (e.key === TEMPLATE_STORAGE_KEY) loadTemplates();
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  useEffect(() => {
+    if (openIdx === null) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setOpenIdx(null); };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [openIdx]);
 
   const persist = (next: DescriptionTemplate[]) => {
     setTemplates(next);
@@ -139,17 +145,15 @@ export default function DescriptionTemplateSelector({
             <div
               key={item.id}
               style={{ position: "relative", display: "inline-block" }}
-              onMouseEnter={() => setHoveredIdx(idx)}
-              onMouseLeave={() => setHoveredIdx(null)}
             >
               <button
                 type="button"
-                onClick={() => onDescriptionChange(item.content)}
+                onClick={() => setOpenIdx(openIdx === idx ? null : idx)}
                 style={{
                   height: 38, padding: "0 12px", borderRadius: 999,
                   border: "1px solid #d1d5db",
-                  background: hoveredIdx === idx ? "#111827" : "white",
-                  color: hoveredIdx === idx ? "white" : "#111827",
+                  background: openIdx === idx ? "#111827" : "white",
+                  color: openIdx === idx ? "white" : "#111827",
                   fontWeight: 800, fontSize: 13, cursor: "pointer",
                   maxWidth: 120, overflow: "hidden",
                   textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -158,68 +162,63 @@ export default function DescriptionTemplateSelector({
                 {item.name}
               </button>
 
-              {hoveredIdx === idx && (
-                <>
-                  {/* 버튼 → 팝업 사이 마우스 이탈 방지 브리지 */}
-                  <div style={{ position: "absolute", top: "100%", left: 0, width: 320, height: 12, background: "transparent", zIndex: 29 }} />
-
+              {openIdx === idx && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", left: 0,
+                  width: 320, maxWidth: "70vw",
+                  padding: 12, borderRadius: 14,
+                  border: "1px solid #e5e7eb", background: "white",
+                  boxShadow: "0 16px 40px rgba(15,23,42,0.16)",
+                  zIndex: 30, display: "grid", gap: 10,
+                }}>
                   <div style={{
-                    position: "absolute", top: "calc(100% + 8px)", left: 0,
-                    width: 320, maxWidth: "70vw",
-                    padding: 12, borderRadius: 14,
-                    border: "1px solid #e5e7eb", background: "white",
-                    boxShadow: "0 16px 40px rgba(15,23,42,0.16)",
-                    zIndex: 30, display: "grid", gap: 10,
+                    fontSize: 13, color: "#374151", lineHeight: 1.5,
+                    whiteSpace: "pre-wrap", wordBreak: "break-word",
+                    maxHeight: 180, overflowY: "auto",
                   }}>
-                    <div style={{
-                      fontSize: 13, color: "#374151", lineHeight: 1.5,
-                      whiteSpace: "pre-wrap", wordBreak: "break-word",
-                      maxHeight: 180, overflowY: "auto",
-                    }}>
-                      {item.content}
-                    </div>
+                    {item.content}
+                  </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => { onDescriptionChange(item.content); setOpenIdx(null); }}
+                      style={{
+                        height: 32, padding: "0 10px", borderRadius: 10,
+                        border: "none", background: "#111827", color: "white",
+                        fontWeight: 800, cursor: "pointer",
+                      }}
+                    >
+                      적용
+                    </button>
+
+                    <div style={{ display: "flex", gap: 8 }}>
                       <button
                         type="button"
-                        onClick={() => { onDescriptionChange(item.content); setHoveredIdx(null); }}
+                        onClick={() => startRename(item.id)}
                         style={{
                           height: 32, padding: "0 10px", borderRadius: 10,
-                          border: "none", background: "#111827", color: "white",
-                          fontWeight: 800, cursor: "pointer",
+                          border: "1px solid #d1d5db", background: "white",
+                          color: "#111827", fontWeight: 800, cursor: "pointer",
                         }}
                       >
-                        적용
+                        이름 수정
                       </button>
 
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          type="button"
-                          onClick={() => startRename(item.id)}
-                          style={{
-                            height: 32, padding: "0 10px", borderRadius: 10,
-                            border: "1px solid #d1d5db", background: "white",
-                            color: "#111827", fontWeight: 800, cursor: "pointer",
-                          }}
-                        >
-                          이름 수정
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => deleteTemplate(item.id)}
-                          style={{
-                            height: 32, padding: "0 10px", borderRadius: 10,
-                            border: "1px solid #fca5a5", background: "white",
-                            color: "#dc2626", fontWeight: 800, cursor: "pointer",
-                          }}
-                        >
-                          삭제
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteTemplate(item.id)}
+                        style={{
+                          height: 32, padding: "0 10px", borderRadius: 10,
+                          border: "1px solid #fca5a5", background: "white",
+                          color: "#dc2626", fontWeight: 800, cursor: "pointer",
+                        }}
+                      >
+                        삭제
+                      </button>
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           ))}

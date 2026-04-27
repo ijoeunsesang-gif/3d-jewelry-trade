@@ -34,6 +34,16 @@ export default function UploadPage() {
     check();
   }, []);
 
+  useEffect(() => {
+    const preventDefault = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+    document.addEventListener("dragover", preventDefault);
+    document.addEventListener("drop", preventDefault);
+    return () => {
+      document.removeEventListener("dragover", preventDefault);
+      document.removeEventListener("drop", preventDefault);
+    };
+  }, []);
+
   const uploadBoxStyle: React.CSSProperties = {
     border: "1px dashed #cbd5e1",
     borderRadius: 18,
