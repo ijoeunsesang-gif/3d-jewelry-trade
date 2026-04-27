@@ -1139,8 +1139,9 @@ function SalesTab({ userId }: { userId: string }) {
 
   const getThumbUrl = (model?: ModelRow) => {
     if (!model) return "";
-    if (model.thumbnail_path) return supabase.storage.from("thumbnails").getPublicUrl(model.thumbnail_path).data.publicUrl;
-    return model.thumbnail || "";
+    if (model.thumbnail) return model.thumbnail;
+    if (model.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${model.thumbnail_path}`;
+    return "";
   };
 
   if (salesLoading) {

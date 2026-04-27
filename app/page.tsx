@@ -277,12 +277,9 @@ export default function Home() {
   };
 
   const getThumbnailUrl = (item: ModelItem) => {
-    if (item.thumbnail_path) {
-      return supabase.storage
-        .from("thumbnails")
-        .getPublicUrl(item.thumbnail_path).data.publicUrl;
-    }
-    return item.thumbnail || "";
+    if (item.thumbnail) return item.thumbnail;
+    if (item.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${item.thumbnail_path}`;
+    return "";
   };
 
   const getModelExt = (item: ModelItem) => {
