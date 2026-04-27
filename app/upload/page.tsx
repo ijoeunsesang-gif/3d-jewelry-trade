@@ -132,6 +132,7 @@ export default function UploadPage() {
     try {
       if (!title.trim()) { showInfo("모델명을 입력하세요."); return; }
       if (!price.trim()) { showInfo("가격을 입력하세요."); return; }
+      if (Number(price) < 5000) { showInfo("최소 판매가는 5,000원입니다."); return; }
       if (!thumbnailFile) { showError("썸네일 이미지를 선택하세요."); return; }
       if (!modelFile) { showError("출력(대표)파일을 선택하세요."); return; }
 
@@ -352,8 +353,12 @@ export default function UploadPage() {
 
         <Field label="가격">
           <input
+            type="number"
+            min={5000}
             value={price}
             onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
+            onBlur={() => { if (price && Number(price) < 5000) showInfo("최소 판매가는 5,000원입니다."); }}
+            placeholder="최소 5,000원"
             style={inputStyle}
           />
         </Field>
