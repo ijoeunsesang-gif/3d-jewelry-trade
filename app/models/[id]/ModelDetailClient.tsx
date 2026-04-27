@@ -818,21 +818,20 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
                 <button
                   type="button"
-                  onClick={handleAddToCart}
-                  disabled={isInCart}
+                  onClick={isInCart ? () => router.push("/cart") : handleAddToCart}
                   style={{
                     height: 52,
                     borderRadius: 16,
-                    border: "1px solid #d1d5db",
-                    background: isInCart ? "#f3f4f6" : "white",
-                    color: isInCart ? "#9ca3af" : "#111827",
+                    border: "none",
+                    background: isInCart ? "#16a34a" : "white",
+                    color: isInCart ? "white" : "#111827",
                     fontWeight: 800,
-                    cursor: isInCart ? "default" : "pointer",
+                    cursor: "pointer",
                     fontSize: 17,
-                    opacity: isInCart ? 0.6 : 1,
+                    ...(isInCart ? {} : { border: "1px solid #d1d5db" }),
                   }}
                 >
-                  {isInCart ? "장바구니에 담김" : "장바구니 담기"}
+                  {isInCart ? "장바구니로 이동" : "장바구니 담기"}
                 </button>
 
                 <button
