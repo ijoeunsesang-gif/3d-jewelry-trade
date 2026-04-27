@@ -34,17 +34,15 @@ export default function UploadPage() {
     check();
   }, []);
 
+  // 드롭존 밖에서 드래그 시 새탭 열림 방지
+  // 드롭존 내부에서는 React onDrop 핸들러가 stopPropagation하므로 여기까지 안 올라옴
   useEffect(() => {
-    const handleDragOver = (e: DragEvent) => { e.preventDefault(); };
-    const handleDrop = (e: DragEvent) => {
-      if ((e.target as Element).closest?.("[data-dropzone]")) return;
-      e.preventDefault();
-    };
-    document.addEventListener("dragover", handleDragOver);
-    document.addEventListener("drop", handleDrop);
+    const prevent = (e: DragEvent) => { e.preventDefault(); };
+    document.addEventListener("dragover", prevent);
+    document.addEventListener("drop", prevent);
     return () => {
-      document.removeEventListener("dragover", handleDragOver);
-      document.removeEventListener("drop", handleDrop);
+      document.removeEventListener("dragover", prevent);
+      document.removeEventListener("drop", prevent);
     };
   }, []);
 
@@ -82,6 +80,30 @@ export default function UploadPage() {
 
   const removeExtraFile = (idx: number) => {
     setExtraFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+
+  const onDropThumbnail = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) setThumbnailFile(file);
+  };
+
+  const onDropDetailImages = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (e.dataTransfer.files) handleDetailImages(e.dataTransfer.files);
+  };
+
+  const onDropModelFile = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) setModelFile(file);
+  };
+
+  const onDropExtraFiles = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    if (e.dataTransfer.files) handleExtraFiles(e.dataTransfer.files);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -326,7 +348,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="썸네일 이미지 *">
-          <div data-dropzone style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle} onDragOver={onDragOver} onDrop={onDropThumbnail}>
             <div style={helperTextStyle}>대표로 보여질 이미지를 1장 업로드하세요.</div>
             <input
               type="file"
@@ -340,7 +362,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="추가 이미지 (최대 10장)">
-          <div data-dropzone style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle} onDragOver={onDragOver} onDrop={onDropDetailImages}>
             <div style={helperTextStyle}>
               상세페이지에 들어갈 이미지를 여러 장 업로드할 수 있습니다.
             </div>
@@ -360,7 +382,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="출력(대표)파일 *">
-          <div data-dropzone style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle} onDragOver={onDragOver} onDrop={onDropModelFile}>
             <div style={helperTextStyle}>
               출력(대표)파일 1개를 업로드하세요. 예: STL, OBJ, 3DM
             </div>
@@ -376,7 +398,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="추가 파일 (최대 10개)">
-          <div data-dropzone style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle} onDragOver={onDragOver} onDrop={onDropExtraFiles}>
             <div style={helperTextStyle}>
               출력(대표)파일 외에 보조 파일을 추가로 업로드할 수 있습니다.
               예: STL, OBJ, 3DM, ZIP, PDF
