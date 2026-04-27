@@ -143,7 +143,11 @@ export default function UploadPage() {
       modelForm.append("bucket", "models-private");
       modelForm.append("path", modelPath);
       const modelRes = await fetch("/api/upload", { method: "POST", body: modelForm });
-      if (!modelRes.ok) { showError("모델 파일 업로드 실패"); return; }
+      if (!modelRes.ok) {
+        const body = await modelRes.json().catch(() => ({}));
+        showError(`모델 파일 업로드 실패: ${body.error || modelRes.status}`);
+        return;
+      }
 
       // 모델 DB 저장
       const { data: insertedModel, error: insertModelError } = await supabase
@@ -208,7 +212,11 @@ export default function UploadPage() {
           extraForm.append("bucket", "models-private");
           extraForm.append("path", path);
           const extraRes = await fetch("/api/upload", { method: "POST", body: extraForm });
-          if (!extraRes.ok) { console.error("추가 파일 업로드 실패"); continue; }
+          if (!extraRes.ok) {
+            const body = await extraRes.json().catch(() => ({}));
+            console.error("추가 파일 업로드 실패:", body.error || extraRes.status);
+            continue;
+          }
 
           fileRows.push({
             model_id: insertedModel.id,
