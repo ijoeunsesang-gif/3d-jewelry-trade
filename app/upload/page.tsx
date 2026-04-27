@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import DescriptionTemplateSelector from "../components/DescriptionTemplateSelector";
+import { uploadToR2 } from "@/lib/uploadToR2";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -82,26 +83,6 @@ export default function UploadPage() {
     setExtraFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  // models-private 버킷: presigned URL 발급 후 브라우저 → R2 직접 PUT (Vercel 4.5MB 제한 우회)
-  const uploadViaPresign = async (file: File, bucket: string, path: string): Promise<void> => {
-    const presignRes = await fetch("/api/presign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bucket, path, contentType: "application/octet-stream" }),
-    });
-    if (!presignRes.ok) {
-      const body = await presignRes.json().catch(() => ({}));
-      throw new Error(body.error || "presigned URL 발급 실패");
-    }
-    const { presignedUrl } = await presignRes.json();
-    const putRes = await fetch(presignedUrl, {
-      method: "PUT",
-      body: file,
-      headers: { "Content-Type": "application/octet-stream" },
-    });
-    if (!putRes.ok) throw new Error(`R2 직접 업로드 실패 (${putRes.status})`);
-  };
-
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
 
   const onDropThumbnail = (e: React.DragEvent) => {
@@ -159,7 +140,7 @@ export default function UploadPage() {
       const modelExt = modelFile.name.split(".").pop()?.toLowerCase() || "obj";
       const modelPath = `${sellerId}/${now}-model.${modelExt}`;
       try {
-        await uploadViaPresign(modelFile, "models-private", modelPath);
+        await uploadToR2(modelFile, "models-private", modelPath);
       } catch (err: any) {
         showError(`모델 파일 업로드 실패: ${err.message}`);
         return;
@@ -224,7 +205,7 @@ export default function UploadPage() {
           const path = `${sellerId}/extra-${now}-${i}.${ext}`;
 
           try {
-            await uploadViaPresign(file, "models-private", path);
+            await uploadToR2(file, "models-private", path);
           } catch (err: any) {
             console.error("추가 파일 업로드 실패:", err.message);
             continue;

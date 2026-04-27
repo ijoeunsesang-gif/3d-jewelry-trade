@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase-browser";
 import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
+import { uploadToR2 } from "@/lib/uploadToR2";
 
 type ModelItem = {
   id: string;
@@ -409,14 +410,12 @@ export default function EditModelPage() {
       if (modelFile) {
         const ext = modelFile.name.split(".").pop()?.toLowerCase() || "stl";
         const path = `${saveUserId}/model-${Date.now()}.${ext}`;
-
-        const modelForm = new FormData();
-        modelForm.append("file", modelFile);
-        modelForm.append("bucket", "models-private");
-        modelForm.append("path", path);
-        const modelRes = await fetch("/api/upload", { method: "POST", body: modelForm });
-        if (!modelRes.ok) { showError("출력파일(대표) 업로드에 실패했습니다."); return; }
-
+        try {
+          await uploadToR2(modelFile, "models-private", path);
+        } catch (err: any) {
+          showError(`출력파일(대표) 업로드 실패: ${err.message}`);
+          return;
+        }
         modelPath = path;
       }
 
@@ -482,12 +481,12 @@ export default function EditModelPage() {
           const ext = file.name.split(".").pop()?.toLowerCase() || "";
           const path = `${saveUserId}/extra-${Date.now()}-${i}.${ext}`;
 
-          const extraForm = new FormData();
-          extraForm.append("file", file);
-          extraForm.append("bucket", "models-private");
-          extraForm.append("path", path);
-          const extraRes = await fetch("/api/upload", { method: "POST", body: extraForm });
-          if (!extraRes.ok) { console.error("추가 파일 업로드 실패"); continue; }
+          try {
+            await uploadToR2(file, "models-private", path);
+          } catch (err: any) {
+            console.error("추가 파일 업로드 실패:", err.message);
+            continue;
+          }
 
           fileRows.push({
             model_id: model.id,
