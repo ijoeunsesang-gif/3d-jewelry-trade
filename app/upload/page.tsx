@@ -35,12 +35,16 @@ export default function UploadPage() {
   }, []);
 
   useEffect(() => {
-    const preventDefault = (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); };
-    document.addEventListener("dragover", preventDefault);
-    document.addEventListener("drop", preventDefault);
+    const handleDragOver = (e: DragEvent) => { e.preventDefault(); };
+    const handleDrop = (e: DragEvent) => {
+      if ((e.target as Element).closest?.("[data-dropzone]")) return;
+      e.preventDefault();
+    };
+    document.addEventListener("dragover", handleDragOver);
+    document.addEventListener("drop", handleDrop);
     return () => {
-      document.removeEventListener("dragover", preventDefault);
-      document.removeEventListener("drop", preventDefault);
+      document.removeEventListener("dragover", handleDragOver);
+      document.removeEventListener("drop", handleDrop);
     };
   }, []);
 
@@ -322,7 +326,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="썸네일 이미지 *">
-          <div style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle}>
             <div style={helperTextStyle}>대표로 보여질 이미지를 1장 업로드하세요.</div>
             <input
               type="file"
@@ -336,7 +340,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="추가 이미지 (최대 10장)">
-          <div style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle}>
             <div style={helperTextStyle}>
               상세페이지에 들어갈 이미지를 여러 장 업로드할 수 있습니다.
             </div>
@@ -356,7 +360,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="출력(대표)파일 *">
-          <div style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle}>
             <div style={helperTextStyle}>
               출력(대표)파일 1개를 업로드하세요. 예: STL, OBJ, 3DM
             </div>
@@ -372,7 +376,7 @@ export default function UploadPage() {
         </Field>
 
         <Field label="추가 파일 (최대 10개)">
-          <div style={uploadBoxStyle}>
+          <div data-dropzone style={uploadBoxStyle}>
             <div style={helperTextStyle}>
               출력(대표)파일 외에 보조 파일을 추가로 업로드할 수 있습니다.
               예: STL, OBJ, 3DM, ZIP, PDF
