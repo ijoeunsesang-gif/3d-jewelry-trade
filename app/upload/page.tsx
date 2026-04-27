@@ -82,6 +82,26 @@ export default function UploadPage() {
     setExtraFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // models-private 버킷: presigned URL 발급 후 브라우저 → R2 직접 PUT (Vercel 4.5MB 제한 우회)
+  const uploadViaPresign = async (file: File, bucket: string, path: string): Promise<void> => {
+    const presignRes = await fetch("/api/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bucket, path, contentType: "application/octet-stream" }),
+    });
+    if (!presignRes.ok) {
+      const body = await presignRes.json().catch(() => ({}));
+      throw new Error(body.error || "presigned URL 발급 실패");
+    }
+    const { presignedUrl } = await presignRes.json();
+    const putRes = await fetch(presignedUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+    if (!putRes.ok) throw new Error(`R2 직접 업로드 실패 (${putRes.status})`);
+  };
+
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
 
   const onDropThumbnail = (e: React.DragEvent) => {
@@ -134,18 +154,13 @@ export default function UploadPage() {
       if (!thumbRes.ok) { showError("썸네일 업로드 실패"); return; }
       const { url: thumbnailUrl } = await thumbRes.json();
 
-      // 대표 모델 파일 업로드
+      // 대표 모델 파일 업로드 (presigned URL → R2 직접 PUT, Vercel 크기 제한 없음)
       const modelExt = modelFile.name.split(".").pop()?.toLowerCase() || "obj";
       const modelPath = `${sellerId}/${now}-model.${modelExt}`;
-
-      const modelForm = new FormData();
-      modelForm.append("file", modelFile);
-      modelForm.append("bucket", "models-private");
-      modelForm.append("path", modelPath);
-      const modelRes = await fetch("/api/upload", { method: "POST", body: modelForm });
-      if (!modelRes.ok) {
-        const body = await modelRes.json().catch(() => ({}));
-        showError(`모델 파일 업로드 실패: ${body.error || modelRes.status}`);
+      try {
+        await uploadViaPresign(modelFile, "models-private", modelPath);
+      } catch (err: any) {
+        showError(`모델 파일 업로드 실패: ${err.message}`);
         return;
       }
 
@@ -207,14 +222,10 @@ export default function UploadPage() {
           const ext = file.name.split(".").pop()?.toLowerCase() || "";
           const path = `${sellerId}/extra-${now}-${i}.${ext}`;
 
-          const extraForm = new FormData();
-          extraForm.append("file", file);
-          extraForm.append("bucket", "models-private");
-          extraForm.append("path", path);
-          const extraRes = await fetch("/api/upload", { method: "POST", body: extraForm });
-          if (!extraRes.ok) {
-            const body = await extraRes.json().catch(() => ({}));
-            console.error("추가 파일 업로드 실패:", body.error || extraRes.status);
+          try {
+            await uploadViaPresign(file, "models-private", path);
+          } catch (err: any) {
+            console.error("추가 파일 업로드 실패:", err.message);
             continue;
           }
 

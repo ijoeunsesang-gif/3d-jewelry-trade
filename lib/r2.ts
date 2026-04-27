@@ -29,6 +29,16 @@ export async function r2SignedUrl(
   return getSignedUrl(r2, cmd, { expiresIn });
 }
 
+export async function r2PresignedPutUrl(
+  bucket: string,
+  key: string,
+  contentType = "application/octet-stream",
+  expiresIn = 3600,
+): Promise<string> {
+  const cmd = new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType });
+  return getSignedUrl(r2, cmd, { expiresIn });
+}
+
 export function r2PublicUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${path}`;
 }
