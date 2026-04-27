@@ -154,6 +154,10 @@ export default function CommissionDetailPage() {
   const [resultSaving, setResultSaving] = useState(false);
   const [resultEditing, setResultEditing] = useState(false);
 
+  const [sellerNickname, setSellerNickname] = useState<string | null>(null);
+  const [sellerGrade, setSellerGrade] = useState<string | null>(null);
+  const [sellerPhone, setSellerPhone] = useState<string | null>(null);
+
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
@@ -183,6 +187,16 @@ export default function CommissionDetailPage() {
       if (error || !data) { console.error("fetchCommission error:", error); return; }
       const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", data.user_id).single();
       setCommission({ ...data, nickname: profile?.nickname || "익명" });
+      if (data.is_private && data.target_seller_id) {
+        const { data: sp } = await supabase
+          .from("profiles")
+          .select("nickname, grade, phone_number")
+          .eq("id", data.target_seller_id)
+          .single();
+        setSellerNickname(sp?.nickname || "알 수 없음");
+        setSellerGrade((sp as any)?.grade || null);
+        setSellerPhone((sp as any)?.phone_number || null);
+      }
       if (data.is_private) fetchNegotiations();
     } finally {
       setLoading(false);
@@ -658,6 +672,22 @@ export default function CommissionDetailPage() {
       {commission.is_private && (isAuthor || isTargetSeller) && (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20, marginBottom: 28, background: "#fafafa" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>개인 의뢰 진행 상황</div>
+
+          {/* 판매자 정보 */}
+          {sellerNickname && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, background: "white", border: "1px solid #e5e7eb", marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, flexShrink: 0 }}>담당 판매자</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{sellerNickname}</span>
+                {sellerGrade && <GradeBadge grade={sellerGrade as Grade} size="sm" />}
+              </div>
+              {sellerPhone && (
+                <a href={`tel:${sellerPhone}`} style={{ fontSize: 12, color: "#2563eb", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>
+                  {sellerPhone}
+                </a>
+              )}
+            </div>
+          )}
 
           {/* 프로그레스 바 */}
           {!["rejected", "cancelled"].includes(status) && (

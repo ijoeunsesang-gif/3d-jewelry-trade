@@ -5,6 +5,8 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
+import GradeBadge from "../components/GradeBadge";
+import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 
@@ -38,6 +40,9 @@ type Commission = {
   created_at: string;
   nickname: string;
   is_private: boolean;
+  target_seller_id?: string | null;
+  seller_nickname?: string;
+  seller_grade?: string | null;
   commission_results?: { count: number }[];
 };
 
@@ -94,7 +99,7 @@ export default function CommissionListPage() {
         if (ids.length === 0) { setCommissions([]); return; }
         const { data: cData, error } = await supabase
           .from("commissions")
-          .select("id, title, images, status, user_id, created_at, is_private, commission_results(count)")
+          .select("id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)")
           .in("id", ids)
           .order("created_at", { ascending: false });
         if (error || !cData) { setCommissions([]); return; }
@@ -102,7 +107,7 @@ export default function CommissionListPage() {
       } else {
         let query = supabase
           .from("commissions")
-          .select("id, title, images, status, user_id, created_at, is_private, commission_results(count)")
+          .select("id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)")
           .order("created_at", { ascending: false });
 
         if (tab === "public") {
@@ -119,15 +124,27 @@ export default function CommissionListPage() {
       }
 
       const userIds = [...new Set(data.map((c: any) => c.user_id))];
+      const sellerIds = [...new Set(
+        data.filter((c: any) => c.is_private && c.target_seller_id).map((c: any) => c.target_seller_id)
+      )];
+      const allIds = [...new Set([...userIds, ...sellerIds])];
+
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, nickname")
-        .in("id", userIds);
+        .select("id, nickname, grade")
+        .in("id", allIds);
 
-      const profileMap: Record<string, string> = {};
-      (profiles || []).forEach((p: any) => { profileMap[p.id] = p.nickname || "익명"; });
+      const profileMap: Record<string, { nickname: string; grade: string | null }> = {};
+      (profiles || []).forEach((p: any) => {
+        profileMap[p.id] = { nickname: p.nickname || "익명", grade: p.grade || null };
+      });
 
-      setCommissions(data.map((c: any) => ({ ...c, nickname: profileMap[c.user_id] || "익명" })));
+      setCommissions(data.map((c: any) => ({
+        ...c,
+        nickname: profileMap[c.user_id]?.nickname || "익명",
+        seller_nickname: c.target_seller_id ? (profileMap[c.target_seller_id]?.nickname || "알 수 없음") : undefined,
+        seller_grade: c.target_seller_id ? profileMap[c.target_seller_id]?.grade : undefined,
+      })));
     } catch {
       setCommissions([]);
     } finally {
@@ -311,6 +328,13 @@ export default function CommissionListPage() {
                     {c.title}
                   </div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>{c.nickname}</div>
+                  {c.is_private && c.seller_nickname && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
+                      <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600 }}>판매자</span>
+                      <span style={{ fontSize: 12, color: "#374151", fontWeight: 700 }}>{c.seller_nickname}</span>
+                      {c.seller_grade && <GradeBadge grade={c.seller_grade as Grade} size="sm" />}
+                    </div>
+                  )}
                 </div>
               </div>
             </Link>
