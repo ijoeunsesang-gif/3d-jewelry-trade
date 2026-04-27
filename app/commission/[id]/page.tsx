@@ -262,8 +262,10 @@ export default function CommissionDetailPage() {
   const handleDelete = async () => {
     if (!commission || !confirm("정말 삭제하시겠습니까?")) return;
     setDeleting(true);
+    // commission_negotiations has no ON DELETE CASCADE — delete children first
+    await supabase.from("commission_negotiations").delete().eq("commission_id", commission.id);
     const { error } = await supabase.from("commissions").delete().eq("id", commission.id);
-    if (error) { showError("삭제 실패"); setDeleting(false); return; }
+    if (error) { console.error("commission delete error:", error); showError("삭제 실패"); setDeleting(false); return; }
     router.push("/commission");
   };
 
