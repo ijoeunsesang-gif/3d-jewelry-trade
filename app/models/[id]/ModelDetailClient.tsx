@@ -44,6 +44,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState("");
   const [liked, setLiked] = useState(false);
+  const [isInCart, setIsInCart] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [extraFiles, setExtraFiles] = useState<{ file_name: string; file_type: string }[]>([]);
@@ -72,6 +73,11 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     fetchGalleryImages();
     fetchFavoriteStatus();
     fetchExtraFiles();
+    checkCartStatus();
+
+    const onCartUpdated = () => checkCartStatus();
+    window.addEventListener("cart-updated", onCartUpdated);
+    return () => window.removeEventListener("cart-updated", onCartUpdated);
   }, [model.id]);
 
   useEffect(() => {
@@ -117,6 +123,11 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     }
   };
 
+  const checkCartStatus = () => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    setIsInCart(cart.some((item: any) => item.id === model.id));
+  };
+
   const fetchRelatedModels = async () => {
     try {
       const { data, error } = await sbFetch(
@@ -150,9 +161,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         data.forEach((row: any) => {
           let url = row.image_url || "";
           if (!url && row.image_path) {
-            url = supabase.storage
-              .from("thumbnails")
-              .getPublicUrl(row.image_path).data.publicUrl;
+            const p = row.image_path as string;
+            url = p.startsWith("http") ? p : `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p}`;
           }
           if (url && !urls.includes(url)) {
             urls.push(url);
@@ -328,6 +338,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     const updatedCart = [...existingCart, cartItem];
     localStorage.setItem("cart", JSON.stringify(updatedCart));
     window.dispatchEvent(new Event("cart-updated"));
+    setIsInCart(true);
     showSuccess("장바구니에 담았습니다.");
   };
 
@@ -808,18 +819,20 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                 <button
                   type="button"
                   onClick={handleAddToCart}
+                  disabled={isInCart}
                   style={{
                     height: 52,
                     borderRadius: 16,
                     border: "1px solid #d1d5db",
-                    background: "white",
-                    color: "#111827",
+                    background: isInCart ? "#f3f4f6" : "white",
+                    color: isInCart ? "#9ca3af" : "#111827",
                     fontWeight: 800,
-                    cursor: "pointer",
+                    cursor: isInCart ? "default" : "pointer",
                     fontSize: 17,
+                    opacity: isInCart ? 0.6 : 1,
                   }}
                 >
-                  장바구니 담기
+                  {isInCart ? "장바구니에 담김" : "장바구니 담기"}
                 </button>
 
                 <button

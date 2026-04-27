@@ -14,6 +14,12 @@ type CartItem = {
 
 const ITEMS_PER_PAGE = 20;
 
+const getImageUrl = (path: string) => {
+  if (!path) return "/placeholder.png";
+  if (path.startsWith("http")) return path;
+  return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${path}`;
+};
+
 export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,7 +120,7 @@ export default function CartPage() {
                 }}
               >
                 <img
-                  src={item.thumbUrl}
+                  src={getImageUrl(item.thumbUrl)}
                   alt={item.title}
                   style={{
                     width: 120,
