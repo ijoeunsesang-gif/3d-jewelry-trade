@@ -107,11 +107,16 @@ type CommissionResult = {
 };
 
 async function sendNotification(userId: string, type: string, title: string, content: string, link: string) {
-  const { error } = await supabase.from("notifications").insert({
-    user_id: userId, type, message: `${title}: ${content}`, link, is_read: false,
-  });
-  if (error) console.error("알림 insert 실패:", error);
-  else window.dispatchEvent(new Event("notifications-updated"));
+  try {
+    await fetch("/api/commission/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, type, message: `${title}: ${content}`, link }),
+    });
+    window.dispatchEvent(new Event("notifications-updated"));
+  } catch (e) {
+    console.error("알림 전송 실패:", e);
+  }
 }
 
 export default function CommissionDetailPage() {
@@ -224,7 +229,7 @@ export default function CommissionDetailPage() {
       setResults((prev) => [...prev, { id: data.id, commission_id: data.commission_id, seller_id: data.seller_id, result_link: data.result_link, nickname: profile?.nickname || "판매자", grade: (profile as any)?.grade || null }]);
       setLinkPanelOpen(false);
       if (commission?.user_id && commission.user_id !== myId)
-        await sendNotification(commission.user_id, "result_link", "결과물 링크 등록", "판매자가 결과물 링크를 등록했습니다.", `/commission/${id}`);
+        await sendNotification(commission.user_id, "result_link", "링크 등록", "회원님의 의뢰에 작업 링크가 등록되었습니다.", `/commission/${id}`);
       showSuccess("등록되었습니다.");
     } catch (e: any) { showError(e.message || "등록 실패"); }
     finally { setResultSaving(false); }
@@ -327,7 +332,7 @@ export default function CommissionDetailPage() {
         final_price: commission.desired_price,
         final_days: commission.desired_days,
       }).eq("id", id);
-      await sendNotification(commission.user_id, "negotiation", "의뢰 수락", "판매자가 의뢰를 수락했습니다. 협의를 진행해주세요.", `/commission/${id}`);
+      await sendNotification(commission.user_id, "negotiation", "협의 시작", "판매자가 협의를 시작했습니다. 가격과 작업기간을 확인해주세요.", `/commission/${id}`);
       await fetchCommission();
       showSuccess("수락되었습니다.");
     } catch { showError("처리 실패"); }
@@ -385,7 +390,10 @@ export default function CommissionDetailPage() {
     setNegSubmitting(true);
     try {
       await supabase.from("commissions").update({ status: "working" }).eq("id", id);
-      await sendNotification(commission.target_seller_id!, "negotiation", "결제완료", "결제가 완료되었습니다. 작업을 시작해주세요.", `/commission/${id}`);
+      await Promise.all([
+        sendNotification(commission.target_seller_id!, "negotiation", "결제 완료", "결제가 완료되었습니다. 작업을 시작해주세요.", `/commission/${id}`),
+        sendNotification(commission.user_id, "negotiation", "작업 시작", "판매자가 작업을 시작했습니다.", `/commission/${id}`),
+      ]);
       await fetchCommission();
       showSuccess("결제가 완료되었습니다.");
     } catch { showError("처리 실패"); }
@@ -404,7 +412,7 @@ export default function CommissionDetailPage() {
       if (!res.ok) throw new Error("파일 업로드 실패");
       const { url } = await res.json();
       await supabase.from("commissions").update({ status: "completed", result_link: url }).eq("id", id);
-      await sendNotification(commission.user_id, "file_upload", "결과물 업로드", "판매자가 결과물을 업로드했습니다. 확인해주세요.", `/commission/${id}`);
+      await sendNotification(commission.user_id, "file_upload", "작업 완료", "작업이 완료되었습니다. 확인 후 다운로드해주세요.", `/commission/${id}`);
       await fetchCommission();
       showSuccess("결과물이 업로드되었습니다.");
     } catch { showError("파일 업로드 실패"); }

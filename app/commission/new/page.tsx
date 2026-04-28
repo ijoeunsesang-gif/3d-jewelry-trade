@@ -153,14 +153,16 @@ export default function CommissionNewPage() {
       if (error) throw error;
 
       if (isPrivate && selectedSellerId) {
-        const { error: notifError } = await supabase.from("notifications").insert({
-          user_id: selectedSellerId,
-          type: "private_commission",
-          message: "새 개인 의뢰: 새 개인 의뢰가 도착했습니다.",
-          link: `/commission/${data.id}`,
-          is_read: false,
+        await fetch("/api/commission/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: selectedSellerId,
+            type: "private_commission",
+            message: "개인의뢰 제안: 새로운 개인의뢰 제안이 도착했습니다.",
+            link: `/commission/${data.id}`,
+          }),
         });
-        if (notifError) console.error("알림 insert 실패:", notifError);
         window.dispatchEvent(new Event("notifications-updated"));
       }
 
