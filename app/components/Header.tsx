@@ -180,15 +180,24 @@ export default function Header() {
   const fetchNotifPreview = async () => {
     const token = getAccessToken();
     if (!token) return;
-    const userId = (decodeJwt(token) as any)?.sub as string;
+    const uid = (decodeJwt(token) as any)?.sub as string;
+    if (!uid) return;
     setNotifLoading(true);
     try {
-      const { data } = await sbAuthFetch(
-        "notifications",
-        `?user_id=eq.${userId}&select=id,link,is_read,created_at,type,message&order=created_at.desc&limit=5`
-      );
-      setNotifItems((data as any[]) || []);
-    } catch {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("id, link, is_read, created_at, type, message")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) {
+        console.error("[notif preview] 조회 실패:", error);
+        setNotifItems([]);
+      } else {
+        setNotifItems(data || []);
+      }
+    } catch (e) {
+      console.error("[notif preview] 예외:", e);
       setNotifItems([]);
     } finally {
       setNotifLoading(false);
