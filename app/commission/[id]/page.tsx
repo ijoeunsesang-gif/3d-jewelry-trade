@@ -501,7 +501,8 @@ export default function CommissionDetailPage() {
 
   const isAuthor = myId === commission.user_id;
   const isTargetSeller = myId === commission.target_seller_id;
-  const status = commission.status;
+  // 개인의뢰가 "open"으로 잘못 생성된 기존 데이터 호환: "open" → "pending" 정규화
+  const status = commission.is_private && commission.status === "open" ? "pending" : commission.status;
 
   const canReject = isTargetSeller && ["pending", "negotiating"].includes(status);
   const canCancel = isAuthor && ["pending", "negotiating"].includes(status);

@@ -138,14 +138,13 @@ export default function CommissionNewPage() {
         title: title.trim(),
         description: description.trim(),
         images: imageUrls,
-        status: "open",
+        status: isPrivate ? "pending" : "open",
         is_private: isPrivate,
       };
       if (isPrivate) {
         insertPayload.target_seller_id = selectedSellerId;
         insertPayload.desired_price = desiredPrice ? parseInt(desiredPrice) : null;
         insertPayload.desired_days = desiredDays ? parseInt(desiredDays) : null;
-        insertPayload.negotiation_status = "pending";
         insertPayload.negotiation_count = 0;
       }
 
