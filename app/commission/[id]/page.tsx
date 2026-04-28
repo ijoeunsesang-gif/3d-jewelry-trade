@@ -1070,8 +1070,8 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
-      {/* 삭제 버튼 */}
-      {isAuthor && (
+      {/* 삭제 버튼 — 링크가 등록된 의뢰는 숨김 */}
+      {isAuthor && !results.some((r) => r.result_link) && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
           <button type="button" onClick={handleDelete} disabled={deleting} style={{
             padding: "8px 18px", borderRadius: 8, border: "1px solid #fca5a5", background: "white",

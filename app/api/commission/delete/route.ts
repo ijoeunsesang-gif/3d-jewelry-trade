@@ -39,6 +39,21 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "삭제 권한이 없습니다." }, { status: 403 });
   }
 
+  // 링크가 등록된 의뢰는 삭제 불가
+  const { data: linkedResults } = await adminSupabase
+    .from("commission_results")
+    .select("result_link")
+    .eq("commission_id", commissionId)
+    .not("result_link", "is", null)
+    .neq("result_link", "");
+
+  if (linkedResults && linkedResults.length > 0) {
+    return NextResponse.json(
+      { error: "링크가 등록된 의뢰는 삭제할 수 없습니다. 관리자에게 문의하세요." },
+      { status: 403 }
+    );
+  }
+
   // Delete child records first (FK constraints without CASCADE)
   await adminSupabase.from("commission_negotiations").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_results").delete().eq("commission_id", commissionId);
