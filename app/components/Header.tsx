@@ -40,7 +40,7 @@ export default function Header() {
     updateCartCount();
     fetchFavoriteCount();
     fetchMessageCount();
-    fetchNotificationCount();
+    // fetchNotificationCount는 userId 확정 후 아래 useEffect에서 호출
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -156,14 +156,21 @@ export default function Header() {
     setNotificationCount(count || 0);
   };
 
-  // Realtime 구독: 다른 유저가 알림을 보내도 즉시 뱃지 업데이트
+  // userId 확정 후 카운트 재조회 + Realtime 구독
   useEffect(() => {
     if (!userId) return;
+    // 세션이 확인된 시점에 최신 카운트 가져오기
+    fetchNotificationCount();
     const channel = supabase
       .channel(`notif-badge-${userId}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => { fetchNotificationCount(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
         () => { fetchNotificationCount(); }
       )
       .subscribe();
