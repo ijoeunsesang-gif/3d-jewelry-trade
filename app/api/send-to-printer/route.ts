@@ -160,21 +160,28 @@ export async function POST(req: NextRequest) {
 
     // ── 이메일 본문 구성 ──────────────────────────────────────
     const scaleText = !scaleType ? "없음" : scalePercent ? `${scaleType} ${scalePercent}%` : scaleType;
+    const hasScale = !!scaleType && scaleText !== "없음";
 
     const infoRows = [
-      { label: "출력형태",      value: printType || "-" },
-      { label: "주물여부",      value: castingType || "-" },
-      { label: "확대축소",      value: scaleText },
-      { label: "전화번호",      value: phoneNumber || "-" },
-      { label: "보내는 이메일", value: senderEmail || user.email || "-" },
-      { label: "추가 내용",     value: extraNote || "-" },
+      { label: "출력형태",      value: printType || "-",                    highlight: false },
+      { label: "주물여부",      value: castingType || "-",                  highlight: false },
+      { label: "확대축소",      value: scaleText,                           highlight: hasScale },
+      { label: "전화번호",      value: phoneNumber || "-",                  highlight: false },
+      { label: "보내는 이메일", value: senderEmail || user.email || "-",    highlight: false },
+      { label: "추가 내용",     value: extraNote || "-",                    highlight: false },
     ];
 
     const infoHtml = infoRows.map((r) => `
       <tr>
-        <td align="left" style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: #f8fafc; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.label}</td>
-        <td align="left" style="padding: 8px 14px; font-size: 13px; color: #111827; font-weight: 800; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.value}</td>
+        <td align="left" style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: ${r.highlight ? "#fef9c3" : "#f8fafc"}; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.label}</td>
+        <td align="left" style="padding: 8px 14px; font-size: 13px; color: ${r.highlight ? "#b45309" : "#111827"}; font-weight: 800; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.value}</td>
       </tr>`).join("");
+
+    const scaleComment = hasScale
+      ? `<p align="left" style="color: #e53e3e; font-weight: bold; margin: 0 0 24px; font-size: 14px; text-align: left;">
+          ※ 확대/축소 출력 요청: <span style="background: #fef08a; padding: 2px 6px;">${scaleText}</span> 배율로 확대 또는 축소하여 출력 부탁드립니다.
+        </p>`
+      : "";
 
     const attachedListHtml = emailAttachments.length > 0
       ? `<table align="left" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
@@ -230,6 +237,8 @@ export async function POST(req: NextRequest) {
               <table align="left" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
                 ${infoHtml}
               </table>
+
+              ${scaleComment}
 
               ${attachedListHtml}
               ${linkFilesHtml}
