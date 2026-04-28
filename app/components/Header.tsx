@@ -62,7 +62,6 @@ export default function Header() {
     const onMessagesUpdated = () => fetchMessageCount();
     const onNotificationsUpdated = () => fetchNotificationCount();
     const onCartReset = () => setCartCount(0);
-    const onNotificationsReset = () => setNotificationCount(0);
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("cart-updated", onCartUpdated);
@@ -70,7 +69,6 @@ export default function Header() {
     window.addEventListener("messages-updated", onMessagesUpdated);
     window.addEventListener("notifications-updated", onNotificationsUpdated);
     window.addEventListener("cart-reset", onCartReset);
-    window.addEventListener("notifications-reset", onNotificationsReset);
 
     const onDocClick = (e: MouseEvent) => {
       const inDesktop = desktopMyRef.current?.contains(e.target as Node);
@@ -88,7 +86,6 @@ export default function Header() {
       window.removeEventListener("messages-updated", onMessagesUpdated);
       window.removeEventListener("notifications-updated", onNotificationsUpdated);
       window.removeEventListener("cart-reset", onCartReset);
-      window.removeEventListener("notifications-reset", onNotificationsReset);
       document.removeEventListener("mousedown", onDocClick);
     };
   }, []);

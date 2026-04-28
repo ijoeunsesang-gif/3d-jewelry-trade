@@ -33,7 +33,6 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
-    window.dispatchEvent(new Event("notifications-reset"));
   }, []);
 
   const fetchNotifications = async () => {
