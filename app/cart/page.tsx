@@ -14,6 +14,15 @@ type CartItem = {
 
 const ITEMS_PER_PAGE = 20;
 
+const OLD_SUPABASE_THUMB = "https://fvhotaxjdacfulxjahon.supabase.co/storage/v1/object/public/thumbnails/";
+
+const migrateThumbUrl = (url: string | undefined) => {
+  if (!url) return url;
+  if (url.startsWith(OLD_SUPABASE_THUMB))
+    return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${url.slice(OLD_SUPABASE_THUMB.length)}`;
+  return url;
+};
+
 const getImageUrl = (path: string | null | undefined) => {
   if (!path) return "/placeholder.png";
   if (path.startsWith("http")) return path;
@@ -26,10 +35,14 @@ export default function CartPage() {
 
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("cart") || "[]");
-    if (savedCart.length > 0) {
-      console.log("[cart] thumbUrl 형태 확인:", savedCart.map((i: CartItem) => ({ id: i.id, thumbUrl: i.thumbUrl })));
+    const migratedCart = savedCart.map((i: CartItem) => ({ ...i, thumbUrl: migrateThumbUrl(i.thumbUrl) }));
+    if (JSON.stringify(migratedCart) !== JSON.stringify(savedCart)) {
+      localStorage.setItem("cart", JSON.stringify(migratedCart));
     }
-    setCartItems(savedCart);
+    if (migratedCart.length > 0) {
+      console.log("[cart] thumbUrl 형태 확인:", migratedCart.map((i: CartItem) => ({ id: i.id, thumbUrl: i.thumbUrl })));
+    }
+    setCartItems(migratedCart);
     window.dispatchEvent(new Event("cart-reset"));
   }, []);
 

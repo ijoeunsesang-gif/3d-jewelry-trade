@@ -77,12 +77,20 @@ function CheckoutContent() {
         setBuyerEmail(payload?.email || "");
       }
 
+      const OLD_SUPABASE_THUMB = "https://fvhotaxjdacfulxjahon.supabase.co/storage/v1/object/public/thumbnails/";
+      const migrateThumbUrl = (url: string) =>
+        url?.startsWith(OLD_SUPABASE_THUMB)
+          ? `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${url.slice(OLD_SUPABASE_THUMB.length)}`
+          : url;
+      const migrateItems = (items: OrderItem[]) =>
+        items.map((i) => ({ ...i, thumbUrl: migrateThumbUrl(i.thumbUrl) }));
+
       if (mode === "direct") {
         const pendingOrder = JSON.parse(
           localStorage.getItem("pendingOrder") || "null"
         );
         if (pendingOrder?.items?.length) {
-          setItems(pendingOrder.items);
+          setItems(migrateItems(pendingOrder.items));
         } else {
           showError("직접 구매할 상품이 없습니다.");
           window.location.href = "/";
@@ -90,7 +98,7 @@ function CheckoutContent() {
         }
       } else {
         const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-        setItems(cart);
+        setItems(migrateItems(cart));
       }
     } catch (error) {
       console.error("체크아웃 초기화 실패:", error);
