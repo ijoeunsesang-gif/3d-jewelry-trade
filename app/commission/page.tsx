@@ -327,13 +327,23 @@ export default function CommissionListPage() {
                   }}>
                     {c.title}
                   </div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>{c.nickname}</div>
-                  {c.is_private && c.seller_nickname && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5 }}>
-                      <span style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600 }}>판매자</span>
-                      <span style={{ fontSize: 12, color: "#374151", fontWeight: 700 }}>{c.seller_nickname}</span>
-                      {c.seller_grade && <GradeBadge grade={c.seller_grade as Grade} size="sm" />}
-                    </div>
+                  {c.is_private && c.seller_nickname ? (() => {
+                    const iAmRequester = c.user_id === currentUserId;
+                    const iAmWorker = c.target_seller_id === currentUserId;
+                    const requesterName = iAmRequester ? "나" : c.nickname;
+                    const workerName = iAmWorker ? "나" : c.seller_nickname;
+                    return (
+                      <div style={{ fontSize: 12, color: "#6b7280", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                        <span>의뢰자: <strong style={{ color: iAmRequester ? "#7c3aed" : "#374151" }}>{requesterName}</strong></span>
+                        <span style={{ margin: "0 2px" }}>·</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                          작업자: <strong style={{ color: iAmWorker ? "#7c3aed" : "#374151" }}>{workerName}</strong>
+                          {!iAmWorker && c.seller_grade && <GradeBadge grade={c.seller_grade as Grade} size="sm" />}
+                        </span>
+                      </div>
+                    );
+                  })() : (
+                    <div style={{ fontSize: 12, color: "#6b7280" }}>{c.nickname}</div>
                   )}
                 </div>
               </div>
