@@ -107,15 +107,21 @@ type CommissionResult = {
 };
 
 async function sendNotification(userId: string, type: string, title: string, content: string, link: string) {
+  if (!userId) return;
   try {
-    await fetch("/api/commission/notify", {
+    const res = await fetch("/api/commission/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId, type, message: `${title}: ${content}`, link }),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      console.error(`[notify] API 실패 (${res.status}):`, body);
+      return;
+    }
     window.dispatchEvent(new Event("notifications-updated"));
   } catch (e) {
-    console.error("알림 전송 실패:", e);
+    console.error("[notify] 네트워크 오류:", e);
   }
 }
 
