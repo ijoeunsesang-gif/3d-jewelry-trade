@@ -159,7 +159,8 @@ export default function CommissionNewPage() {
           body: JSON.stringify({
             user_id: selectedSellerId,
             type: "private_commission",
-            message: "개인의뢰 제안: 새로운 개인의뢰 제안이 도착했습니다.",
+            title: "개인의뢰 제안",
+            content: "새로운 개인의뢰 제안이 도착했습니다.",
             link: `/commission/${data.id}`,
           }),
         });

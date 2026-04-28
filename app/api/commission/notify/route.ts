@@ -14,16 +14,17 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { user_id, type, message, link } = body;
+    const { user_id, type, title, content, link } = body;
 
-    if (!user_id || !message) {
-      return NextResponse.json({ error: "user_id, message가 필요합니다." }, { status: 400 });
+    if (!user_id || !title) {
+      return NextResponse.json({ error: "user_id, title이 필요합니다." }, { status: 400 });
     }
 
     const { error } = await adminSupabase.from("notifications").insert({
       user_id,
       type: type || "commission",
-      message,
+      title,
+      content: content || null,
       link: link || null,
       is_read: false,
       created_at: new Date().toISOString(),

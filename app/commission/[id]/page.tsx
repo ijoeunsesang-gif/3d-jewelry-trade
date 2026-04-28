@@ -112,7 +112,7 @@ async function sendNotification(userId: string, type: string, title: string, con
     const res = await fetch("/api/commission/notify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId, type, message: `${title}: ${content}`, link }),
+      body: JSON.stringify({ user_id: userId, type, title, content, link }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));

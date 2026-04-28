@@ -186,7 +186,7 @@ export default function Header() {
     try {
       const { data, error } = await supabase
         .from("notifications")
-        .select("id, link, is_read, created_at, type, message")
+        .select("id, link, is_read, created_at, type, title, content")
         .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .limit(5);
@@ -222,7 +222,9 @@ export default function Header() {
 
   /* ── 알림 호버 드롭다운 ──────────────────────────────────── */
   const getNotifText = (item: any): string => {
-    if (item.message) return item.message;
+    if (item.title && item.content) return `${item.title}: ${item.content}`;
+    if (item.title) return item.title;
+    if (item.content) return item.content;
     switch (item.type) {
       case "follow":   return "새로운 팔로워가 생겼습니다";
       case "message":  return "새 메시지가 도착했습니다";
