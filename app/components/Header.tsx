@@ -25,6 +25,7 @@ export default function Header() {
   const [notifDropOpen, setNotifDropOpen] = useState(false);
   const [notifItems, setNotifItems] = useState<any[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
@@ -46,6 +47,7 @@ export default function Header() {
         await checkUser();
       } else if (event === "SIGNED_OUT") {
         setUserEmail(""); setNickname(""); setAvatarUrl(""); setIsLoading(false);
+        setUserId(null); setNotificationCount(0);
       }
     });
 
@@ -96,8 +98,9 @@ export default function Header() {
     if (token) {
       const payload = decodeJwt(token) as any;
       setUserEmail(payload?.email || "kakao_user");
-      const userId = payload?.sub as string;
-      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${userId}&select=avatar_url,nickname&limit=1`);
+      const uid = payload?.sub as string;
+      setUserId(uid);
+      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${uid}&select=avatar_url,nickname&limit=1`);
       const profile = (profileArr as any[])?.[0] ?? null;
       setAvatarUrl(profile?.avatar_url || "");
       setNickname(profile?.nickname || "");
@@ -105,6 +108,7 @@ export default function Header() {
       setUserEmail("");
       setAvatarUrl("");
       setNickname("");
+      setUserId(null);
     }
   };
 
@@ -145,11 +149,29 @@ export default function Header() {
   const fetchNotificationCount = async () => {
     const token = getAccessToken();
     if (!token) { setNotificationCount(0); return; }
-    const userId = (decodeJwt(token) as any)?.sub as string;
-    const { data, error } = await sbAuthFetch("notifications", `?select=id&user_id=eq.${userId}&is_read=eq.false`);
-    if (error) { setNotificationCount(0); return; }
-    setNotificationCount((data as any[])?.length || 0);
+    const uid = (decodeJwt(token) as any)?.sub as string;
+    if (!uid) { setNotificationCount(0); return; }
+    const { count } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", uid)
+      .eq("is_read", false);
+    setNotificationCount(count || 0);
   };
+
+  // Realtime 구독: 다른 유저가 알림을 보내도 즉시 뱃지 업데이트
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`notif-badge-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => { fetchNotificationCount(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [userId]);
 
   const fetchNotifPreview = async () => {
     const token = getAccessToken();
