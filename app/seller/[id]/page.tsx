@@ -224,7 +224,6 @@ export default function SellerPage() {
             user_id: id,
             type: "follow",
             title: "새 팔로우",
-            content: `${seller?.nickname || "판매자"}님을 새로 팔로우했습니다.`,
             link: `/seller/${currentUserId}`,
             is_read: false,
           });

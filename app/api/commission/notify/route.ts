@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { user_id, type, title, content, link } = body;
+    const { user_id, type, title, link } = body;
 
     if (!user_id || !title) {
       return NextResponse.json({ error: "user_id, title이 필요합니다." }, { status: 400 });
@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
       user_id,
       type: type || "commission",
       title,
-      content: content || null,
       link: link || null,
       is_read: false,
       created_at: new Date().toISOString(),
