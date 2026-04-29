@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../../../../lib/supabase-browser";
+import { getAccessToken } from "@/lib/supabase-fetch";
 
 const GOLD = "#c9a84c";
 
@@ -30,52 +30,28 @@ export default function PaymentSuccessPage() {
 
     const complete = async () => {
       try {
-        // 1. Toss 결제 승인
-        const confirmRes = await fetch("/api/payment/confirm", {
+        const token = getAccessToken();
+        if (!token) throw new Error("로그인이 필요합니다.");
+
+        const res = await fetch("/api/commission/payment/confirm", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paymentKey, orderId, amount: Number(amount) }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            paymentKey,
+            orderId,
+            amount: Number(amount),
+            commissionId: id,
+          }),
         });
-        const confirmData = await confirmRes.json();
-        if (!confirmRes.ok || !confirmData.success) {
-          throw new Error(confirmData.message || "결제 승인에 실패했습니다.");
-        }
 
-        // 2. 커미션 상태 → working 업데이트
-        const { data: commission, error: fetchErr } = await supabase
-          .from("commissions")
-          .select("user_id, target_seller_id")
-          .eq("id", id)
-          .single();
-        if (fetchErr || !commission) throw new Error("의뢰 정보를 찾을 수 없습니다.");
-
-        await supabase.from("commissions").update({ status: "working" }).eq("id", id);
-
-        // 3. 알림 전송
-        await Promise.all([
-          fetch("/api/commission/notify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: commission.target_seller_id,
-              type: "negotiation",
-              title: "결제 완료",
-              link: `/commission/${id}`,
-            }),
-          }),
-          fetch("/api/commission/notify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: commission.user_id,
-              type: "negotiation",
-              title: "작업 시작",
-              link: `/commission/${id}`,
-            }),
-          }),
-        ]);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "결제 처리에 실패했습니다.");
 
         setPhase("success");
+        window.dispatchEvent(new Event("notifications-updated"));
         setTimeout(() => router.replace(`/commission/${id}`), 1800);
       } catch (e: any) {
         setErrorMessage(e?.message || "결제 처리 중 오류가 발생했습니다.");
