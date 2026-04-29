@@ -424,18 +424,30 @@ export default function CommissionDetailPage() {
   };
 
   const handlePaymentComplete = async () => {
-    if (!commission) return;
+    if (!commission || !myId) return;
+    if (!commission.final_price) {
+      showError("결제 금액이 설정되지 않았습니다.");
+      return;
+    }
     setNegSubmitting(true);
     try {
-      await supabase.from("commissions").update({ status: "working" }).eq("id", id);
-      await Promise.all([
-        sendNotification(commission.target_seller_id!, "negotiation", "결제 완료", `/commission/${id}`),
-        sendNotification(commission.user_id, "negotiation", "작업 시작", `/commission/${id}`),
-      ]);
-      await fetchCommission();
-      showSuccess("결제가 완료되었습니다.");
-    } catch { showError("처리 실패"); }
-    setNegSubmitting(false);
+      const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk");
+      const tossPayments = await loadTossPayments(process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!);
+      const payment = tossPayments.payment({ customerKey: myId });
+      const orderId = `commission-${commission.id}-${Date.now()}`;
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: commission.final_price },
+        orderId,
+        orderName: `개인의뢰: ${commission.title}`,
+        successUrl: `${window.location.origin}/commission/${id}/payment/success`,
+        failUrl: `${window.location.origin}/commission/${id}/payment/fail`,
+      });
+    } catch (e: any) {
+      if (e?.code !== "USER_CANCEL") showError(e?.message || "결제 요청 실패");
+    } finally {
+      setNegSubmitting(false);
+    }
   };
 
   const ALLOWED_EXTENSIONS = [".stl", ".3dm", ".obj"];
