@@ -179,6 +179,7 @@ export default function CommissionDetailPage() {
   const [chatInput, setChatInput] = useState("");
   const [chatSending, setChatSending] = useState(false);
   const [chatNicknames, setChatNicknames] = useState<Record<string, string>>({});
+  const [chatDragOver, setChatDragOver] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatImageRef = useRef<HTMLInputElement>(null);
 
@@ -532,9 +533,8 @@ export default function CommissionDetailPage() {
     }
   };
 
-  const handleChatImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !myId) return;
+  const uploadChatImage = async (file: File) => {
+    if (!myId) return;
     setChatSending(true);
     try {
       const path = `commission-chats/${id}/${Date.now()}-${file.name}`;
@@ -545,7 +545,21 @@ export default function CommissionDetailPage() {
       const { url } = await res.json();
       await supabase.from("commission_chats").insert({ commission_id: id, sender_id: myId, message: null, image_url: url });
     } catch { showError("이미지 전송 실패"); }
-    finally { setChatSending(false); e.target.value = ""; }
+    finally { setChatSending(false); }
+  };
+
+  const handleChatImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await uploadChatImage(file);
+    e.target.value = "";
+  };
+
+  const handleChatDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setChatDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith("image/")) { showError("이미지 파일만 첨부 가능합니다."); return; }
+    await uploadChatImage(file);
   };
 
   const handlePaymentRequest = async () => {
@@ -1321,10 +1335,28 @@ export default function CommissionDetailPage() {
           <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 12 }}>채팅</div>
 
           {/* 메시지 목록 */}
-          <div style={{
-            height: 380, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 14,
-            padding: "12px 14px", background: "#f9fafb", display: "flex", flexDirection: "column", gap: 10,
-          }}>
+          <div
+            style={{
+              position: "relative", height: 380, overflowY: "auto",
+              border: chatDragOver ? `2px dashed ${GOLD}` : "1px solid #e5e7eb",
+              borderRadius: 14, padding: "12px 14px",
+              background: chatDragOver ? "#fdf6e3" : "#f9fafb",
+              display: "flex", flexDirection: "column", gap: 10,
+              transition: "border 0.15s, background 0.15s",
+            }}
+            onDragOver={(e) => { e.preventDefault(); setChatDragOver(true); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setChatDragOver(false); }}
+            onDrop={handleChatDrop}
+          >
+            {chatDragOver && (
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: 14,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "rgba(253,246,227,0.92)", zIndex: 10, pointerEvents: "none",
+              }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: GOLD }}>🖼 이미지를 여기에 놓으세요</div>
+              </div>
+            )}
             {chatLoading ? (
               <div style={{ margin: "auto", color: "#9ca3af", fontSize: 13 }}>불러오는 중...</div>
             ) : chatMessages.length === 0 ? (
