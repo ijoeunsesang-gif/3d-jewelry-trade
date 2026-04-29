@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
+import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 
@@ -431,7 +432,6 @@ export default function CommissionDetailPage() {
     }
     setNegSubmitting(true);
     try {
-      const { loadTossPayments } = await import("@tosspayments/tosspayments-sdk");
       const tossPayments = await loadTossPayments(process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!);
       const payment = tossPayments.payment({ customerKey: myId });
       const orderId = `commission-${commission.id}-${Date.now()}`;
