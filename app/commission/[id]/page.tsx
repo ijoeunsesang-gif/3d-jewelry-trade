@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
+import { ImagePlus } from "lucide-react";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 
@@ -1490,14 +1491,14 @@ export default function CommissionDetailPage() {
               onClick={() => chatImageRef.current?.click()}
               disabled={chatSending}
               style={{
-                flexShrink: 0, width: 40, height: 40, borderRadius: 10,
-                border: "1px solid #d1d5db", background: "white",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: chatSending ? "not-allowed" : "pointer", fontSize: 18,
+                flexShrink: 0, background: "none", border: "1px solid #ccc",
+                borderRadius: 8, padding: "6px 10px", cursor: chatSending ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 4,
+                opacity: chatSending ? 0.5 : 1,
               }}
               title="이미지 첨부"
             >
-              🖼
+              <ImagePlus size={20} color="#666" />
             </button>
             <input ref={chatImageRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleChatImage} />
             <textarea
