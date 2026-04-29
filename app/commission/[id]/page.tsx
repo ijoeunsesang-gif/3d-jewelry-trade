@@ -169,6 +169,10 @@ export default function CommissionDetailPage() {
   const [myModels, setMyModels] = useState<{ id: string; title: string; thumbnail: string | null; thumbnail_path: string | null }[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
 
+  const [showPaymentWidget, setShowPaymentWidget] = useState(false);
+  const [widgetLoading, setWidgetLoading] = useState(false);
+  const widgetsRef = useRef<any>(null);
+
   const [sellerNickname, setSellerNickname] = useState<string | null>(null);
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
@@ -424,20 +428,37 @@ export default function CommissionDetailPage() {
     setNegSubmitting(false);
   };
 
-  const handlePaymentComplete = async () => {
-    if (!commission || !myId) return;
-    if (!commission.final_price) {
-      showError("결제 금액이 설정되지 않았습니다.");
-      return;
-    }
+  // 결제위젯 초기화 (showPaymentWidget이 true가 된 직후 DOM이 마운트된 뒤 실행)
+  useEffect(() => {
+    if (!showPaymentWidget || !commission?.final_price || !myId) return;
+    let cancelled = false;
+    const initWidgets = async () => {
+      setWidgetLoading(true);
+      try {
+        const tossPayments = await loadTossPayments(process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!);
+        const widgets = tossPayments.widgets({ customerKey: myId });
+        await widgets.setAmount({ currency: "KRW", value: commission.final_price! });
+        await Promise.all([
+          widgets.renderPaymentMethods({ selector: "#toss-payment-method", variantKey: "DEFAULT" }),
+          widgets.renderAgreement({ selector: "#toss-agreement", variantKey: "AGREEMENT" }),
+        ]);
+        if (!cancelled) widgetsRef.current = widgets;
+      } catch (e: any) {
+        if (!cancelled) showError(e?.message || "결제 위젯 초기화 실패");
+      } finally {
+        if (!cancelled) setWidgetLoading(false);
+      }
+    };
+    initWidgets();
+    return () => { cancelled = true; };
+  }, [showPaymentWidget]);
+
+  const handlePaymentRequest = async () => {
+    if (!widgetsRef.current || !commission) return;
     setNegSubmitting(true);
     try {
-      const tossPayments = await loadTossPayments(process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!);
-      const payment = tossPayments.payment({ customerKey: myId });
       const orderId = `commission-${commission.id}-${Date.now()}`;
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: commission.final_price },
+      await widgetsRef.current.requestPayment({
         orderId,
         orderName: `개인의뢰: ${commission.title}`,
         successUrl: `${window.location.origin}/commission/${id}/payment/success`,
@@ -1015,14 +1036,47 @@ export default function CommissionDetailPage() {
                   </div>
                 </div>
               </div>
-              {isAuthor && (
-                <button onClick={handlePaymentComplete} disabled={negSubmitting} style={{
+              {isAuthor && !showPaymentWidget && (
+                <button onClick={() => setShowPaymentWidget(true)} style={{
                   width: "100%", height: 44, borderRadius: 10, border: "none",
-                  background: negSubmitting ? "#d1d5db" : GOLD,
-                  color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+                  background: GOLD, color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer",
                 }}>
-                  {negSubmitting ? "처리 중..." : "결제하기"}
+                  결제하기
                 </button>
+              )}
+              {isAuthor && showPaymentWidget && (
+                <div style={{ marginTop: 8 }}>
+                  {widgetLoading && (
+                    <div style={{ padding: 20, textAlign: "center", color: "#6b7280", fontSize: 14 }}>결제 위젯 로딩 중...</div>
+                  )}
+                  <div id="toss-payment-method" />
+                  <div id="toss-agreement" />
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button
+                      onClick={handlePaymentRequest}
+                      disabled={negSubmitting || widgetLoading}
+                      style={{
+                        flex: 1, height: 48, borderRadius: 10, border: "none",
+                        background: negSubmitting || widgetLoading ? "#d1d5db" : GOLD,
+                        color: "white", fontSize: 15, fontWeight: 800,
+                        cursor: negSubmitting || widgetLoading ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {negSubmitting ? "처리 중..." : "결제 확인"}
+                    </button>
+                    <button
+                      onClick={() => { setShowPaymentWidget(false); widgetsRef.current = null; }}
+                      disabled={negSubmitting}
+                      style={{
+                        height: 48, padding: "0 20px", borderRadius: 10,
+                        border: "1px solid #d1d5db", background: "white",
+                        fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#374151",
+                      }}
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
               )}
               {isTargetSeller && (
                 <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
