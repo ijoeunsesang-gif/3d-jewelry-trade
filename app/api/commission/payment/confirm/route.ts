@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   // 5. 커미션 상태 → working 업데이트
   const { error: updateErr } = await serviceSupabase
     .from("commissions")
-    .update({ status: "working" })
+    .update({ status: "working", payment_key: paymentKey })
     .eq("id", commissionId);
 
   if (updateErr) {

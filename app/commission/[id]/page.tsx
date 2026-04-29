@@ -55,6 +55,8 @@ const CANCEL_REASONS = [
   "기타",
 ];
 
+const DISPUTE_REASONS = ["기간초과", "결과물불량", "기타"];
+
 type Commission = {
   id: string;
   user_id: string;
@@ -187,6 +189,13 @@ export default function CommissionDetailPage() {
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeReasonIdx, setDisputeReasonIdx] = useState(-1);
+  const [disputeDetail, setDisputeDetail] = useState("");
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [disputes, setDisputes] = useState<any[]>([]);
+  const [disputeRefunding, setDisputeRefunding] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -529,6 +538,10 @@ export default function CommissionDetailPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
+  useEffect(() => {
+    if (isAdmin) fetchDisputes();
+  }, [isAdmin]);
+
   const handleSendChat = async () => {
     const msg = chatInput.trim();
     if (!msg || !myId || chatSending) return;
@@ -676,6 +689,55 @@ export default function CommissionDetailPage() {
       await fetchCommission();
     } catch { showError("취소 실패"); }
     setNegSubmitting(false);
+  };
+
+  const fetchDisputes = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    const res = await fetch(`/api/commission/dispute?commission_id=${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setDisputes(data.disputes || []);
+    }
+  };
+
+  const handleDisputeSubmit = async () => {
+    if (disputeReasonIdx < 0) { showError("사유를 선택해주세요."); return; }
+    const reason = DISPUTE_REASONS[disputeReasonIdx];
+    const token = getAccessToken();
+    setDisputeSubmitting(true);
+    try {
+      const res = await fetch("/api/commission/dispute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ commission_id: id, reason, detail: disputeDetail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "신고 실패");
+      setDisputeModalOpen(false);
+      showSuccess("신고가 접수되었습니다.");
+    } catch (e: any) { showError(e.message || "신고 실패"); }
+    finally { setDisputeSubmitting(false); }
+  };
+
+  const handleRefund = async (disputeId: string) => {
+    if (!confirm("환불 처리하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+    setDisputeRefunding(disputeId);
+    const token = getAccessToken();
+    try {
+      const res = await fetch("/api/commission/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ commission_id: id, dispute_id: disputeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "환불 실패");
+      showSuccess("환불 처리가 완료되었습니다.");
+      await Promise.all([fetchDisputes(), fetchCommission()]);
+    } catch (e: any) { showError(e.message || "환불 처리 실패"); }
+    finally { setDisputeRefunding(null); }
   };
 
   const fd = (iso: string) => {
@@ -1236,9 +1298,22 @@ export default function CommissionDetailPage() {
                 </>
               )}
               {isAuthor && (
-                <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
-                  작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
-                </div>
+                <>
+                  <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
+                    작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setDisputeReasonIdx(-1); setDisputeDetail(""); setDisputeModalOpen(true); }}
+                    style={{
+                      width: "100%", height: 38, borderRadius: 10,
+                      border: "1px solid #fed7aa", background: "#fff7ed",
+                      color: "#92400e", fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 8,
+                    }}
+                  >
+                    문제 신고
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -1475,6 +1550,42 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
+      {/* 관리자 신고 내역 */}
+      {isAdmin && commission.is_private && disputes.length > 0 && (
+        <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 28, paddingTop: 24, marginBottom: 28 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 12 }}>신고 내역</div>
+          {disputes.map((d) => (
+            <div key={d.id} style={{ border: "1px solid #fde68a", borderRadius: 12, padding: 16, marginBottom: 10, background: "#fffbeb" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>{d.reason}</span>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "#fef3c7", color: "#92400e", fontWeight: 600 }}>{d.status}</span>
+                </div>
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>{fd(d.created_at)}</span>
+              </div>
+              {d.detail && (
+                <div style={{ fontSize: 13, color: "#374151", marginBottom: 10, whiteSpace: "pre-wrap" }}>{d.detail}</div>
+              )}
+              {d.status === "접수" && (
+                <button
+                  type="button"
+                  onClick={() => handleRefund(d.id)}
+                  disabled={disputeRefunding === d.id}
+                  style={{
+                    height: 36, padding: "0 18px", borderRadius: 8, border: "none",
+                    background: disputeRefunding === d.id ? "#d1d5db" : "#dc2626",
+                    color: "white", fontSize: 13, fontWeight: 700,
+                    cursor: disputeRefunding === d.id ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {disputeRefunding === d.id ? "처리 중..." : "환불 처리"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 삭제 버튼 — 관리자: 링크 유무 무관 표시 / 일반: 링크 없을 때만 표시 */}
       {(isAuthor || isAdmin) && (isAdmin || !results.some((r) => r.result_link)) && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
@@ -1563,6 +1674,41 @@ export default function CommissionDetailPage() {
                 color: "white", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
               }}>{negSubmitting ? "처리 중..." : "확인"}</button>
               <button onClick={() => setRejectModalOpen(false)} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
+                color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 문제 신고 모달 ─── */}
+      {disputeModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 24, maxWidth: 440, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#111827", marginBottom: 4 }}>문제 신고</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>신고 사유를 선택해주세요.</div>
+            {DISPUTE_REASONS.map((reason, i) => (
+              <label key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderBottom: i < DISPUTE_REASONS.length - 1 ? "1px solid #f3f4f6" : "none", cursor: "pointer" }}>
+                <input type="radio" name="disputeReason" checked={disputeReasonIdx === i} onChange={() => setDisputeReasonIdx(i)}
+                  style={{ width: 16, height: 16, accentColor: "#d97706", cursor: "pointer" }} />
+                <span style={{ fontSize: 14, color: "#374151" }}>{reason}</span>
+              </label>
+            ))}
+            <textarea
+              value={disputeDetail}
+              onChange={(e) => setDisputeDetail(e.target.value)}
+              placeholder="상세 내용을 입력해주세요 (선택)"
+              rows={3}
+              style={{ width: "100%", marginTop: 12, borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, boxSizing: "border-box", outline: "none", fontFamily: "inherit", resize: "vertical" }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={handleDisputeSubmit} disabled={disputeSubmitting} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "none",
+                background: disputeSubmitting ? "#d1d5db" : "#d97706",
+                color: "white", fontSize: 14, fontWeight: 700, cursor: disputeSubmitting ? "not-allowed" : "pointer",
+              }}>{disputeSubmitting ? "접수 중..." : "신고 접수"}</button>
+              <button onClick={() => setDisputeModalOpen(false)} style={{
                 flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
                 color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
               }}>닫기</button>
