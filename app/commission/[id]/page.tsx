@@ -438,9 +438,17 @@ export default function CommissionDetailPage() {
     setNegSubmitting(false);
   };
 
+  const ALLOWED_EXTENSIONS = [".stl", ".3dm", ".obj"];
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !commission) return;
+    const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      showError("STL, 3DM, OBJ 파일만 업로드 가능합니다.");
+      e.target.value = "";
+      return;
+    }
     setNegSubmitting(true);
     try {
       const path = `commission-files/${commission.id}/${file.name}`;
@@ -1037,7 +1045,7 @@ export default function CommissionDetailPage() {
                   }}>
                     {negSubmitting ? "업로드 중..." : "결과물 업로드"}
                   </button>
-                  <input ref={fileUploadRef} type="file" style={{ display: "none" }} onChange={handleFileUpload} />
+                  <input ref={fileUploadRef} type="file" accept=".stl,.3dm,.obj" style={{ display: "none" }} onChange={handleFileUpload} />
                 </>
               )}
               {isAuthor && (
