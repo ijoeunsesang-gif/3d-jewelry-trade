@@ -75,16 +75,32 @@ export async function GET(req: NextRequest) {
 
   const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
   const isAdmin = adminEmail !== "" && (user.email || "").toLowerCase() === adminEmail;
-  if (!isAdmin) return NextResponse.json({ error: "관리자만 접근 가능합니다." }, { status: 403 });
 
   const commission_id = req.nextUrl.searchParams.get("commission_id");
   if (!commission_id) return NextResponse.json({ error: "commission_id가 필요합니다." }, { status: 400 });
 
-  const { data: disputes, error } = await serviceSupabase
+  const { data: commission } = await serviceSupabase
+    .from("commissions")
+    .select("user_id")
+    .eq("id", commission_id)
+    .single();
+
+  if (!commission) return NextResponse.json({ error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
+
+  const isAuthor = commission.user_id === user.id;
+  if (!isAdmin && !isAuthor) return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 403 });
+
+  let query = serviceSupabase
     .from("commission_disputes")
     .select("id, commission_id, reporter_id, reason, detail, status, created_at")
     .eq("commission_id", commission_id)
     .order("created_at", { ascending: false });
+
+  if (!isAdmin) {
+    query = query.eq("reporter_id", user.id);
+  }
+
+  const { data: disputes, error } = await query;
 
   if (error) return NextResponse.json({ error: "조회 실패" }, { status: 500 });
 

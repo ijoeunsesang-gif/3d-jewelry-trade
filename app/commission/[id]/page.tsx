@@ -540,8 +540,9 @@ export default function CommissionDetailPage() {
   }, [chatMessages]);
 
   useEffect(() => {
-    if (isAdmin) fetchDisputes();
-  }, [isAdmin]);
+    if (!myId || !commission) return;
+    if (isAdmin || myId === commission.user_id) fetchDisputes();
+  }, [myId, commission?.id, isAdmin]);
 
   const handleSendChat = async () => {
     const msg = chatInput.trim();
@@ -1299,22 +1300,9 @@ export default function CommissionDetailPage() {
                 </>
               )}
               {isAuthor && (
-                <>
-                  <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
-                    작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setDisputeReasonIdx(-1); setDisputeDetail(""); setDisputeModalOpen(true); }}
-                    style={{
-                      width: "100%", height: 38, borderRadius: 10,
-                      border: "1px solid #fed7aa", background: "#fff7ed",
-                      color: "#92400e", fontSize: 13, fontWeight: 700, cursor: "pointer", marginTop: 8,
-                    }}
-                  >
-                    문제 신고
-                  </button>
-                </>
+                <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
+                  작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
+                </div>
               )}
             </div>
           )}
@@ -1411,6 +1399,29 @@ export default function CommissionDetailPage() {
                   border: "1px solid #fca5a5", background: "white",
                   color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: "pointer",
                 }}>취소하기</button>
+              )}
+            </div>
+          )}
+
+          {/* 문제 신고 버튼 */}
+          {["working", "completed", "downloaded"].includes(status) && isAuthor && (
+            <div style={{ marginTop: 16, borderTop: "1px solid #f3f4f6", paddingTop: 14 }}>
+              {disputes.some((d) => ["접수", "검토중"].includes(d.status)) ? (
+                <div style={{ padding: "10px 16px", borderRadius: 8, background: "#fef3c7", border: "1px solid #fde68a", fontSize: 13, color: "#92400e", fontWeight: 600, textAlign: "center" }}>
+                  신고 접수됨 (검토 중)
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setDisputeReasonIdx(-1); setDisputeDetail(""); setDisputeModalOpen(true); }}
+                  style={{
+                    width: "100%", height: 38, borderRadius: 10,
+                    border: "1px solid #fed7aa", background: "#fff7ed",
+                    color: "#92400e", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  }}
+                >
+                  문제 신고
+                </button>
               )}
             </div>
           )}
