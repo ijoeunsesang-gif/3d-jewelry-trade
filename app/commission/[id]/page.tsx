@@ -204,6 +204,17 @@ export default function CommissionDetailPage() {
     fetchResults();
   }, [id]);
 
+  // 채팅창 밖 파일 드롭 시 브라우저 새 탭 열림 방지
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    document.addEventListener("dragover", prevent);
+    document.addEventListener("drop", prevent);
+    return () => {
+      document.removeEventListener("dragover", prevent);
+      document.removeEventListener("drop", prevent);
+    };
+  }, []);
+
   useEffect(() => {
     if (!myId) return;
     setMyResult(results.find((r) => r.seller_id === myId) || null);
@@ -556,6 +567,7 @@ export default function CommissionDetailPage() {
 
   const handleChatDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setChatDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (!file || !file.type.startsWith("image/")) { showError("이미지 파일만 첨부 가능합니다."); return; }
