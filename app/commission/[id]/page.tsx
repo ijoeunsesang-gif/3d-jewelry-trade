@@ -164,6 +164,9 @@ export default function CommissionDetailPage() {
   const [resultLink, setResultLink] = useState("");
   const [resultSaving, setResultSaving] = useState(false);
   const [resultEditing, setResultEditing] = useState(false);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [myModels, setMyModels] = useState<{ id: string; title: string; thumbnail: string | null; thumbnail_path: string | null }[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(false);
 
   const [sellerNickname, setSellerNickname] = useState<string | null>(null);
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
@@ -221,6 +224,32 @@ export default function CommissionDetailPage() {
     const { data: profilesData } = await supabase.from("profiles").select("id, nickname, grade").in("id", rows.map((r: any) => r.seller_id));
     const pm = Object.fromEntries((profilesData || []).map((p: any) => [p.id, p]));
     setResults(rows.map((r: any) => ({ ...r, nickname: pm[r.seller_id]?.nickname || "판매자", grade: pm[r.seller_id]?.grade || null })));
+  };
+
+  const fetchMyModels = async () => {
+    if (!myId || myModels.length > 0) return;
+    setModelsLoading(true);
+    try {
+      const { data } = await supabase
+        .from("models")
+        .select("id, title, thumbnail, thumbnail_path")
+        .eq("seller_id", myId)
+        .order("created_at", { ascending: false });
+      setMyModels(data || []);
+    } finally {
+      setModelsLoading(false);
+    }
+  };
+
+  const getModelThumbnail = (model: { thumbnail: string | null; thumbnail_path: string | null }) => {
+    if (model.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${model.thumbnail_path}`;
+    if (model.thumbnail) return model.thumbnail;
+    return "/placeholder.png";
+  };
+
+  const handleModelSelect = (modelId: string) => {
+    setResultLink(`https://www.3d-jewelry-trade.com/models/${modelId}`);
+    setShowModelPicker(false);
   };
 
   const handleResultInsert = async () => {
@@ -637,14 +666,62 @@ export default function CommissionDetailPage() {
               </div>
             </div>
           ) : (
-            <div>
-              <input type="url" value={resultLink} onChange={(e) => setResultLink(e.target.value)} placeholder="https://..."
-                style={{ height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, width: "100%", boxSizing: "border-box", outline: "none" }} />
+            <div style={{ position: "relative" }}>
+              {/* URL 입력 + 내 모델 버튼 */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="url" value={resultLink} onChange={(e) => setResultLink(e.target.value)} placeholder="https://..."
+                  style={{ flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                <button
+                  type="button"
+                  onClick={() => { setShowModelPicker((p) => !p); fetchMyModels(); }}
+                  style={{ flexShrink: 0, height: 44, padding: "0 14px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151", whiteSpace: "nowrap" }}
+                >
+                  내 모델
+                </button>
+              </div>
+
+              {/* 내 모델 선택 팝업 */}
+              {showModelPicker && (
+                <div style={{
+                  position: "absolute", top: 48, left: 0, right: 0, zIndex: 50,
+                  background: "white", border: "1px solid #e5e7eb", borderRadius: 12,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.10)", maxHeight: 320, overflowY: "auto",
+                }}>
+                  {modelsLoading ? (
+                    <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>불러오는 중...</div>
+                  ) : myModels.length === 0 ? (
+                    <div style={{ padding: 20, textAlign: "center", color: "#9ca3af", fontSize: 13 }}>등록된 모델이 없습니다.</div>
+                  ) : (
+                    myModels.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleModelSelect(m.id)}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center", gap: 12,
+                          padding: "10px 14px", border: "none", background: "none",
+                          borderBottom: "1px solid #f3f4f6", cursor: "pointer", textAlign: "left",
+                        }}
+                      >
+                        <img
+                          src={getModelThumbnail(m)}
+                          alt={m.title}
+                          style={{ width: 48, height: 48, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }}
+                        />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {m.title}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <button type="button" onClick={resultEditing ? handleResultUpdate : handleResultInsert} disabled={resultSaving}
                   style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: resultSaving ? "#d1d5db" : GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: resultSaving ? "not-allowed" : "pointer" }}>
                   {resultSaving ? "처리 중..." : resultEditing ? "수정 저장" : "등록"}</button>
-                <button type="button" onClick={() => { setResultEditing(false); setLinkPanelOpen(false); }}
+                <button type="button" onClick={() => { setResultEditing(false); setLinkPanelOpen(false); setShowModelPicker(false); }}
                   style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#374151" }}>취소</button>
               </div>
             </div>
