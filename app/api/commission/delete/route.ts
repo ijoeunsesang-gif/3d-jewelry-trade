@@ -25,6 +25,9 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "인증 실패" }, { status: 401 });
   }
 
+  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
+  const isAdmin = adminEmail !== "" && (user.email || "").toLowerCase() === adminEmail;
+
   const { data: commission, error: fetchError } = await adminSupabase
     .from("commissions")
     .select("user_id")
@@ -35,23 +38,25 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  if (commission.user_id !== user.id) {
+  if (!isAdmin && commission.user_id !== user.id) {
     return NextResponse.json({ error: "삭제 권한이 없습니다." }, { status: 403 });
   }
 
-  // 링크가 등록된 의뢰는 삭제 불가
-  const { data: linkedResults } = await adminSupabase
-    .from("commission_results")
-    .select("result_link")
-    .eq("commission_id", commissionId)
-    .not("result_link", "is", null)
-    .neq("result_link", "");
+  // 링크가 등록된 의뢰는 삭제 불가 (관리자 제외)
+  if (!isAdmin) {
+    const { data: linkedResults } = await adminSupabase
+      .from("commission_results")
+      .select("result_link")
+      .eq("commission_id", commissionId)
+      .not("result_link", "is", null)
+      .neq("result_link", "");
 
-  if (linkedResults && linkedResults.length > 0) {
-    return NextResponse.json(
-      { error: "링크가 등록된 의뢰는 삭제할 수 없습니다. 관리자에게 문의하세요." },
-      { status: 403 }
-    );
+    if (linkedResults && linkedResults.length > 0) {
+      return NextResponse.json(
+        { error: "링크가 등록된 의뢰는 삭제할 수 없습니다. 관리자에게 문의하세요." },
+        { status: 403 }
+      );
+    }
   }
 
   // Delete child records first (FK constraints without CASCADE)

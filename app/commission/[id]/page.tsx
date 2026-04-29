@@ -171,12 +171,16 @@ export default function CommissionDetailPage() {
   const [sellerNickname, setSellerNickname] = useState<string | null>(null);
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
-      const uid = (decodeJwt(token) as any)?.sub as string;
+      const payload = decodeJwt(token) as any;
+      const uid = payload?.sub as string;
+      const email = (payload?.email as string) || "";
       setMyId(uid);
+      setIsAdmin(email.toLowerCase() === (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").toLowerCase());
       supabase.from("profiles").select("role").eq("id", uid).single()
         .then(({ data }) => { setIsSeller(data?.role === "seller"); });
     }
@@ -1161,14 +1165,14 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
-      {/* 삭제 버튼 — 링크가 등록된 의뢰는 숨김 */}
-      {isAuthor && !results.some((r) => r.result_link) && (
+      {/* 삭제 버튼 — 관리자: 링크 유무 무관 표시 / 일반: 링크 없을 때만 표시 */}
+      {(isAuthor || isAdmin) && (isAdmin || !results.some((r) => r.result_link)) && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
           <button type="button" onClick={handleDelete} disabled={deleting} style={{
             padding: "8px 18px", borderRadius: 8, border: "1px solid #fca5a5", background: "white",
             color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer",
           }}>
-            {deleting ? "삭제 중..." : "삭제"}
+            {deleting ? "삭제 중..." : (isAdmin && results.some((r) => r.result_link) ? "관리자 삭제" : "삭제")}
           </button>
         </div>
       )}
