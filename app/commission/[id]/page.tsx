@@ -79,6 +79,7 @@ type Commission = {
   rejection_reason: string | null;
   cancellation_reason: string | null;
   cancel_reason: string | null;
+  updated_at: string;
 };
 
 type Comment = {
@@ -235,7 +236,7 @@ export default function CommissionDetailPage() {
     try {
       const { data, error } = await supabase
         .from("commissions")
-        .select("id, user_id, title, description, images, status, result_link, created_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason")
+        .select("id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason")
         .eq("id", id)
         .single();
       if (error || !data) { console.error("fetchCommission error:", error); return; }
@@ -779,6 +780,13 @@ export default function CommissionDetailPage() {
   const canReject = isTargetSeller && ["pending", "negotiating"].includes(status);
   const canCancel = isAuthor && ["pending", "negotiating"].includes(status);
 
+  const isOverdue = (() => {
+    if (status !== "working" || !commission.final_days || !commission.updated_at) return false;
+    const deadline = new Date(commission.updated_at);
+    deadline.setDate(deadline.getDate() + commission.final_days);
+    return new Date() > deadline;
+  })();
+
   const lastNeg = negotiations.length > 0 ? negotiations[negotiations.length - 1] : null;
   const isMyTurnToRespond = status === "negotiating" && !!lastNeg && lastNeg.proposer_id !== myId;
 
@@ -1299,7 +1307,12 @@ export default function CommissionDetailPage() {
                   <input ref={fileUploadRef} type="file" accept=".stl,.3dm,.obj" style={{ display: "none" }} onChange={handleFileUpload} />
                 </>
               )}
-              {isAuthor && (
+              {isAuthor && isOverdue && (
+                <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fefce8", border: "1px solid #fde047", fontSize: 14, color: "#b45309", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                  ⚠️ 합의한 작업 기간이 초과되었습니다. 문제 신고가 가능합니다.
+                </div>
+              )}
+              {isAuthor && !isOverdue && (
                 <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
                   작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
                 </div>
