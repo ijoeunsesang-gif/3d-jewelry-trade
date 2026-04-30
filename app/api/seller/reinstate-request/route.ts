@@ -15,25 +15,37 @@ export async function POST(req: NextRequest) {
 
   const { data: profile, error: fetchErr } = await serviceSupabase
     .from("profiles")
-    .select("is_seller_banned, reinstate_requested, nickname")
+    .select("is_seller_banned, nickname")
     .eq("id", user.id)
     .single();
 
   if (fetchErr || !profile) return NextResponse.json({ error: "프로필을 찾을 수 없습니다." }, { status: 404 });
   if (!profile.is_seller_banned) return NextResponse.json({ error: "정지된 계정이 아닙니다." }, { status: 400 });
-  if (profile.reinstate_requested) return NextResponse.json({ error: "이미 재등록 신청 중입니다." }, { status: 400 });
 
-  const { error: updateErr } = await serviceSupabase
-    .from("profiles")
-    .update({ reinstate_requested: true })
-    .eq("id", user.id);
+  const { data: existing } = await serviceSupabase
+    .from("seller_reinstate_requests")
+    .select("id")
+    .eq("seller_id", user.id)
+    .eq("status", "대기")
+    .maybeSingle();
 
-  if (updateErr) {
-    console.error("[reinstate-request] update error:", updateErr);
+  if (existing) return NextResponse.json({ error: "이미 재등록 신청 중입니다." }, { status: 400 });
+
+  let body: { reason?: string };
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "잘못된 요청" }, { status: 400 }); }
+
+  const reason = (body.reason || "").trim();
+  if (!reason) return NextResponse.json({ error: "신청 사유를 입력해주세요." }, { status: 400 });
+
+  const { error: insertErr } = await serviceSupabase
+    .from("seller_reinstate_requests")
+    .insert({ seller_id: user.id, reason, status: "대기" });
+
+  if (insertErr) {
+    console.error("[reinstate-request] insert error:", insertErr);
     return NextResponse.json({ error: "신청 처리 실패" }, { status: 500 });
   }
 
-  // 관리자에게 알림
   const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
   if (adminEmail) {
     try {

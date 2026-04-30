@@ -19,9 +19,14 @@ interface Inquiry {
 
 interface ReinstateRequest {
   id: string;
-  nickname: string | null;
-  email: string | null;
-  warning_count: number;
+  seller_id: string;
+  reason: string;
+  created_at: string;
+  profiles: {
+    nickname: string | null;
+    email: string | null;
+    warning_count: number;
+  } | null;
 }
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
@@ -36,7 +41,7 @@ export default function AdminPage() {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "answered">("all");
   const [reinstateRequests, setReinstateRequests] = useState<ReinstateRequest[]>([]);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdmin();
@@ -75,31 +80,31 @@ export default function AdminPage() {
 
   const fetchReinstateRequests = async () => {
     const { data } = await supabase
-      .from("profiles")
-      .select("id, nickname, email, warning_count")
-      .eq("is_seller_banned", true)
-      .eq("reinstate_requested", true);
+      .from("seller_reinstate_requests")
+      .select("id, seller_id, reason, created_at, profiles(nickname, email, warning_count)")
+      .eq("status", "대기")
+      .order("created_at", { ascending: false });
     setReinstateRequests((data as ReinstateRequest[]) || []);
   };
 
-  const handleApproveReinstate = async (sellerId: string) => {
-    setApprovingId(sellerId);
+  const handleReinstateAction = async (req: ReinstateRequest, action: "승인" | "거부") => {
+    setProcessingId(req.id + action);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       const res = await fetch("/api/seller/reinstate-approve", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ seller_id: sellerId }),
+        body: JSON.stringify({ request_id: req.id, seller_id: req.seller_id, action }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || "승인 실패"); return; }
-      showSuccess("판매자 정지가 해제되었습니다.");
+      if (!res.ok) { showError(data.error || "처리 실패"); return; }
+      showSuccess(action === "승인" ? "정지가 해제되었습니다." : "신청이 거부되었습니다.");
       fetchReinstateRequests();
     } catch {
-      showError("승인 처리 중 오류가 발생했습니다.");
+      showError("처리 중 오류가 발생했습니다.");
     } finally {
-      setApprovingId(null);
+      setProcessingId(null);
     }
   };
 
@@ -184,49 +189,72 @@ export default function AdminPage() {
       </div>
 
       {/* 재등록 신청 목록 */}
-      {reinstateRequests.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <h2 style={{ margin: "0 0 14px", fontSize: 20, fontWeight: 800, color: "#dc2626" }}>
-            판매자 재등록 신청 ({reinstateRequests.length})
-          </h2>
-          <div style={{ display: "grid", gap: 10 }}>
+      <div style={{ marginTop: 32 }}>
+        <h2 style={{ margin: "0 0 14px", fontSize: 20, fontWeight: 800, color: "#dc2626" }}>
+          판매자 재등록 신청 ({reinstateRequests.length})
+        </h2>
+        {reinstateRequests.length === 0 ? (
+          <p style={{ color: "#9ca3af", fontSize: 14 }}>대기 중인 재등록 신청이 없습니다.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
             {reinstateRequests.map((req) => (
               <div
                 key={req.id}
                 style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  gap: 12, padding: "16px 20px",
                   border: "1px solid #fecaca", borderRadius: 14, background: "#fef2f2",
-                  flexWrap: "wrap",
+                  overflow: "hidden",
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
-                    {req.nickname || "닉네임 없음"}
+                <div style={{ padding: "16px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                      {req.profiles?.nickname || "닉네임 없음"}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
+                      {req.profiles?.email || req.seller_id} · 경고 {req.profiles?.warning_count ?? 0}회 · {formatDate(req.created_at)}
+                    </div>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
-                    {req.email || req.id} · 경고 {req.warning_count}회
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleReinstateAction(req, "승인")}
+                      disabled={processingId !== null}
+                      style={{
+                        height: 38, padding: "0 16px", borderRadius: 10, border: "none",
+                        background: "#16a34a", color: "white", fontWeight: 700, fontSize: 13,
+                        cursor: processingId !== null ? "not-allowed" : "pointer",
+                        opacity: processingId === req.id + "승인" ? 0.6 : 1,
+                      }}
+                    >
+                      {processingId === req.id + "승인" ? "처리 중..." : "승인"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReinstateAction(req, "거부")}
+                      disabled={processingId !== null}
+                      style={{
+                        height: 38, padding: "0 16px", borderRadius: 10,
+                        border: "1px solid #dc2626", background: "white",
+                        color: "#dc2626", fontWeight: 700, fontSize: 13,
+                        cursor: processingId !== null ? "not-allowed" : "pointer",
+                        opacity: processingId === req.id + "거부" ? 0.6 : 1,
+                      }}
+                    >
+                      {processingId === req.id + "거부" ? "처리 중..." : "거부"}
+                    </button>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleApproveReinstate(req.id)}
-                  disabled={approvingId === req.id}
-                  style={{
-                    height: 40, padding: "0 20px", borderRadius: 10, border: "none",
-                    background: "#16a34a", color: "white",
-                    fontWeight: 700, fontSize: 14,
-                    cursor: approvingId === req.id ? "not-allowed" : "pointer",
-                    opacity: approvingId === req.id ? 0.6 : 1,
-                  }}
-                >
-                  {approvingId === req.id ? "처리 중..." : "정지 해제 승인"}
-                </button>
+                <div style={{ padding: "0 20px 16px" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#9ca3af", marginBottom: 6 }}>신청 사유</div>
+                  <div style={{ fontSize: 14, color: "#374151", background: "white", borderRadius: 8, padding: "10px 14px", border: "1px solid #fecaca", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                    {req.reason}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 필터 */}
       <div style={{ display: "flex", gap: 8, marginTop: 28, flexWrap: "wrap" }}>

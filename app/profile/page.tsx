@@ -36,7 +36,8 @@ export default function ProfilePage() {
   const [sellerRegistering, setSellerRegistering] = useState(false);
   const [bizUploading, setBizUploading] = useState(false);
   const [isSellerBanned, setIsSellerBanned] = useState(false);
-  const [reinstateRequested, setReinstateRequested] = useState(false);
+  const [reinstateStatus, setReinstateStatus] = useState<"대기" | "승인" | "거부" | null>(null);
+  const [reinstateReason, setReinstateReason] = useState("");
   const [reinstateRequesting, setReinstateRequesting] = useState(false);
 
   // 계정 정보
@@ -130,9 +131,19 @@ export default function ProfilePage() {
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
         setIsSeller(profile.role === "seller");
-        setIsSellerBanned(profile.is_seller_banned || false);
-        setReinstateRequested(profile.reinstate_requested || false);
+        const banned = profile.is_seller_banned || false;
+        setIsSellerBanned(banned);
         setSellerAppliedAt(profile.seller_applied_at || null);
+        if (banned) {
+          const { data: latestReq } = await supabase
+            .from("seller_reinstate_requests")
+            .select("status")
+            .eq("seller_id", uid)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          setReinstateStatus((latestReq?.status as "대기" | "승인" | "거부") || null);
+        }
         setBizRegUrl(profile.business_registration_url || "");
         setBankName(profile.bank_name || "");
         setAccountHolder(profile.account_holder || "");
@@ -325,16 +336,19 @@ export default function ProfilePage() {
   };
 
   const handleReinstateRequest = async () => {
+    if (!reinstateReason.trim()) { showError("신청 사유를 입력해주세요."); return; }
     setReinstateRequesting(true);
     try {
       const token = getAccessToken();
       const res = await fetch("/api/seller/reinstate-request", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reinstateReason.trim() }),
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "신청 실패"); return; }
-      setReinstateRequested(true);
+      setReinstateStatus("대기");
+      setReinstateReason("");
       showSuccess("재등록 신청이 완료되었습니다. 관리자 검토 후 승인됩니다.");
     } catch {
       showError("재등록 신청 중 오류가 발생했습니다.");
@@ -630,27 +644,56 @@ export default function ProfilePage() {
 
               {/* ─ 정지 안내 ─ */}
               {isSellerBanned && (
-                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#dc2626", marginBottom: 8 }}>
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#dc2626" }}>
                     계정이 정지되었습니다. 관리자에게 문의하세요.
                   </div>
-                  <p style={{ margin: "0 0 14px", fontSize: 13, color: "#6b7280" }}>
-                    판매자 활동이 정지된 계정입니다. 재등록을 신청하면 관리자 검토 후 승인됩니다.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleReinstateRequest}
-                    disabled={reinstateRequested || reinstateRequesting}
-                    style={{
-                      height: 44, padding: "0 20px", borderRadius: 12, border: "none",
-                      background: reinstateRequested ? "#9ca3af" : "#dc2626",
-                      color: "white", fontWeight: 700, fontSize: 14,
-                      cursor: (reinstateRequested || reinstateRequesting) ? "not-allowed" : "pointer",
-                      opacity: reinstateRequesting ? 0.7 : 1,
-                    }}
-                  >
-                    {reinstateRequested ? "재등록 신청 완료 (검토 중)" : reinstateRequesting ? "신청 중..." : "재등록 신청"}
-                  </button>
+
+                  {reinstateStatus === "대기" && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#92400e", fontSize: 13, fontWeight: 700 }}>
+                      재등록 신청 검토 중
+                    </div>
+                  )}
+
+                  {reinstateStatus === "거부" && (
+                    <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#92400e", fontWeight: 600 }}>
+                      이전 재등록 신청이 거부되었습니다. 사유를 보완하여 다시 신청할 수 있습니다.
+                    </div>
+                  )}
+
+                  {(reinstateStatus === null || reinstateStatus === "거부") && (
+                    <>
+                      <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+                        재등록 신청 사유를 작성해주세요. 관리자 검토 후 승인됩니다.
+                      </p>
+                      <textarea
+                        value={reinstateReason}
+                        onChange={(e) => setReinstateReason(e.target.value)}
+                        placeholder="재등록 신청 사유를 입력해주세요. (예: 향후 판매 규정을 준수하겠습니다.)"
+                        rows={3}
+                        style={{
+                          width: "100%", borderRadius: 10, border: "1px solid #fecaca",
+                          padding: "10px 12px", fontSize: 13, outline: "none",
+                          resize: "vertical", boxSizing: "border-box",
+                          fontFamily: "inherit", background: "white",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleReinstateRequest}
+                        disabled={reinstateRequesting}
+                        style={{
+                          height: 44, padding: "0 20px", borderRadius: 12, border: "none",
+                          background: "#dc2626", color: "white", fontWeight: 700, fontSize: 14,
+                          cursor: reinstateRequesting ? "not-allowed" : "pointer",
+                          opacity: reinstateRequesting ? 0.7 : 1,
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        {reinstateRequesting ? "신청 중..." : "재등록 신청"}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 
