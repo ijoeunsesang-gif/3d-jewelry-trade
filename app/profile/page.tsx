@@ -35,6 +35,9 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [sellerRegistering, setSellerRegistering] = useState(false);
   const [bizUploading, setBizUploading] = useState(false);
+  const [isSellerBanned, setIsSellerBanned] = useState(false);
+  const [reinstateRequested, setReinstateRequested] = useState(false);
+  const [reinstateRequesting, setReinstateRequesting] = useState(false);
 
   // 계정 정보
   const [userId, setUserId] = useState("");
@@ -127,6 +130,8 @@ export default function ProfilePage() {
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
         setIsSeller(profile.role === "seller");
+        setIsSellerBanned(profile.is_seller_banned || false);
+        setReinstateRequested(profile.reinstate_requested || false);
         setSellerAppliedAt(profile.seller_applied_at || null);
         setBizRegUrl(profile.business_registration_url || "");
         setBankName(profile.bank_name || "");
@@ -319,6 +324,25 @@ export default function ProfilePage() {
     }
   };
 
+  const handleReinstateRequest = async () => {
+    setReinstateRequesting(true);
+    try {
+      const token = getAccessToken();
+      const res = await fetch("/api/seller/reinstate-request", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || "신청 실패"); return; }
+      setReinstateRequested(true);
+      showSuccess("재등록 신청이 완료되었습니다. 관리자 검토 후 승인됩니다.");
+    } catch {
+      showError("재등록 신청 중 오류가 발생했습니다.");
+    } finally {
+      setReinstateRequesting(false);
+    }
+  };
+
   const handleSettlementSave = async () => {
     if (!bankName || !accountHolder || !accountNumber) {
       showError("예금주명, 은행명, 계좌번호는 필수 입력 항목입니다.");
@@ -421,9 +445,14 @@ export default function ProfilePage() {
               {uploading ? "업로드 중..." : "이미지 업로드"}
               <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
             </label>
-            {isSeller && (
+            {isSeller && !isSellerBanned && (
               <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
                 ✓ 판매자
+              </span>
+            )}
+            {isSellerBanned && (
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
+                ✗ 판매자 정지
               </span>
             )}
           </div>
@@ -599,6 +628,32 @@ export default function ProfilePage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               <h2 style={sectionTitle}>판매자 등록</h2>
 
+              {/* ─ 정지 안내 ─ */}
+              {isSellerBanned && (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#dc2626", marginBottom: 8 }}>
+                    계정이 정지되었습니다. 관리자에게 문의하세요.
+                  </div>
+                  <p style={{ margin: "0 0 14px", fontSize: 13, color: "#6b7280" }}>
+                    판매자 활동이 정지된 계정입니다. 재등록을 신청하면 관리자 검토 후 승인됩니다.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleReinstateRequest}
+                    disabled={reinstateRequested || reinstateRequesting}
+                    style={{
+                      height: 44, padding: "0 20px", borderRadius: 12, border: "none",
+                      background: reinstateRequested ? "#9ca3af" : "#dc2626",
+                      color: "white", fontWeight: 700, fontSize: 14,
+                      cursor: (reinstateRequested || reinstateRequesting) ? "not-allowed" : "pointer",
+                      opacity: reinstateRequesting ? 0.7 : 1,
+                    }}
+                  >
+                    {reinstateRequested ? "재등록 신청 완료 (검토 중)" : reinstateRequesting ? "신청 중..." : "재등록 신청"}
+                  </button>
+                </div>
+              )}
+
               {/* ─ 안내문 패널 ─ */}
               <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
                 {/* 수수료 표 */}
@@ -657,9 +712,11 @@ export default function ProfilePage() {
                         {accountNumber ? `${bankName} ${maskAccount(accountNumber)}` : "—"}
                       </span>
                     </div>
-                    <button type="button" onClick={() => setSettlementEditing(true)} style={{ ...actionBtn, marginTop: 4, alignSelf: "flex-start" }}>
-                      정보 수정
-                    </button>
+                    {!isSellerBanned && (
+                      <button type="button" onClick={() => setSettlementEditing(true)} style={{ ...actionBtn, marginTop: 4, alignSelf: "flex-start" }}>
+                        정보 수정
+                      </button>
+                    )}
                   </div>
 
                   {/* 사업자 정보 토글 */}
@@ -694,7 +751,7 @@ export default function ProfilePage() {
               )}
 
               {/* ─ 미신청 or 수정 모드 → 폼 ─ */}
-              {(!isSeller || settlementEditing) && (
+              {(!isSeller || settlementEditing) && !isSellerBanned && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
                   {/* 정산 정보 섹션 */}

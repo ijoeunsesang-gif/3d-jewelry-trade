@@ -17,6 +17,13 @@ interface Inquiry {
   answered_at: string | null;
 }
 
+interface ReinstateRequest {
+  id: string;
+  nickname: string | null;
+  email: string | null;
+  warning_count: number;
+}
+
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 
 export default function AdminPage() {
@@ -28,6 +35,8 @@ export default function AdminPage() {
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "answered">("all");
+  const [reinstateRequests, setReinstateRequests] = useState<ReinstateRequest[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdmin();
@@ -61,6 +70,37 @@ export default function AdminPage() {
     setAuthorized(true);
     setLoading(false);
     fetchInquiries();
+    fetchReinstateRequests();
+  };
+
+  const fetchReinstateRequests = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, nickname, email, warning_count")
+      .eq("is_seller_banned", true)
+      .eq("reinstate_requested", true);
+    setReinstateRequests((data as ReinstateRequest[]) || []);
+  };
+
+  const handleApproveReinstate = async (sellerId: string) => {
+    setApprovingId(sellerId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch("/api/seller/reinstate-approve", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ seller_id: sellerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || "승인 실패"); return; }
+      showSuccess("판매자 정지가 해제되었습니다.");
+      fetchReinstateRequests();
+    } catch {
+      showError("승인 처리 중 오류가 발생했습니다.");
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   const fetchInquiries = async () => {
@@ -142,6 +182,51 @@ export default function AdminPage() {
           정산 관리 →
         </button>
       </div>
+
+      {/* 재등록 신청 목록 */}
+      {reinstateRequests.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <h2 style={{ margin: "0 0 14px", fontSize: 20, fontWeight: 800, color: "#dc2626" }}>
+            판매자 재등록 신청 ({reinstateRequests.length})
+          </h2>
+          <div style={{ display: "grid", gap: 10 }}>
+            {reinstateRequests.map((req) => (
+              <div
+                key={req.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  gap: 12, padding: "16px 20px",
+                  border: "1px solid #fecaca", borderRadius: 14, background: "#fef2f2",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                    {req.nickname || "닉네임 없음"}
+                  </div>
+                  <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
+                    {req.email || req.id} · 경고 {req.warning_count}회
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleApproveReinstate(req.id)}
+                  disabled={approvingId === req.id}
+                  style={{
+                    height: 40, padding: "0 20px", borderRadius: 10, border: "none",
+                    background: "#16a34a", color: "white",
+                    fontWeight: 700, fontSize: 14,
+                    cursor: approvingId === req.id ? "not-allowed" : "pointer",
+                    opacity: approvingId === req.id ? 0.6 : 1,
+                  }}
+                >
+                  {approvingId === req.id ? "처리 중..." : "정지 해제 승인"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 필터 */}
       <div style={{ display: "flex", gap: 8, marginTop: 28, flexWrap: "wrap" }}>
