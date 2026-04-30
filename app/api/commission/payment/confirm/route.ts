@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   // 4. 의뢰 조회 및 소유권 확인
   const { data: commission, error: fetchErr } = await serviceSupabase
     .from("commissions")
-    .select("id, user_id, target_seller_id, status")
+    .select("id, user_id, target_seller_id, status, title")
     .eq("id", commissionId)
     .single();
 
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
     notifications.push({
       user_id: commission.target_seller_id,
       type: "negotiation",
-      title: "결제 완료",
+      title: `[개인의뢰] ${commission.title} - 결제가 완료되었습니다.`,
       link: `/commission/${commissionId}`,
       is_read: false,
     });
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   notifications.push({
     user_id: commission.user_id,
     type: "negotiation",
-    title: "작업 시작",
+    title: `[개인의뢰] ${commission.title} - 작업이 시작되었습니다.`,
     link: `/commission/${commissionId}`,
     is_read: false,
   });

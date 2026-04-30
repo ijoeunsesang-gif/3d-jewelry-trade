@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         await serviceSupabase.from("notifications").insert({
           user_id: adminUser.id,
           type: "negotiation",
-          title: `문제 신고: ${commission.title}`,
+          title: `[개인의뢰] ${commission.title} - 문제 신고가 접수되었습니다.`,
           link: `/commission/${commission_id}`,
           is_read: false,
         });

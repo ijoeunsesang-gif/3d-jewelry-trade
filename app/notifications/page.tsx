@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { MessageCircle, CreditCard, CheckCircle, AlertTriangle, UserPlus, Bell } from "lucide-react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import type { ProfileItem } from "../lib/getProfile";
@@ -31,7 +33,23 @@ type ConversationItem = {
   updated_at: string;
 };
 
+const NOTIF_ICON: Record<string, React.ReactNode> = {
+  negotiation: <MessageCircle size={18} color="#6b7280" />,
+  comment: <MessageCircle size={18} color="#6b7280" />,
+  file_upload: <CheckCircle size={18} color="#16a34a" />,
+  result_link: <CheckCircle size={18} color="#16a34a" />,
+  payment: <CreditCard size={18} color="#2563eb" />,
+  dispute: <AlertTriangle size={18} color="#b45309" />,
+  follow: <UserPlus size={18} color="#7c3aed" />,
+  revision: <MessageCircle size={18} color="#ea580c" />,
+};
+
+function getNotifIcon(type: string) {
+  return NOTIF_ICON[type] ?? <Bell size={18} color="#6b7280" />;
+}
+
 export default function NotificationsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
   const [followItems, setFollowItems] = useState<FollowItem[]>([]);
@@ -93,6 +111,11 @@ export default function NotificationsPage() {
     setNotifItems((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
     window.dispatchEvent(new Event("notifications-updated"));
+  };
+
+  const handleNotifClick = async (item: NotificationItem) => {
+    if (!item.is_read) await markNotifAsRead(item.id);
+    if (item.link) router.push(item.link);
   };
 
   const markConversationNotificationAsRead = async (conversationId: string) => {
@@ -183,10 +206,9 @@ export default function NotificationsPage() {
               <div style={{ padding: 20, color: "#6b7280" }}>알림이 없습니다.</div>
             ) : (
               notifItems.map((item) => (
-                <a
+                <div
                   key={item.id}
-                  href={item.link || "/notifications"}
-                  onClick={() => { if (!item.is_read) markNotifAsRead(item.id); }}
+                  onClick={() => handleNotifClick(item)}
                   style={{
                     position: "relative",
                     padding: "14px 20px",
@@ -195,23 +217,25 @@ export default function NotificationsPage() {
                     display: "flex",
                     alignItems: "center",
                     gap: 12,
-                    textDecoration: "none",
-                    color: "inherit",
+                    cursor: item.link ? "pointer" : "default",
                     background: item.is_read ? "white" : "#fffbeb",
-                    opacity: item.is_read ? 0.6 : 1,
+                    opacity: item.is_read ? 0.5 : 1,
                     transition: "background 0.15s",
                   }}
                 >
                   {!item.is_read && (
                     <span style={{ position: "absolute", top: 12, right: 16, width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
                   )}
+                  <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: "50%", background: item.is_read ? "#f3f4f6" : "#fef9c3" }}>
+                    {getNotifIcon(item.type)}
+                  </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: item.is_read ? 400 : 700, color: "#111827" }}>{item.title}</div>
                     <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
                       {new Date(item.created_at).toLocaleString("ko-KR")}
                     </div>
                   </div>
-                </a>
+                </div>
               ))
             )}
           </section>

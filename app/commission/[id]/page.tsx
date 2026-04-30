@@ -408,7 +408,7 @@ export default function CommissionDetailPage() {
         final_price: commission.desired_price,
         final_days: commission.desired_days,
       }).eq("id", id);
-      await sendNotification(commission.user_id, "negotiation", "협의 시작", `/commission/${id}`);
+      await sendNotification(commission.user_id, "negotiation", `[개인의뢰] ${commission.title} - 판매자가 협의를 시작했습니다.`, `/commission/${id}`);
       await fetchCommission();
       showSuccess("수락되었습니다.");
     } catch { showError("처리 실패"); }
@@ -628,7 +628,7 @@ export default function CommissionDetailPage() {
       if (!res.ok) throw new Error("파일 업로드 실패");
       const { url } = await res.json();
       await supabase.from("commissions").update({ status: "completed", result_link: url }).eq("id", id);
-      await sendNotification(commission.user_id, "file_upload", "작업 완료", `/commission/${id}`);
+      await sendNotification(commission.user_id, "file_upload", `[개인의뢰] ${commission.title} - 작업이 완료되었습니다.`, `/commission/${id}`);
       await fetchCommission();
       showSuccess("결과물이 업로드되었습니다.");
     } catch { showError("파일 업로드 실패"); }
