@@ -1314,20 +1314,25 @@ export default function CommissionDetailPage() {
                 결과물이 업로드되었습니다. 확인 후 다운로드해주세요.
               </div>
               {isAuthor && (
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button onClick={handleDownload} style={{
-                    flex: 1, height: 44, borderRadius: 10, border: "none",
-                    background: "#111827", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  }}>파일 다운로드</button>
-                  {commission.revision_count < 2 && (
-                    <button onClick={handleRevision} disabled={negSubmitting} style={{
-                      flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
-                      color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
-                    }}>
-                      수정 요청 ({commission.revision_count}/2회)
-                    </button>
-                  )}
-                </div>
+                <>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button onClick={handleDownload} style={{
+                      flex: 1, height: 44, borderRadius: 10, border: "none",
+                      background: "#111827", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                    }}>파일 다운로드</button>
+                    {commission.revision_count < 2 && (
+                      <button onClick={handleRevision} disabled={negSubmitting} style={{
+                        flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
+                        color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
+                      }}>
+                        수정 요청 ({commission.revision_count}/2회)
+                      </button>
+                    )}
+                  </div>
+                  <a href="/library?tab=commissions" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 36, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
+                    내 다운로드에서 받기 →
+                  </a>
+                </>
               )}
               {isTargetSeller && (
                 <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
@@ -1351,6 +1356,11 @@ export default function CommissionDetailPage() {
                   height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
                   color: "#374151", fontSize: 14, fontWeight: 700, textDecoration: "none",
                 }}>파일 다시 다운로드</a>
+              )}
+              {isAuthor && (
+                <a href="/library?tab=commissions" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 36, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
+                  내 다운로드에서 받기 →
+                </a>
               )}
             </div>
           )}

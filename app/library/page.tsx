@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
@@ -22,17 +22,32 @@ type PurchasedModel = {
   purchased_at: string;
 };
 
+type CompletedCommission = {
+  id: string;
+  title: string;
+  status: string;
+  result_link: string;
+  updated_at: string;
+  target_seller_id: string | null;
+  sellerNickname: string;
+};
+
 const CATEGORIES = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기타부속"];
 const CATEGORY_LABEL: Record<string, string> = {
   ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", 기타부속: "기타부속",
 };
 
-
-export default function LibraryPage() {
+function LibraryPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") === "commissions" ? "commissions" : "purchases";
+
+  const [activeTab, setActiveTab] = useState<"purchases" | "commissions">(initialTab);
   const [items, setItems] = useState<PurchasedModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [commissionItems, setCommissionItems] = useState<CompletedCommission[]>([]);
+  const [commissionsLoading, setCommissionsLoading] = useState(false);
 
   // 검색 / 카테고리 필터
   const [search, setSearch] = useState("");
@@ -43,6 +58,7 @@ export default function LibraryPage() {
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => { fetchLibrary(); }, []);
+  useEffect(() => { if (activeTab === "commissions" && commissionItems.length === 0) fetchCompletedCommissions(); }, [activeTab]);
 
   const fetchLibrary = async () => {
     try {
@@ -68,6 +84,38 @@ export default function LibraryPage() {
       setItems(Array.from(new Map(ordered.map((i: any) => [i.id, i])).values()) as PurchasedModel[]);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const fetchCompletedCommissions = async () => {
+    setCommissionsLoading(true);
+    try {
+      const token = getAccessToken();
+      if (!token) return;
+      const userId = (decodeJwt(token) as any)?.sub as string;
+
+      const { data, error } = await supabase
+        .from("commissions")
+        .select("id, title, status, result_link, updated_at, target_seller_id")
+        .eq("user_id", userId)
+        .in("status", ["completed", "downloaded"])
+        .not("result_link", "is", null)
+        .order("updated_at", { ascending: false });
+
+      if (error || !data) return;
+
+      const sellerIds = [...new Set(data.filter((c: any) => c.target_seller_id).map((c: any) => c.target_seller_id as string))];
+      const nicknameMap: Record<string, string> = {};
+      if (sellerIds.length > 0) {
+        const { data: profiles } = await supabase.from("profiles").select("id, nickname").in("id", sellerIds);
+        if (profiles) profiles.forEach((p: any) => { nicknameMap[p.id] = p.nickname || "알 수 없음"; });
+      }
+
+      setCommissionItems(data.map((c: any) => ({
+        ...c,
+        sellerNickname: c.target_seller_id ? (nicknameMap[c.target_seller_id] || "알 수 없음") : "알 수 없음",
+      })));
+    } catch (e) { console.error(e); }
+    finally { setCommissionsLoading(false); }
   };
 
   const handleDownload = async (item: PurchasedModel) => {
@@ -105,7 +153,13 @@ export default function LibraryPage() {
   const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
   const pagedItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  if (loading) {
+  const isCommissionExpired = (updatedAt: string) => {
+    const expiry = new Date(updatedAt);
+    expiry.setMonth(expiry.getMonth() + 6);
+    return new Date() > expiry;
+  };
+
+  if (loading && activeTab === "purchases") {
     return <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>내 다운로드를 불러오는 중...</p></main>;
   }
 
@@ -115,41 +169,105 @@ export default function LibraryPage() {
 
         {/* 헤더 */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
-            <div>
-              <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: 0 }}>내 다운로드</h1>
-              <p style={{ color: "#6b7280", fontSize: 14, margin: "6px 0 0" }}>구매한 3D 모델을 구매일로부터 6개월 동안 안전하게 다시 다운로드할 수 있습니다.</p>
-            </div>
-            <div style={{ padding: "8px 14px", borderRadius: 999, background: "#f3f4f6", color: "#111827", fontWeight: 800, fontSize: 13 }}>총 {items.length}개</div>
+          <div style={{ marginBottom: 16 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>내 다운로드</h1>
+            <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>구매한 3D 모델을 구매일로부터 6개월 동안 안전하게 다시 다운로드할 수 있습니다.</p>
           </div>
 
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
-            placeholder="모델 이름으로 검색..."
-            style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none", marginBottom: 12 }}
-          />
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat} type="button"
-                onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
-                style={{
-                  height: 34, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
-                  border: selectedCategory === cat ? "none" : "1px solid #d1d5db",
-                  background: selectedCategory === cat ? "#111827" : "white",
-                  color: selectedCategory === cat ? "white" : "#374151",
-                }}
-              >
-                {CATEGORY_LABEL[cat] ?? cat}
-              </button>
-            ))}
+          {/* 탭 */}
+          <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #e5e7eb", marginBottom: 20 }}>
+            {(["purchases", "commissions"] as const).map((tab) => {
+              const label = tab === "purchases" ? "구매한 모델" : "의뢰 완료 파일";
+              const count = tab === "purchases" ? items.length : commissionItems.length;
+              const active = activeTab === tab;
+              return (
+                <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{
+                  padding: "10px 18px", fontSize: 14, fontWeight: 800, cursor: "pointer",
+                  border: "none", background: "none",
+                  color: active ? "#111827" : "#9ca3af",
+                  borderBottom: active ? "2px solid #111827" : "2px solid transparent",
+                  marginBottom: -2,
+                }}>
+                  {label} {count > 0 && <span style={{ marginLeft: 4, padding: "2px 7px", borderRadius: 999, background: active ? "#111827" : "#e5e7eb", color: active ? "white" : "#6b7280", fontSize: 11 }}>{count}</span>}
+                </button>
+              );
+            })}
           </div>
+
+          {activeTab === "purchases" && (
+            <>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                placeholder="모델 이름으로 검색..."
+                style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none", marginBottom: 12 }}
+              />
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat} type="button"
+                    onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
+                    style={{
+                      height: 34, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
+                      border: selectedCategory === cat ? "none" : "1px solid #d1d5db",
+                      background: selectedCategory === cat ? "#111827" : "white",
+                      color: selectedCategory === cat ? "white" : "#374151",
+                    }}
+                  >
+                    {CATEGORY_LABEL[cat] ?? cat}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {items.length === 0 ? (
+        {/* ── 의뢰 완료 파일 탭 ── */}
+        {activeTab === "commissions" && (
+          commissionsLoading ? (
+            <p style={{ color: "#6b7280" }}>불러오는 중...</p>
+          ) : commissionItems.length === 0 ? (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
+              <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 16 }}>완료된 개인의뢰 파일이 없습니다.</p>
+              <Link href="/commission" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>의뢰 보러가기</Link>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {commissionItems.map((item) => {
+                const expired = isCommissionExpired(item.updated_at);
+                const completedDate = new Date(item.updated_at).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" });
+                const expiryDate = (() => { const d = new Date(item.updated_at); d.setMonth(d.getMonth() + 6); return d.toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }); })();
+                return (
+                  <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 16, background: "white", padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 4 }}>{item.title}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>작업자: <span style={{ fontWeight: 700, color: "#374151" }}>{item.sellerNickname}</span></div>
+                      <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>완료일: {completedDate}</div>
+                      <div style={{ fontSize: 12, color: expired ? "#ef4444" : "#9ca3af", marginTop: 2 }}>
+                        {expired ? `만료됨 (${expiryDate})` : `만료일: ${expiryDate}`}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                      <Link href={`/commission/${item.id}`} style={{ display: "flex", alignItems: "center", height: 38, padding: "0 14px", borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontWeight: 700, fontSize: 13 }}>
+                        의뢰 보기
+                      </Link>
+                      {expired ? (
+                        <div style={{ height: 38, padding: "0 14px", borderRadius: 9, background: "#f3f4f6", color: "#9ca3af", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center" }}>기간 만료</div>
+                      ) : (
+                        <a href={item.result_link} target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", height: 38, padding: "0 14px", borderRadius: 9, border: "none", background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 13 }}>
+                          다운로드
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        )}
+
+        {activeTab === "purchases" && (items.length === 0 ? (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
             <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 16 }}>아직 구매한 상품이 없습니다.</p>
             <Link href="/" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>상품 보러가기</Link>
@@ -229,9 +347,9 @@ export default function LibraryPage() {
               );
             })}
           </div>
-        )}
+        ))}
 
-        {totalPages > 1 && (
+        {activeTab === "purchases" && totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
             <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}>‹</button>
@@ -246,6 +364,14 @@ export default function LibraryPage() {
           </div>
         )}
       </main>
-</>
+    </>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={<main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>내 다운로드를 불러오는 중...</p></main>}>
+      <LibraryPageInner />
+    </Suspense>
   );
 }
