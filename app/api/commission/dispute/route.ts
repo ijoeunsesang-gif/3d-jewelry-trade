@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
 
   if (fetchErr || !commission) return NextResponse.json({ error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
   if (commission.user_id !== user.id) return NextResponse.json({ error: "신고 권한이 없습니다." }, { status: 403 });
-  if (commission.status !== "working") return NextResponse.json({ error: "작업중 상태에서만 신고할 수 있습니다." }, { status: 400 });
+  const DISPUTABLE_STATUSES = ["working", "completed", "downloaded", "작업중", "작업완료", "다운로드완료"];
+  if (!DISPUTABLE_STATUSES.includes(commission.status)) return NextResponse.json({ error: "작업중/작업완료/다운로드완료 상태에서만 신고할 수 있습니다." }, { status: 400 });
 
   const { data: dispute, error: insertErr } = await serviceSupabase
     .from("commission_disputes")
