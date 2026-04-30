@@ -5,6 +5,15 @@ import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import type { ProfileItem } from "../lib/getProfile";
 
+type NotificationItem = {
+  id: string;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+  type: string;
+  title: string;
+};
+
 type FollowItem = {
   id: string;
   follower_id: string;
@@ -24,10 +33,10 @@ type ConversationItem = {
 
 export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
+  const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
   const [followItems, setFollowItems] = useState<FollowItem[]>([]);
   const [conversationItems, setConversationItems] = useState<ConversationItem[]>([]);
   const [profilesMap, setProfilesMap] = useState<Record<string, ProfileItem>>({});
-  const [unreadLinks, setUnreadLinks] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState("");
   const [markingAll, setMarkingAll] = useState(false);
 
@@ -44,19 +53,23 @@ export default function NotificationsPage() {
       const uid = (decodeJwt(token) as any)?.sub as string;
       setUserId(uid);
 
-      const [followsRes, convsRes, notifRes] = await Promise.all([
+      const [notifResult, followsRes, convsRes] = await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id, link, is_read, created_at, type, title")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false })
+          .limit(50),
         sbAuthFetch("follows", `?following_id=eq.${uid}&order=created_at.desc&limit=20`),
         sbAuthFetch("conversations", `?or=(user1_id.eq.${uid},user2_id.eq.${uid})&order=updated_at.desc&limit=20`),
-        sbAuthFetch("notifications", `?user_id=eq.${uid}&select=link,is_read&is_read=eq.false`),
       ]);
+
+      setNotifItems((notifResult.data as NotificationItem[]) || []);
 
       const follows = (followsRes.data as FollowItem[]) || [];
       const convs = (convsRes.data as ConversationItem[]) || [];
-      const unreadNotifs = (notifRes.data as { link: string; is_read: boolean }[]) || [];
-
       setFollowItems(follows);
       setConversationItems(convs);
-      setUnreadLinks(new Set(unreadNotifs.map((n) => n.link)));
 
       const ids = new Set<string>();
       follows.forEach((item) => ids.add(item.follower_id));
@@ -76,47 +89,34 @@ export default function NotificationsPage() {
     }
   };
 
-  const markAsRead = (link: string) => {
-    setUnreadLinks((prev) => {
-      const next = new Set(prev);
-      next.delete(link);
-      return next;
-    });
+  const markNotifAsRead = async (id: string) => {
+    setNotifItems((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    window.dispatchEvent(new Event("notifications-updated"));
   };
 
   const markConversationNotificationAsRead = async (conversationId: string) => {
     const link = `/messages?conversation=${conversationId}`;
-    markAsRead(link);
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("link", link)
-      .eq("is_read", false);
+    setNotifItems((prev) => prev.map((n) => n.link === link ? { ...n, is_read: true } : n));
+    await supabase.from("notifications").update({ is_read: true }).eq("link", link).eq("is_read", false);
     window.dispatchEvent(new Event("notifications-updated"));
   };
 
   const markFollowNotificationAsRead = async (followerId: string) => {
     const link = `/seller/${followerId}`;
-    markAsRead(link);
-    await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("type", "follow")
-      .eq("link", link)
-      .eq("is_read", false);
+    setNotifItems((prev) => prev.map((n) => n.link === link ? { ...n, is_read: true } : n));
+    await supabase.from("notifications").update({ is_read: true }).eq("type", "follow").eq("link", link).eq("is_read", false);
     window.dispatchEvent(new Event("notifications-updated"));
   };
 
   const markAllAsRead = async () => {
-    if (!userId || unreadLinks.size === 0) return;
+    if (!userId) return;
+    const hasUnread = notifItems.some((n) => !n.is_read);
+    if (!hasUnread) return;
     setMarkingAll(true);
     try {
-      await supabase
-        .from("notifications")
-        .update({ is_read: true })
-        .eq("user_id", userId)
-        .eq("is_read", false);
-      setUnreadLinks(new Set());
+      await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false);
+      setNotifItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
       window.dispatchEvent(new Event("notifications-updated"));
     } catch (e) {
       console.error("전체 읽음 처리 실패:", e);
@@ -125,7 +125,8 @@ export default function NotificationsPage() {
     }
   };
 
-  const unreadCount = unreadLinks.size;
+  const unreadCount = notifItems.filter((n) => !n.is_read).length;
+  const unreadLinks = new Set(notifItems.filter((n) => !n.is_read && n.link).map((n) => n.link as string));
 
   return (
     <main
@@ -173,6 +174,48 @@ export default function NotificationsPage() {
         <div style={{ marginTop: 24, color: "#6b7280" }}>불러오는 중...</div>
       ) : (
         <div style={{ marginTop: 24, display: "grid", gap: 16 }}>
+          {/* 알림 섹션 */}
+          <section style={{ border: "1px solid #e5e7eb", borderRadius: 24, background: "white", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6", fontWeight: 900, color: "#111827" }}>
+              알림
+            </div>
+            {notifItems.length === 0 ? (
+              <div style={{ padding: 20, color: "#6b7280" }}>알림이 없습니다.</div>
+            ) : (
+              notifItems.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.link || "/notifications"}
+                  onClick={() => { if (!item.is_read) markNotifAsRead(item.id); }}
+                  style={{
+                    position: "relative",
+                    padding: "14px 20px",
+                    borderBottom: "1px solid #f8fafc",
+                    borderLeft: item.is_read ? "4px solid transparent" : "4px solid #f59e0b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    textDecoration: "none",
+                    color: "inherit",
+                    background: item.is_read ? "white" : "#fffbeb",
+                    opacity: item.is_read ? 0.6 : 1,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  {!item.is_read && (
+                    <span style={{ position: "absolute", top: 12, right: 16, width: 8, height: 8, borderRadius: "50%", background: "#3b82f6" }} />
+                  )}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: item.is_read ? 400 : 700, color: "#111827" }}>{item.title}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                      {new Date(item.created_at).toLocaleString("ko-KR")}
+                    </div>
+                  </div>
+                </a>
+              ))
+            )}
+          </section>
+
           {/* 팔로우 섹션 */}
           <section
             style={{
