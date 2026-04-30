@@ -47,9 +47,16 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({ cancelReason: "관리자 환불 처리" }),
   });
   const tossData = await tossRes.json();
+
+  let alreadyCancelled = false;
   if (!tossRes.ok) {
-    console.error("[refund] Toss 취소 실패:", tossData);
-    return NextResponse.json({ error: tossData.message || "환불 처리에 실패했습니다." }, { status: 400 });
+    // 이미 취소된 결제는 dispute 상태만 완료 처리
+    if (tossData?.code === "ALREADY_CANCELED_PAYMENT") {
+      alreadyCancelled = true;
+    } else {
+      console.error("[refund] Toss 취소 실패:", tossData);
+      return NextResponse.json({ error: tossData.message || "환불 처리에 실패했습니다." }, { status: 400 });
+    }
   }
 
   await serviceSupabase
@@ -70,5 +77,8 @@ export async function POST(req: NextRequest) {
     is_read: false,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    ...(alreadyCancelled && { message: "이미 환불 처리된 결제입니다. 신고 상태만 완료로 변경합니다." }),
+  });
 }
