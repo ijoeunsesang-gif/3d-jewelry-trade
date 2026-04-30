@@ -17,17 +17,19 @@ export async function POST(req: NextRequest) {
   const isAdmin = adminEmail !== "" && (user.email || "").toLowerCase() === adminEmail;
   if (!isAdmin) return NextResponse.json({ error: "관리자만 접근 가능합니다." }, { status: 403 });
 
-  let body: { commission_id?: string; dispute_id?: string };
+  let body: { commission_id?: string; dispute_id?: string; ratio?: number };
   try { body = await req.json(); } catch { return NextResponse.json({ error: "잘못된 요청" }, { status: 400 }); }
 
   const { commission_id, dispute_id } = body;
+  const ratio = typeof body.ratio === "number" && [30, 50, 70, 100].includes(body.ratio) ? body.ratio : 100;
+
   if (!commission_id || !dispute_id) {
     return NextResponse.json({ error: "commission_id와 dispute_id가 필요합니다." }, { status: 400 });
   }
 
   const { data: commission, error: fetchErr } = await serviceSupabase
     .from("commissions")
-    .select("payment_key, user_id")
+    .select("payment_key, user_id, final_price")
     .eq("id", commission_id)
     .single();
 
@@ -37,6 +39,11 @@ export async function POST(req: NextRequest) {
   const secretKey = process.env.TOSSPAYMENTS_SECRET_KEY;
   if (!secretKey) return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
 
+  const cancelBody: Record<string, unknown> = { cancelReason: `관리자 환불 처리 (${ratio}%)` };
+  if (ratio < 100 && commission.final_price) {
+    cancelBody.cancelAmount = Math.round(commission.final_price * ratio / 100);
+  }
+
   const tossAuth = Buffer.from(`${secretKey}:`).toString("base64");
   const tossRes = await fetch(`https://api.tosspayments.com/v1/payments/${commission.payment_key}/cancel`, {
     method: "POST",
@@ -44,7 +51,7 @@ export async function POST(req: NextRequest) {
       Authorization: `Basic ${tossAuth}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ cancelReason: "관리자 환불 처리" }),
+    body: JSON.stringify(cancelBody),
   });
   const tossData = await tossRes.json();
 
@@ -72,7 +79,7 @@ export async function POST(req: NextRequest) {
   await serviceSupabase.from("notifications").insert({
     user_id: commission.user_id,
     type: "negotiation",
-    title: "환불 처리 완료",
+    title: `환불 처리 완료 (${ratio}%)`,
     link: `/commission/${commission_id}`,
     is_read: false,
   });

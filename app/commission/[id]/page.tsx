@@ -199,6 +199,7 @@ export default function CommissionDetailPage() {
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
   const [disputes, setDisputes] = useState<any[]>([]);
   const [disputeRefunding, setDisputeRefunding] = useState<string | null>(null);
+  const [disputeRefundRatio, setDisputeRefundRatio] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const token = getAccessToken();
@@ -728,18 +729,19 @@ export default function CommissionDetailPage() {
   };
 
   const handleRefund = async (disputeId: string) => {
-    if (!confirm("환불 처리하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+    const ratio = disputeRefundRatio[disputeId] ?? 100;
+    if (!confirm(`${ratio}% 환불 처리하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return;
     setDisputeRefunding(disputeId);
     const token = getAccessToken();
     try {
       const res = await fetch("/api/commission/refund", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ commission_id: id, dispute_id: disputeId }),
+        body: JSON.stringify({ commission_id: id, dispute_id: disputeId, ratio }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "환불 실패");
-      showSuccess("환불 처리가 완료되었습니다.");
+      showSuccess(data.message || "환불 처리가 완료되었습니다.");
       await Promise.all([fetchDisputes(), fetchCommission()]);
     } catch (e: any) { showError(e.message || "환불 처리 실패"); }
     finally { setDisputeRefunding(null); }
@@ -1609,21 +1611,41 @@ export default function CommissionDetailPage() {
               {d.detail && (
                 <div style={{ fontSize: 13, color: "#374151", marginBottom: 10, whiteSpace: "pre-wrap" }}>{d.detail}</div>
               )}
-              {d.status === "접수" && (
-                <button
-                  type="button"
-                  onClick={() => handleRefund(d.id)}
-                  disabled={disputeRefunding === d.id}
-                  style={{
-                    height: 36, padding: "0 18px", borderRadius: 8, border: "none",
-                    background: disputeRefunding === d.id ? "#d1d5db" : "#dc2626",
-                    color: "white", fontSize: 13, fontWeight: 700,
-                    cursor: disputeRefunding === d.id ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {disputeRefunding === d.id ? "처리 중..." : "환불 처리"}
-                </button>
-              )}
+              {d.status === "접수" && (() => {
+                const ratio = disputeRefundRatio[d.id] ?? 100;
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {[30, 50, 70, 100].map((r) => (
+                        <button
+                          key={r} type="button"
+                          onClick={() => setDisputeRefundRatio((prev) => ({ ...prev, [d.id]: r }))}
+                          style={{
+                            height: 30, padding: "0 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                            border: ratio === r ? "none" : "1px solid #d1d5db",
+                            background: ratio === r ? "#111827" : "white",
+                            color: ratio === r ? "white" : "#374151",
+                          }}
+                        >{r}%</button>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRefund(d.id)}
+                      disabled={disputeRefunding === d.id}
+                      style={{
+                        height: 36, padding: "0 18px", borderRadius: 8, border: "none",
+                        background: disputeRefunding === d.id ? "#d1d5db" : "#dc2626",
+                        color: "white", fontSize: 13, fontWeight: 700,
+                        cursor: disputeRefunding === d.id ? "not-allowed" : "pointer",
+                        alignSelf: "flex-start",
+                      }}
+                    >
+                      {disputeRefunding === d.id ? "처리 중..." : `${ratio}% 환불 처리`}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           ))}
         </div>
