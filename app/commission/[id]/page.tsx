@@ -200,6 +200,7 @@ export default function CommissionDetailPage() {
   const [disputes, setDisputes] = useState<any[]>([]);
   const [disputeRefunding, setDisputeRefunding] = useState<string | null>(null);
   const [disputeRefundRatio, setDisputeRefundRatio] = useState<Record<string, number>>({});
+  const [disputeWarning, setDisputeWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -745,6 +746,26 @@ export default function CommissionDetailPage() {
       await Promise.all([fetchDisputes(), fetchCommission()]);
     } catch (e: any) { showError(e.message || "환불 처리 실패"); }
     finally { setDisputeRefunding(null); }
+  };
+
+  const handleWarn = async (disputeId: string) => {
+    if (!confirm("판매자에게 경고를 부여하시겠습니까? 경고 3회 누적 시 판매 활동이 정지됩니다.")) return;
+    setDisputeWarning(disputeId);
+    const token = getAccessToken();
+    try {
+      const res = await fetch("/api/commission/warn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ commission_id: id, dispute_id: disputeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "경고 처리 실패");
+      const msg = data.is_seller_banned
+        ? `경고 ${data.warning_count}회 누적 — 판매자 활동이 정지되었습니다.`
+        : `경고가 부여되었습니다. (누적 ${data.warning_count}회)`;
+      showSuccess(msg);
+    } catch (e: any) { showError(e.message || "경고 처리 실패"); }
+    finally { setDisputeWarning(null); }
   };
 
   const fd = (iso: string) => {
@@ -1629,20 +1650,34 @@ export default function CommissionDetailPage() {
                         >{r}%</button>
                       ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRefund(d.id)}
-                      disabled={disputeRefunding === d.id}
-                      style={{
-                        height: 36, padding: "0 18px", borderRadius: 8, border: "none",
-                        background: disputeRefunding === d.id ? "#d1d5db" : "#dc2626",
-                        color: "white", fontSize: 13, fontWeight: 700,
-                        cursor: disputeRefunding === d.id ? "not-allowed" : "pointer",
-                        alignSelf: "flex-start",
-                      }}
-                    >
-                      {disputeRefunding === d.id ? "처리 중..." : `${ratio}% 환불 처리`}
-                    </button>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleRefund(d.id)}
+                        disabled={disputeRefunding === d.id}
+                        style={{
+                          height: 36, padding: "0 18px", borderRadius: 8, border: "none",
+                          background: disputeRefunding === d.id ? "#d1d5db" : "#dc2626",
+                          color: "white", fontSize: 13, fontWeight: 700,
+                          cursor: disputeRefunding === d.id ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {disputeRefunding === d.id ? "처리 중..." : `${ratio}% 환불 처리`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleWarn(d.id)}
+                        disabled={disputeWarning === d.id}
+                        style={{
+                          height: 36, padding: "0 18px", borderRadius: 8, border: "none",
+                          background: disputeWarning === d.id ? "#d1d5db" : "#f59e0b",
+                          color: "white", fontSize: 13, fontWeight: 700,
+                          cursor: disputeWarning === d.id ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {disputeWarning === d.id ? "처리 중..." : "경고 부여"}
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
