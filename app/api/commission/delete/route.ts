@@ -30,7 +30,7 @@ export async function DELETE(req: NextRequest) {
 
   const { data: commission, error: fetchError } = await adminSupabase
     .from("commissions")
-    .select("user_id")
+    .select("user_id, status")
     .eq("id", commissionId)
     .single();
 
@@ -42,21 +42,13 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "삭제 권한이 없습니다." }, { status: 403 });
   }
 
-  // 링크가 등록된 의뢰는 삭제 불가 (관리자 제외)
-  if (!isAdmin) {
-    const { data: linkedResults } = await adminSupabase
-      .from("commission_results")
-      .select("result_link")
-      .eq("commission_id", commissionId)
-      .not("result_link", "is", null)
-      .neq("result_link", "");
-
-    if (linkedResults && linkedResults.length > 0) {
-      return NextResponse.json(
-        { error: "링크가 등록된 의뢰는 삭제할 수 없습니다. 관리자에게 문의하세요." },
-        { status: 403 }
-      );
-    }
+  // 작업중 이후 상태에서는 의뢰자 삭제 불가
+  const NON_DELETABLE_STATUSES = ["working", "completed", "downloaded"];
+  if (!isAdmin && NON_DELETABLE_STATUSES.includes(commission.status)) {
+    return NextResponse.json(
+      { error: "작업이 시작된 의뢰는 삭제할 수 없습니다. 관리자에게 문의하세요." },
+      { status: 403 }
+    );
   }
 
   // Delete child records first (FK constraints without CASCADE)

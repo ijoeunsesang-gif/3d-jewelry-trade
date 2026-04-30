@@ -354,7 +354,7 @@ export default function CommissionDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!commission || !confirm("정말 삭제하시겠습니까?")) return;
+    if (!commission || !confirm("의뢰를 삭제하면 복구할 수 없습니다. 정말 삭제하시겠습니까?")) return;
     setDeleting(true);
     try {
       const token = getAccessToken();
@@ -1598,14 +1598,14 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
-      {/* 삭제 버튼 — 관리자: 링크 유무 무관 표시 / 일반: 링크 없을 때만 표시 */}
-      {(isAuthor || isAdmin) && (isAdmin || !results.some((r) => r.result_link)) && (
+      {/* 삭제 버튼 — 관리자: 항상 표시 / 의뢰자: 의뢰중(open) 상태일 때만 표시 */}
+      {(isAdmin || (isAuthor && commission.status === "open")) && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
           <button type="button" onClick={handleDelete} disabled={deleting} style={{
             padding: "8px 18px", borderRadius: 8, border: "1px solid #fca5a5", background: "white",
             color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer",
           }}>
-            {deleting ? "삭제 중..." : (isAdmin && results.some((r) => r.result_link) ? "관리자 삭제" : "삭제")}
+            {deleting ? "삭제 중..." : (isAdmin ? "관리자 삭제" : "삭제")}
           </button>
         </div>
       )}
