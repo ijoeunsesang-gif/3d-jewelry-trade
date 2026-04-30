@@ -6,7 +6,7 @@ const serviceSupabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const VALID_REASONS = ["기간초과", "결과물불량", "기타"];
+const VALID_REASONS = ["기간초과", "결과물불량", "수정요청미응답", "기타"];
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");

@@ -56,7 +56,7 @@ const CANCEL_REASONS = [
   "기타",
 ];
 
-const DISPUTE_REASONS = ["기간초과", "결과물불량", "기타"];
+const DISPUTE_REASONS = ["기간초과", "결과물불량", "수정요청미응답", "기타"];
 
 type Commission = {
   id: string;
@@ -654,10 +654,10 @@ export default function CommissionDetailPage() {
     const newCount = commission.revision_count + 1;
     setNegSubmitting(true);
     try {
-      await supabase.from("commissions").update({ revision_count: newCount }).eq("id", id);
+      await supabase.from("commissions").update({ revision_count: newCount, status: "working" }).eq("id", id);
       if (commission.target_seller_id)
-        await sendNotification(commission.target_seller_id, "revision", `수정 요청 (${newCount}/2회)`, `/commission/${id}`);
-      setCommission((prev) => prev ? { ...prev, revision_count: newCount } : prev);
+        await sendNotification(commission.target_seller_id, "revision", `[개인의뢰] ${commission.title} - 수정 요청 (${newCount}/2회)이 접수되었습니다.`, `/commission/${id}`);
+      setCommission((prev) => prev ? { ...prev, revision_count: newCount, status: "working" } : prev);
       showSuccess("수정 요청이 전송되었습니다.");
     } catch { showError("수정 요청 실패"); }
     setNegSubmitting(false);
@@ -1300,11 +1300,16 @@ export default function CommissionDetailPage() {
               </div>
               {isTargetSeller && (
                 <>
+                  {commission.revision_count > 0 && (
+                    <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 700, marginBottom: 4 }}>
+                      ✏️ 수정 요청 ({commission.revision_count}/2회)이 접수되었습니다. 수정 파일을 업로드해주세요.
+                    </div>
+                  )}
                   <button onClick={() => fileUploadRef.current?.click()} disabled={negSubmitting} style={{
                     width: "100%", height: 44, borderRadius: 10, border: "1px dashed #d1d5db", background: "white",
                     color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
                   }}>
-                    {negSubmitting ? "업로드 중..." : "결과물 업로드"}
+                    {negSubmitting ? "업로드 중..." : commission.revision_count > 0 ? "수정 파일 업로드" : "결과물 업로드"}
                   </button>
                   <input ref={fileUploadRef} type="file" accept=".stl,.3dm,.obj" style={{ display: "none" }} onChange={handleFileUpload} />
                 </>
