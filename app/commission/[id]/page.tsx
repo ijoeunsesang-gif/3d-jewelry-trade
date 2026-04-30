@@ -737,7 +737,7 @@ export default function CommissionDetailPage() {
       const res = await fetch("/api/commission/refund", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ commission_id: id, dispute_id: disputeId, ratio }),
+        body: JSON.stringify({ commission_id: id, dispute_id: disputeId, refundRate: ratio }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "환불 실패");
