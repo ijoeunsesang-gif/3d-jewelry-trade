@@ -185,6 +185,7 @@ export default function CommissionDetailPage() {
   const [chatNicknames, setChatNicknames] = useState<Record<string, string>>({});
   const [chatDragOver, setChatDragOver] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const chatImageRef = useRef<HTMLInputElement>(null);
 
   const [sellerNickname, setSellerNickname] = useState<string | null>(null);
@@ -535,9 +536,10 @@ export default function CommissionDetailPage() {
     return () => { supabase.removeChannel(channel); };
   }, [myId, commission?.is_private, commission?.user_id, commission?.target_seller_id]);
 
-  // 새 메시지 수신 시 자동 스크롤
+  // 새 메시지 수신 시 자동 스크롤 (컨테이너 직접 제어 — scrollIntoView는 페이지까지 스크롤됨)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = chatContainerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [chatMessages]);
 
   useEffect(() => {
@@ -1458,6 +1460,7 @@ export default function CommissionDetailPage() {
 
           {/* 메시지 목록 */}
           <div
+            ref={chatContainerRef}
             style={{
               position: "relative", height: 380, overflowY: "auto",
               border: chatDragOver ? `2px dashed ${GOLD}` : "1px solid #e5e7eb",
