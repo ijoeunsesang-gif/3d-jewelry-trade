@@ -335,7 +335,7 @@ export default function CommissionNewPage() {
                 }
                 style={{
                   width: "100%", padding: "8px 12px", marginBottom: 10,
-                  border: "1px solid #d1d5db", borderRadius: 8, fontSize: 13,
+                  border: "1px solid #d1d5db", borderRadius: 8, fontSize: 16,
                   outline: "none", boxSizing: "border-box",
                   fontFamily: 'system-ui, -apple-system, sans-serif',
                 }}
