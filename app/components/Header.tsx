@@ -464,10 +464,12 @@ export default function Header() {
             <div className="header-mobile-my" style={{ display: "none", alignItems: "center", gap: 0 }}>
               {/* 홈 아이콘 */}
               <Link href="/" style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                width: 44, height: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                width: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                padding: "4px 0",
               }}>
                 <IconHome active={pathname === "/"} size={28} />
+                <span style={{ fontSize: 10, color: pathname === "/" ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>홈</span>
               </Link>
 
               {/* 고객센터 아이콘 */}
