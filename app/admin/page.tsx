@@ -84,7 +84,7 @@ export default function AdminPage() {
       .select("id, seller_id, reason, created_at, profiles(nickname, email, warning_count)")
       .eq("status", "대기")
       .order("created_at", { ascending: false });
-    setReinstateRequests((data as ReinstateRequest[]) || []);
+    setReinstateRequests((data as unknown as ReinstateRequest[]) || []);
   };
 
   const handleReinstateAction = async (req: ReinstateRequest, action: "승인" | "거부") => {
