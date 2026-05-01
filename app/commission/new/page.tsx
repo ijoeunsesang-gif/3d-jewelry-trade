@@ -41,6 +41,7 @@ export default function CommissionNewPage() {
   const [followedSellerSearch, setFollowedSellerSearch] = useState("");
   const [desiredPrice, setDesiredPrice] = useState("");
   const [desiredDays, setDesiredDays] = useState("");
+  const [commissionType, setCommissionType] = useState<"지목" | "공개모집">("지목");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,7 +137,7 @@ export default function CommissionNewPage() {
 
   const handleSubmit = async () => {
     if (!title.trim()) { showError("제목을 입력해주세요."); return; }
-    if (isPrivate && !selectedSellerId) { showError("판매자를 선택해주세요."); return; }
+    if (isPrivate && commissionType === "지목" && !selectedSellerId) { showError("판매자를 선택해주세요."); return; }
     if (!userId) { router.replace("/auth"); return; }
 
     setSubmitting(true);
@@ -166,10 +167,13 @@ export default function CommissionNewPage() {
         is_private: isPrivate,
       };
       if (isPrivate) {
-        insertPayload.target_seller_id = selectedSellerId;
+        insertPayload.commission_type = commissionType;
         insertPayload.desired_price = desiredPrice ? parseInt(desiredPrice) : null;
         insertPayload.desired_days = desiredDays ? parseInt(desiredDays) : null;
         insertPayload.negotiation_count = 0;
+        if (commissionType === "지목") {
+          insertPayload.target_seller_id = selectedSellerId;
+        }
       }
 
       const { data, error } = await supabase
@@ -265,7 +269,48 @@ export default function CommissionNewPage() {
         {/* 개인 의뢰 전용 섹션 */}
         {isPrivate && (
           <>
-            {/* 판매자 선택 */}
+            {/* 의뢰 방식 선택 */}
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10 }}>
+                의뢰 방식 <span style={{ color: "#dc2626" }}>*</span>
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {([
+                  { value: "지목", label: "판매자 지목", desc: "특정 판매자에게 직접 의뢰 (기존 방식)" },
+                  { value: "공개모집", label: "공개 모집", desc: "여러 판매자가 견적 신청, 내가 선택" },
+                ] as const).map(({ value, label, desc }) => (
+                  <div
+                    key={value}
+                    onClick={() => setCommissionType(value)}
+                    style={{
+                      display: "flex", alignItems: "flex-start", gap: 12,
+                      padding: "12px 16px", borderRadius: 12, cursor: "pointer",
+                      border: `1.5px solid ${commissionType === value ? "#111827" : "#d1d5db"}`,
+                      background: commissionType === value ? "#f9fafb" : "white",
+                      transition: "border-color 0.12s, background 0.12s",
+                    }}
+                  >
+                    <span style={{
+                      marginTop: 2, width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                      border: `2px solid ${commissionType === value ? "#111827" : "#9ca3af"}`,
+                      background: commissionType === value ? "#111827" : "white",
+                      display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {commissionType === value && (
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "white", display: "block" }} />
+                      )}
+                    </span>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{label}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>{desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 판매자 선택 (지목 방식) */}
+            {commissionType === "지목" && (
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 18, background: "#fafafa" }}>
               <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 12 }}>
                 판매자 선택 <span style={{ color: "#dc2626" }}>*</span>
@@ -379,6 +424,23 @@ export default function CommissionNewPage() {
                 </div>
               )}
             </div>
+            )}
+
+            {/* 공개 모집 안내 */}
+            {commissionType === "공개모집" && (
+              <div style={{
+                padding: "16px 18px", borderRadius: 14,
+                border: "1.5px dashed #a5b4fc", background: "#eef2ff",
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#3730a3", marginBottom: 6 }}>
+                  판매자를 모집합니다
+                </div>
+                <div style={{ fontSize: 13, color: "#4338ca", lineHeight: 1.6 }}>
+                  의뢰가 등록되면 판매자들이 가격과 기간을 제안합니다.<br />
+                  제안을 검토한 뒤 원하는 판매자를 직접 선택하세요.
+                </div>
+              </div>
+            )}
 
             {/* 희망 비용/기간 */}
             <div style={{ display: "flex", gap: 12 }}>

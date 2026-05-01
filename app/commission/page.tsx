@@ -29,7 +29,7 @@ const STATUS_BG: Record<string, string> = {
   rejected: "#fef2f2", cancelled: "#f3f4f6",
 };
 
-type Tab = "public" | "private" | "mine" | "bookmarks";
+type Tab = "public" | "private" | "given" | "received" | "joined" | "bookmarks";
 
 type Commission = {
   id: string;
@@ -47,9 +47,11 @@ type Commission = {
 };
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: "public", label: "공개의뢰" },
-  { key: "private", label: "개인의뢰" },
-  { key: "mine", label: "내 의뢰" },
+  { key: "public",    label: "공개의뢰" },
+  { key: "private",   label: "개인의뢰" },
+  { key: "given",     label: "맡긴의뢰" },
+  { key: "received",  label: "받은의뢰" },
+  { key: "joined",    label: "참여의뢰" },
   { key: "bookmarks", label: "즐겨찾기" },
 ];
 
@@ -89,6 +91,8 @@ export default function CommissionListPage() {
     try {
       let data: any[] = [];
 
+      const BASE_SELECT = "id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)";
+
       if (tab === "bookmarks") {
         if (!uid) { setCommissions([]); return; }
         const { data: bData } = await supabase
@@ -99,23 +103,45 @@ export default function CommissionListPage() {
         if (ids.length === 0) { setCommissions([]); return; }
         const { data: cData, error } = await supabase
           .from("commissions")
-          .select("id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)")
+          .select(BASE_SELECT)
           .in("id", ids)
+          .order("created_at", { ascending: false });
+        if (error || !cData) { setCommissions([]); return; }
+        data = cData;
+      } else if (tab === "joined") {
+        // 공개의뢰에서 내가 결과물 링크를 등록한 의뢰
+        if (!uid) { setCommissions([]); return; }
+        const { data: resultRows } = await supabase
+          .from("commission_results")
+          .select("commission_id")
+          .eq("seller_id", uid);
+        const ids = [...new Set((resultRows || []).map((r: any) => r.commission_id as string))];
+        if (ids.length === 0) { setCommissions([]); return; }
+        const { data: cData, error } = await supabase
+          .from("commissions")
+          .select(BASE_SELECT)
+          .in("id", ids)
+          .eq("is_private", false)
           .order("created_at", { ascending: false });
         if (error || !cData) { setCommissions([]); return; }
         data = cData;
       } else {
         let query = supabase
           .from("commissions")
-          .select("id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)")
+          .select(BASE_SELECT)
           .order("created_at", { ascending: false });
 
         if (tab === "public") {
           query = query.eq("is_private", false);
         } else if (tab === "private" && uid) {
+          // 내가 참여한 개인의뢰 (의뢰자 또는 지목된 판매자)
           query = query.eq("is_private", true).or(`user_id.eq.${uid},target_seller_id.eq.${uid}`);
-        } else if (tab === "mine" && uid) {
+        } else if (tab === "given" && uid) {
+          // 내가 등록한 의뢰 (공개+개인 모두)
           query = query.eq("user_id", uid);
+        } else if (tab === "received" && uid) {
+          // 내가 지목된 개인의뢰
+          query = query.eq("is_private", true).eq("target_seller_id", uid);
         }
 
         const { data: cData, error } = await query;

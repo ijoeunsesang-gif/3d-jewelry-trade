@@ -80,6 +80,23 @@ type Commission = {
   cancellation_reason: string | null;
   cancel_reason: string | null;
   updated_at: string;
+  commission_type: string | null;
+  bid_status: string | null;
+};
+
+type CommissionBid = {
+  id: string;
+  commission_id: string;
+  seller_id: string;
+  price: number;
+  work_days: number;
+  message: string | null;
+  created_at: string;
+};
+
+type BidWithProfile = CommissionBid & {
+  nickname: string;
+  grade: string | null;
 };
 
 type Comment = {
@@ -202,6 +219,16 @@ export default function CommissionDetailPage() {
   const [disputeRefundRatio, setDisputeRefundRatio] = useState<Record<string, number>>({});
   const [disputeWarning, setDisputeWarning] = useState<string | null>(null);
 
+  const [myBid, setMyBid] = useState<CommissionBid | null>(null);
+  const [bidPrice, setBidPrice] = useState("");
+  const [bidDays, setBidDays] = useState("");
+  const [bidMessage, setBidMessage] = useState("");
+  const [bidSubmitting, setBidSubmitting] = useState(false);
+
+  const [allBids, setAllBids] = useState<BidWithProfile[]>([]);
+  const [bidsLoading, setBidsLoading] = useState(false);
+  const [selectingBid, setSelectingBid] = useState<string | null>(null);
+
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
@@ -234,12 +261,31 @@ export default function CommissionDetailPage() {
     setMyResult(results.find((r) => r.seller_id === myId) || null);
   }, [results, myId]);
 
+  useEffect(() => {
+    if (!myId || !commission || myId === commission.user_id) return;
+    if (commission.commission_type === "공개모집" && commission.bid_status === "모집중") {
+      fetchMyBid(myId);
+    }
+  }, [myId, commission]);
+
+  useEffect(() => {
+    if (!myId || !commission) return;
+    if (
+      commission.is_private &&
+      commission.commission_type === "공개모집" &&
+      commission.bid_status === "모집중" &&
+      myId === commission.user_id
+    ) {
+      fetchAllBids();
+    }
+  }, [myId, commission]);
+
   const fetchCommission = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("commissions")
-        .select("id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason")
+        .select("id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason, commission_type, bid_status")
         .eq("id", id)
         .single();
       if (error || !data) { console.error("fetchCommission error:", error); return; }
@@ -338,6 +384,106 @@ export default function CommissionDetailPage() {
       showSuccess("삭제되었습니다.");
     } catch (e: any) { showError(e.message || "삭제 실패"); }
     finally { setResultSaving(false); }
+  };
+
+  const fetchMyBid = async (uid: string) => {
+    const { data } = await supabase
+      .from("commission_bids")
+      .select("*")
+      .eq("commission_id", id)
+      .eq("seller_id", uid)
+      .maybeSingle();
+    setMyBid(data || null);
+  };
+
+  const fetchAllBids = async () => {
+    setBidsLoading(true);
+    try {
+      const { data: bids, error } = await supabase
+        .from("commission_bids")
+        .select("*")
+        .eq("commission_id", id)
+        .order("created_at", { ascending: true });
+      if (error || !bids || bids.length === 0) { setAllBids([]); return; }
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, nickname, grade")
+        .in("id", bids.map((b: any) => b.seller_id));
+      const pm = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+      setAllBids(bids.map((b: any) => ({
+        ...b,
+        nickname: pm[b.seller_id]?.nickname || "판매자",
+        grade: pm[b.seller_id]?.grade || null,
+      })));
+    } finally {
+      setBidsLoading(false);
+    }
+  };
+
+  const handleSelectBid = async (bid: BidWithProfile) => {
+    if (!commission || !confirm(`${bid.nickname} 님의 견적을 선택하시겠습니까?`)) return;
+    setSelectingBid(bid.id);
+    try {
+      const { error } = await supabase.from("commissions").update({
+        target_seller_id: bid.seller_id,
+        bid_status: "선택완료",
+        desired_price: bid.price,
+        desired_days: bid.work_days,
+        status: "pending",
+      }).eq("id", id);
+      if (error) throw error;
+      await sendNotification(
+        bid.seller_id,
+        "private_commission",
+        `[개인의뢰] ${commission.title} - 의뢰자가 회원님을 선택했습니다.`,
+        `/commission/${id}`
+      );
+      showSuccess(`${bid.nickname} 님을 선택했습니다.`);
+      await fetchCommission();
+    } catch (e: any) {
+      showError(e.message || "처리 실패");
+    } finally {
+      setSelectingBid(null);
+    }
+  };
+
+  const handleBidSubmit = async () => {
+    if (!myId || !commission) return;
+    const price = parseInt(bidPrice);
+    const work_days = parseInt(bidDays);
+    if (!price || price <= 0) { showError("희망 가격을 입력해주세요."); return; }
+    if (!work_days || work_days <= 0) { showError("희망 작업기간을 입력해주세요."); return; }
+    setBidSubmitting(true);
+    try {
+      const { data, error } = await supabase
+        .from("commission_bids")
+        .insert({ commission_id: id, seller_id: myId, price, work_days, message: bidMessage.trim() || null })
+        .select()
+        .single();
+      if (error) throw error;
+      setMyBid(data);
+      setBidPrice(""); setBidDays(""); setBidMessage("");
+      showSuccess("견적을 신청했습니다.");
+    } catch (e: any) {
+      showError(e.message || "견적 신청 실패");
+    } finally {
+      setBidSubmitting(false);
+    }
+  };
+
+  const handleBidCancel = async () => {
+    if (!myBid || !confirm("견적 신청을 취소하시겠습니까?")) return;
+    setBidSubmitting(true);
+    try {
+      const { error } = await supabase.from("commission_bids").delete().eq("id", myBid.id);
+      if (error) throw error;
+      setMyBid(null);
+      showSuccess("견적 신청이 취소되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "취소 실패");
+    } finally {
+      setBidSubmitting(false);
+    }
   };
 
   const fetchNegotiations = async () => {
@@ -1023,7 +1169,9 @@ export default function CommissionDetailPage() {
       )}
 
       {/* ─── 개인 의뢰 패널 ─── */}
-      {commission.is_private && (isAuthor || isTargetSeller) && (
+      {commission.is_private &&
+        (isAuthor || isTargetSeller) &&
+        !(commission.commission_type === "공개모집" && commission.bid_status === "모집중") && (
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20, marginBottom: 28, background: "#fafafa" }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>개인 의뢰 진행 상황</div>
 
@@ -1481,8 +1629,175 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
+      {/* ── 공개모집 견적 목록 (의뢰자용) ── */}
+      {commission.is_private &&
+        commission.commission_type === "공개모집" &&
+        commission.bid_status === "모집중" &&
+        isAuthor && (
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20, marginBottom: 28, background: "#fafafa" }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>
+            견적 신청 목록
+            {allBids.length > 0 && (
+              <span style={{ marginLeft: 8, fontSize: 13, fontWeight: 600, color: "#6b7280" }}>({allBids.length}건)</span>
+            )}
+          </div>
+
+          {bidsLoading ? (
+            <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center", padding: "24px 0" }}>불러오는 중...</div>
+          ) : allBids.length === 0 ? (
+            <div style={{ fontSize: 14, color: "#9ca3af", textAlign: "center", padding: "24px 0" }}>
+              아직 견적 신청이 없습니다.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {allBids.map((bid) => (
+                <div
+                  key={bid.id}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 14,
+                    border: "1px solid #e5e7eb", borderRadius: 12,
+                    padding: "14px 16px", background: "white",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{bid.nickname}</span>
+                      {bid.grade && <GradeBadge grade={bid.grade as Grade} size="sm" />}
+                    </div>
+                    <div style={{ display: "flex", gap: 16, marginBottom: bid.message ? 6 : 0 }}>
+                      <span style={{ fontSize: 13, color: "#374151" }}>
+                        <span style={{ fontWeight: 700 }}>가격</span>{" "}
+                        {bid.price.toLocaleString()}원
+                      </span>
+                      <span style={{ fontSize: 13, color: "#374151" }}>
+                        <span style={{ fontWeight: 700 }}>기간</span>{" "}
+                        {bid.work_days}일
+                      </span>
+                    </div>
+                    {bid.message && (
+                      <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>{bid.message}</div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleSelectBid(bid)}
+                    disabled={!!selectingBid}
+                    style={{
+                      flexShrink: 0, height: 38, padding: "0 18px",
+                      borderRadius: 10, border: "none",
+                      background: selectingBid === bid.id ? "#d1d5db" : GOLD,
+                      color: "white", fontSize: 13, fontWeight: 700,
+                      cursor: selectingBid ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {selectingBid === bid.id ? "처리 중..." : "선택"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 공개모집 견적 신청 패널 (판매자용) ── */}
+      {commission.is_private &&
+        commission.commission_type === "공개모집" &&
+        commission.bid_status === "모집중" &&
+        isSeller &&
+        !isAuthor && (
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 20, marginBottom: 28, background: "#fafafa" }}>
+          {myBid ? (
+            <>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 14 }}>견적 신청 완료</div>
+              <div style={{
+                background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12,
+                padding: "14px 16px", marginBottom: 14, display: "flex", flexDirection: "column", gap: 6,
+              }}>
+                <div style={{ fontSize: 14, color: "#374151" }}>
+                  <span style={{ fontWeight: 700, color: "#111827" }}>희망 가격:</span> {myBid.price.toLocaleString()}원
+                </div>
+                <div style={{ fontSize: 14, color: "#374151" }}>
+                  <span style={{ fontWeight: 700, color: "#111827" }}>희망 작업기간:</span> {myBid.work_days}일
+                </div>
+                {myBid.message && (
+                  <div style={{ fontSize: 14, color: "#374151" }}>
+                    <span style={{ fontWeight: 700, color: "#111827" }}>한마디:</span> {myBid.message}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleBidCancel}
+                disabled={bidSubmitting}
+                style={{
+                  height: 40, padding: "0 18px", borderRadius: 10,
+                  border: "1px solid #fca5a5", background: "white",
+                  color: "#dc2626", fontSize: 13, fontWeight: 700,
+                  cursor: bidSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {bidSubmitting ? "취소 중..." : "견적 신청 취소"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>견적 신청</div>
+              <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>희망 가격 (원)</div>
+                  <input
+                    type="number"
+                    value={bidPrice}
+                    onChange={(e) => setBidPrice(e.target.value)}
+                    placeholder="예: 50000"
+                    min={0}
+                    style={{ width: "100%", height: 42, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4, fontWeight: 600 }}>희망 작업기간 (일)</div>
+                  <input
+                    type="number"
+                    value={bidDays}
+                    onChange={(e) => setBidDays(e.target.value)}
+                    placeholder="예: 7"
+                    min={1}
+                    style={{ width: "100%", height: 42, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }}
+                  />
+                </div>
+              </div>
+              <textarea
+                value={bidMessage}
+                onChange={(e) => setBidMessage(e.target.value)}
+                placeholder="한마디 (선택)"
+                rows={3}
+                style={{
+                  width: "100%", borderRadius: 10, border: "1px solid #d1d5db",
+                  padding: "10px 12px", fontSize: 14, resize: "vertical",
+                  boxSizing: "border-box", outline: "none", fontFamily: "inherit",
+                  marginBottom: 12,
+                }}
+              />
+              <button
+                onClick={handleBidSubmit}
+                disabled={bidSubmitting}
+                style={{
+                  width: "100%", height: 44, borderRadius: 10, border: "none",
+                  background: bidSubmitting ? "#d1d5db" : GOLD,
+                  color: "white", fontSize: 14, fontWeight: 700,
+                  cursor: bidSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {bidSubmitting ? "신청 중..." : "견적 신청"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ── 개인의뢰 채팅 ── */}
-      {commission.is_private && (isAuthor || isTargetSeller) && (
+      {commission.is_private &&
+        (isAuthor || isTargetSeller) &&
+        !(commission.commission_type === "공개모집" && commission.bid_status === "모집중") && (
         <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 28, paddingTop: 24 }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 12 }}>채팅</div>
 
