@@ -190,7 +190,7 @@ export default function CommissionNewPage() {
         backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
         padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#854d0e",
       }}>
-        ⚠️ 판매자가 작업 링크를 등록한 이후에는 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
+        ⚠️ 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
