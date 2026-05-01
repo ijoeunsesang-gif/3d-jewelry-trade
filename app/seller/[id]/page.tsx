@@ -209,28 +209,36 @@ export default function SellerPage() {
         setFollowersCount((prev) => Math.max(prev - 1, 0));
 
         } else {
-          const { error } = await supabase.from("follows").insert({
+          const { error: followError } = await supabase.from("follows").insert({
             follower_id: currentUserId,
             following_id: id,
           });
 
-          if (error) {
-            console.error("팔로우 실패:", error);
+          if (followError) {
+            console.error("팔로우 실패:", followError);
             showError("팔로우에 실패했습니다.");
             return;
           }
 
-          await supabase.from("notifications").insert({
-            user_id: id,
-            type: "follow",
-            title: "새 팔로우",
-            link: `/seller/${currentUserId}`,
-            is_read: false,
-          });
-
           setIsFollowing(true);
           setFollowersCount((prev) => prev + 1);
-          window.dispatchEvent(new Event("notifications-updated"));
+
+          try {
+            const { error: notifError } = await supabase.from("notifications").insert({
+              user_id: id,
+              type: "follow",
+              title: "새 팔로우",
+              link: `/seller/${currentUserId}`,
+              is_read: false,
+            });
+            if (notifError) {
+              console.error("팔로우 알림 전송 실패:", notifError);
+            } else {
+              window.dispatchEvent(new Event("notifications-updated"));
+            }
+          } catch (notifErr) {
+            console.error("팔로우 알림 예외:", notifErr);
+          }
         }
 
     } catch (error) {
