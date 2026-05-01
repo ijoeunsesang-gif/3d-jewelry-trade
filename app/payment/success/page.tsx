@@ -131,7 +131,23 @@ function PaymentSuccessContent() {
       );
       localStorage.removeItem("pendingPayment");
       localStorage.removeItem("pendingOrder");
-      localStorage.removeItem("cart");
+
+      // 결제한 상품 ID만 장바구니에서 제거 (선택 결제·전체 결제 공통)
+      const paidIdSet = new Set(pending.items.map((item: OrderItem) => item.id));
+      const currentCart = (() => {
+        try {
+          return JSON.parse(localStorage.getItem("cart") || "[]") as { id: string }[];
+        } catch {
+          return [];
+        }
+      })();
+      const remainingCart = currentCart.filter(item => !paidIdSet.has(item.id));
+      if (remainingCart.length > 0) {
+        localStorage.setItem("cart", JSON.stringify(remainingCart));
+      } else {
+        localStorage.removeItem("cart");
+      }
+
       window.dispatchEvent(new Event("cart-updated"));
 
       setOrder(pending);

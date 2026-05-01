@@ -85,7 +85,25 @@ function CheckoutContent() {
       const migrateItems = (items: OrderItem[]) =>
         items.map((i) => ({ ...i, thumbUrl: migrateThumbUrl(i.thumbUrl) }));
 
-      if (mode === "direct") {
+      if (mode === "selected") {
+        const idsParam = searchParams.get("ids");
+        const selectedIdSet = new Set(
+          (idsParam || "").split(",").map(id => id.trim()).filter(Boolean)
+        );
+        if (selectedIdSet.size === 0) {
+          showError("선택된 상품이 없습니다.");
+          window.location.href = "/cart";
+          return;
+        }
+        const cart: OrderItem[] = JSON.parse(localStorage.getItem("cart") || "[]");
+        const selectedCartItems = cart.filter(item => selectedIdSet.has(item.id));
+        if (selectedCartItems.length === 0) {
+          showError("선택된 상품을 장바구니에서 찾을 수 없습니다.");
+          window.location.href = "/cart";
+          return;
+        }
+        setItems(migrateItems(selectedCartItems));
+      } else if (mode === "direct") {
         const pendingOrder = JSON.parse(
           localStorage.getItem("pendingOrder") || "null"
         );

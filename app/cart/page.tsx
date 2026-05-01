@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 type CartItem = {
@@ -32,6 +32,8 @@ const getImageUrl = (path: string | null | undefined) => {
 export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const allCheckboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedCart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -46,15 +48,58 @@ export default function CartPage() {
     window.dispatchEvent(new Event("cart-reset"));
   }, []);
 
-  const totalPrice = useMemo(() => {
-    return cartItems.reduce((sum, item) => sum + item.price, 0);
-  }, [cartItems]);
+  const allSelected = cartItems.length > 0 && cartItems.every(i => selectedIds.has(i.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  useEffect(() => {
+    if (allCheckboxRef.current) {
+      allCheckboxRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
+
+  const selectedItems = useMemo(
+    () => cartItems.filter(i => selectedIds.has(i.id)),
+    [cartItems, selectedIds]
+  );
+  const selectedCount = selectedItems.length;
+  const selectedTotal = useMemo(
+    () => selectedItems.reduce((sum, i) => sum + i.price, 0),
+    [selectedItems]
+  );
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(cartItems.map(i => i.id)));
+    }
+  };
+
+  const toggleItem = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const removeItem = (id: string) => {
     const updated = cartItems.filter((item) => item.id !== id);
     setCartItems(updated);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     localStorage.setItem("cart", JSON.stringify(updated));
     window.dispatchEvent(new Event("cart-updated"));
+  };
+
+  const handleSelectedCheckout = () => {
+    if (selectedCount === 0) return;
+    const ids = [...selectedIds].join(",");
+    window.location.href = `/checkout?mode=selected&ids=${encodeURIComponent(ids)}`;
   };
 
   return (
@@ -121,20 +166,55 @@ export default function CartPage() {
           }}
         >
           <section style={{ display: "grid", gap: 16 }}>
+            {/* 전체선택 행 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 16px",
+                background: "white",
+                borderRadius: 16,
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <input
+                ref={allCheckboxRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#374151" }}>
+                전체선택 ({selectedCount}/{cartItems.length})
+              </span>
+            </div>
+
             {cartItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((item) => (
               <article
                 key={item.id}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "120px minmax(0, 1fr) auto",
+                  gridTemplateColumns: "28px 120px minmax(0, 1fr) auto",
                   gap: 16,
-                  border: "1px solid #e5e7eb",
+                  border: `1px solid ${selectedIds.has(item.id) ? "#6366f1" : "#e5e7eb"}`,
                   borderRadius: 20,
                   padding: 16,
-                  background: "white",
+                  background: selectedIds.has(item.id) ? "#fafafe" : "white",
                   alignItems: "center",
+                  transition: "border-color 0.15s, background 0.15s",
+                  cursor: "pointer",
                 }}
+                onClick={() => toggleItem(item.id)}
               >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(item.id)}
+                  onChange={() => toggleItem(item.id)}
+                  onClick={e => e.stopPropagation()}
+                  style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }}
+                />
+
                 <img
                   src={getImageUrl(item.thumbUrl)}
                   alt={item.title}
@@ -175,7 +255,7 @@ export default function CartPage() {
                   </h2>
                 </div>
 
-                <div style={{ textAlign: "right" }}>
+                <div style={{ textAlign: "right" }} onClick={e => e.stopPropagation()}>
                   <div
                     style={{
                       fontSize: 24,
@@ -263,13 +343,33 @@ export default function CartPage() {
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                marginBottom: 12,
+                marginBottom: 8,
                 color: "#6b7280",
                 fontSize: 15,
               }}
             >
-              <span>상품 수</span>
+              <span>전체 상품</span>
               <span>{cartItems.length}개</span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 8,
+                color: "#6b7280",
+                fontSize: 15,
+              }}
+            >
+              <span>선택 상품</span>
+              <span
+                style={{
+                  color: selectedCount > 0 ? "#111827" : "#9ca3af",
+                  fontWeight: selectedCount > 0 ? 700 : 400,
+                }}
+              >
+                {selectedCount}개
+              </span>
             </div>
 
             <div
@@ -280,18 +380,24 @@ export default function CartPage() {
                 color: "#111827",
                 fontSize: 18,
                 fontWeight: 900,
+                borderTop: "1px solid #f3f4f6",
+                paddingTop: 14,
+                marginTop: 8,
               }}
             >
-              <span>총 합계</span>
-              <span>{totalPrice.toLocaleString("ko-KR")}원</span>
+              <span>선택 합계</span>
+              <span style={{ color: selectedCount > 0 ? "#111827" : "#9ca3af" }}>
+                {selectedCount > 0 ? `${selectedTotal.toLocaleString("ko-KR")}원` : "—"}
+              </span>
             </div>
 
             <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>
               ℹ️ 구매 후 6개월간 횟수 제한없이 다운로드 가능
             </p>
 
-            <Link
-              href="/checkout"
+            <button
+              onClick={handleSelectedCheckout}
+              disabled={selectedCount === 0}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -300,19 +406,22 @@ export default function CartPage() {
                 height: 54,
                 borderRadius: 16,
                 border: "none",
-                background: "#111827",
-                color: "white",
+                background: selectedCount > 0 ? "#111827" : "#e5e7eb",
+                color: selectedCount > 0 ? "white" : "#9ca3af",
                 fontSize: 16,
                 fontWeight: 900,
-                textDecoration: "none",
+                cursor: selectedCount > 0 ? "pointer" : "default",
                 marginBottom: 10,
+                transition: "background 0.15s",
               }}
             >
-              결제하기
-            </Link>
+              {selectedCount > 0
+                ? `선택 상품 결제 (${selectedCount}개)`
+                : "상품을 선택해주세요"}
+            </button>
 
             <Link
-              href="/"
+              href="/checkout"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -325,6 +434,27 @@ export default function CartPage() {
                 color: "#111827",
                 textDecoration: "none",
                 fontWeight: 800,
+                marginBottom: 10,
+              }}
+            >
+              전체 결제하기
+            </Link>
+
+            <Link
+              href="/"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                height: 44,
+                borderRadius: 16,
+                border: "1px solid #e5e7eb",
+                background: "white",
+                color: "#6b7280",
+                textDecoration: "none",
+                fontWeight: 700,
+                fontSize: 14,
               }}
             >
               계속 쇼핑하기
