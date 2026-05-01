@@ -292,7 +292,7 @@ export default function CommissionDetailPage() {
   };
 
   const handleModelSelect = (modelId: string) => {
-    setResultLink(`https://www.3d-jewelry-trade.com/models/${modelId}`);
+    setResultLink(`${window.location.origin}/models/${modelId}`);
     setShowModelPicker(false);
   };
 
