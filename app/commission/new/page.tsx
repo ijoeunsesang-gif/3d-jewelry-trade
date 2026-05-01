@@ -66,13 +66,17 @@ export default function CommissionNewPage() {
       .from("follows")
       .select("following_id")
       .eq("follower_id", uid);
-    if (!follows || follows.length === 0) return;
+    if (!follows || follows.length === 0) {
+      console.log("[팔로우 판매자] 팔로우 없음");
+      return;
+    }
     const ids = follows.map((f: any) => f.following_id);
-    const { data: profiles } = await supabase
+    const { data: profiles, error } = await supabase
       .from("profiles")
       .select("id, nickname, avatar_url, grade")
       .in("id", ids)
-      .eq("is_seller", true);
+      .eq("role", "seller");
+    console.log("[팔로우 판매자] 쿼리 결과:", profiles, "에러:", error);
     setFollowedSellers((profiles || []).map((p: any) => ({
       id: p.id,
       nickname: p.nickname || "익명",
@@ -83,11 +87,12 @@ export default function CommissionNewPage() {
 
   const loadAllSellers = async () => {
     if (allSellersLoaded) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("id, nickname, avatar_url, grade")
-      .eq("is_seller", true)
+      .eq("role", "seller")
       .order("nickname", { ascending: true });
+    console.log("[전체 판매자] 쿼리 결과:", data, "에러:", error);
     setAllSellers((data || []).map((p: any) => ({
       id: p.id,
       nickname: p.nickname || "익명",
@@ -101,6 +106,11 @@ export default function CommissionNewPage() {
     setSellerTab(tab);
     if (tab === "all") loadAllSellers();
   };
+
+  // 개인 의뢰로 전환 시 전체 판매자 목록 즉시 로드
+  useEffect(() => {
+    if (isPrivate && sellerTab === "all") loadAllSellers();
+  }, [isPrivate]);
 
   const handleSelectSeller = (s: SellerProfile) => {
     setSelectedSellerId(s.id);
