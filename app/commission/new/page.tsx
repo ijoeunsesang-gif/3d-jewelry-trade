@@ -37,6 +37,8 @@ export default function CommissionNewPage() {
   const [allSellersLoaded, setAllSellersLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
   const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(null);
+  const [allSellerSearch, setAllSellerSearch] = useState("");
+  const [followedSellerSearch, setFollowedSellerSearch] = useState("");
   const [desiredPrice, setDesiredPrice] = useState("");
   const [desiredDays, setDesiredDays] = useState("");
 
@@ -198,7 +200,11 @@ export default function CommissionNewPage() {
 
   if (!userId) return null;
 
-  const displayedSellers = sellerTab === "all" ? allSellers : followedSellers;
+  const currentSearch = sellerTab === "all" ? allSellerSearch : followedSellerSearch;
+  const baseList = sellerTab === "all" ? allSellers : followedSellers;
+  const displayedSellers = currentSearch.trim()
+    ? baseList.filter((s) => s.nickname.includes(currentSearch.trim()))
+    : baseList;
 
   return (
     <div style={{
@@ -317,13 +323,33 @@ export default function CommissionNewPage() {
                 </button>
               </div>
 
+              {/* 검색창 */}
+              <input
+                type="text"
+                placeholder="판매자 닉네임 검색"
+                value={sellerTab === "all" ? allSellerSearch : followedSellerSearch}
+                onChange={(e) =>
+                  sellerTab === "all"
+                    ? setAllSellerSearch(e.target.value)
+                    : setFollowedSellerSearch(e.target.value)
+                }
+                style={{
+                  width: "100%", padding: "8px 12px", marginBottom: 10,
+                  border: "1px solid #d1d5db", borderRadius: 8, fontSize: 13,
+                  outline: "none", boxSizing: "border-box",
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                }}
+              />
+
               {/* 판매자 목록 */}
               {displayedSellers.length === 0 ? (
                 <div style={{ fontSize: 13, color: "#9ca3af", padding: "16px 0", textAlign: "center" }}>
-                  {sellerTab === "followed" ? "팔로우한 판매자가 없습니다." : "등록된 판매자가 없습니다."}
+                  {currentSearch.trim()
+                    ? "검색 결과가 없습니다."
+                    : sellerTab === "followed" ? "팔로우한 판매자가 없습니다." : "등록된 판매자가 없습니다."}
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
                   {displayedSellers.map((s) => (
                     <div
                       key={s.id}
