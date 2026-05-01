@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../../lib/toast";
+import GradeBadge from "@/app/components/GradeBadge";
+import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 const MAX_IMAGES = 5;
@@ -16,7 +18,7 @@ const inputStyle: React.CSSProperties = {
   fontFamily: 'system-ui, -apple-system, sans-serif',
 };
 
-type SellerProfile = { id: string; nickname: string; avatar_url: string | null };
+type SellerProfile = { id: string; nickname: string; avatar_url: string | null; grade: Grade };
 
 export default function CommissionNewPage() {
   const router = useRouter();
@@ -29,16 +31,16 @@ export default function CommissionNewPage() {
   const [isPrivate, setIsPrivate] = useState(false);
 
   // 개인 의뢰 전용
-  const [sellerSearch, setSellerSearch] = useState("");
-  const [searchResults, setSearchResults] = useState<SellerProfile[]>([]);
+  const [sellerTab, setSellerTab] = useState<"all" | "followed">("all");
+  const [allSellers, setAllSellers] = useState<SellerProfile[]>([]);
   const [followedSellers, setFollowedSellers] = useState<SellerProfile[]>([]);
+  const [allSellersLoaded, setAllSellersLoaded] = useState(false);
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null);
+  const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(null);
   const [desiredPrice, setDesiredPrice] = useState("");
   const [desiredDays, setDesiredDays] = useState("");
-  const [searchLoading, setSearchLoading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
@@ -68,32 +70,42 @@ export default function CommissionNewPage() {
     const ids = follows.map((f: any) => f.following_id);
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, nickname, avatar_url, role")
+      .select("id, nickname, avatar_url, grade")
       .in("id", ids)
-      .eq("role", "seller");
+      .eq("is_seller", true);
     setFollowedSellers((profiles || []).map((p: any) => ({
-      id: p.id, nickname: p.nickname || "익명", avatar_url: p.avatar_url,
+      id: p.id,
+      nickname: p.nickname || "익명",
+      avatar_url: p.avatar_url,
+      grade: (p.grade as Grade) || "sprout",
     })));
   };
 
-  useEffect(() => {
-    if (!isPrivate) return;
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (!sellerSearch.trim()) { setSearchResults([]); return; }
-    searchTimer.current = setTimeout(async () => {
-      setSearchLoading(true);
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, nickname, avatar_url")
-        .eq("role", "seller")
-        .ilike("nickname", `%${sellerSearch.trim()}%`)
-        .limit(10);
-      setSearchResults((data || []).map((p: any) => ({
-        id: p.id, nickname: p.nickname || "익명", avatar_url: p.avatar_url,
-      })));
-      setSearchLoading(false);
-    }, 300);
-  }, [sellerSearch, isPrivate]);
+  const loadAllSellers = async () => {
+    if (allSellersLoaded) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, nickname, avatar_url, grade")
+      .eq("is_seller", true)
+      .order("nickname", { ascending: true });
+    setAllSellers((data || []).map((p: any) => ({
+      id: p.id,
+      nickname: p.nickname || "익명",
+      avatar_url: p.avatar_url,
+      grade: (p.grade as Grade) || "sprout",
+    })));
+    setAllSellersLoaded(true);
+  };
+
+  const handleTabChange = (tab: "all" | "followed") => {
+    setSellerTab(tab);
+    if (tab === "all") loadAllSellers();
+  };
+
+  const handleSelectSeller = (s: SellerProfile) => {
+    setSelectedSellerId(s.id);
+    setSelectedSeller(s);
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -176,7 +188,7 @@ export default function CommissionNewPage() {
 
   if (!userId) return null;
 
-  const displayedSellers = sellerSearch.trim() ? searchResults : followedSellers;
+  const displayedSellers = sellerTab === "all" ? allSellers : followedSellers;
 
   return (
     <div style={{
@@ -190,7 +202,7 @@ export default function CommissionNewPage() {
         backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
         padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#854d0e",
       }}>
-        ⚠️ 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
+        ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
@@ -239,35 +251,75 @@ export default function CommissionNewPage() {
           <>
             {/* 판매자 선택 */}
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: 18, background: "#fafafa" }}>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 12 }}>
                 판매자 선택 <span style={{ color: "#dc2626" }}>*</span>
               </label>
-              <input
-                type="text"
-                value={sellerSearch}
-                onChange={(e) => setSellerSearch(e.target.value)}
-                placeholder="판매자 닉네임 검색"
-                style={{ ...inputStyle, marginBottom: 12 }}
-              />
 
-              {!sellerSearch.trim() && followedSellers.length > 0 && (
-                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8, fontWeight: 600 }}>
-                  팔로우한 판매자
+              {/* 선택된 판매자 표시 */}
+              {selectedSeller && (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 14px", borderRadius: 10, marginBottom: 14,
+                  background: "#f0fdf4", border: "1.5px solid #16a34a",
+                }}>
+                  <img
+                    src={selectedSeller.avatar_url || "/default-avatar.png"}
+                    alt={selectedSeller.nickname}
+                    style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                  />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{selectedSeller.nickname}</span>
+                    <GradeBadge grade={selectedSeller.grade} size="sm" />
+                  </div>
+                  <span style={{ marginLeft: "auto", fontSize: 12, color: "#16a34a", fontWeight: 700 }}>✓ 선택됨</span>
                 </div>
               )}
 
-              {searchLoading ? (
-                <div style={{ fontSize: 13, color: "#9ca3af", padding: "8px 0" }}>검색 중...</div>
-              ) : displayedSellers.length === 0 && sellerSearch.trim() ? (
-                <div style={{ fontSize: 13, color: "#9ca3af", padding: "8px 0" }}>검색 결과가 없습니다.</div>
+              {/* 탭 버튼 */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("all")}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", border: "1.5px solid",
+                    borderColor: sellerTab === "all" ? "#111827" : "#d1d5db",
+                    background: sellerTab === "all" ? "#111827" : "white",
+                    color: sellerTab === "all" ? "white" : "#374151",
+                    transition: "all 0.12s",
+                  }}
+                >
+                  판매자 선택
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("followed")}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 600,
+                    cursor: "pointer", border: "1.5px solid",
+                    borderColor: sellerTab === "followed" ? "#111827" : "#d1d5db",
+                    background: sellerTab === "followed" ? "#111827" : "white",
+                    color: sellerTab === "followed" ? "white" : "#374151",
+                    transition: "all 0.12s",
+                  }}
+                >
+                  팔로우한 판매자
+                </button>
+              </div>
+
+              {/* 판매자 목록 */}
+              {displayedSellers.length === 0 ? (
+                <div style={{ fontSize: 13, color: "#9ca3af", padding: "16px 0", textAlign: "center" }}>
+                  {sellerTab === "followed" ? "팔로우한 판매자가 없습니다." : "등록된 판매자가 없습니다."}
+                </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 240, overflowY: "auto" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
                   {displayedSellers.map((s) => (
                     <div
                       key={s.id}
-                      onClick={() => setSelectedSellerId(s.id)}
+                      onClick={() => handleSelectSeller(s)}
                       style={{
-                        display: "flex", alignItems: "center", gap: 10,
+                        display: "flex", alignItems: "center", gap: 12,
                         padding: "10px 12px", borderRadius: 10, cursor: "pointer",
                         border: selectedSellerId === s.id ? "2px solid #111827" : "1px solid #e5e7eb",
                         background: selectedSellerId === s.id ? "#f3f4f6" : "white",
@@ -277,11 +329,14 @@ export default function CommissionNewPage() {
                       <img
                         src={s.avatar_url || "/default-avatar.png"}
                         alt={s.nickname}
-                        style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                        style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
                       />
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{s.nickname}</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{s.nickname}</span>
+                        <GradeBadge grade={s.grade} size="sm" />
+                      </div>
                       {selectedSellerId === s.id && (
-                        <span style={{ marginLeft: "auto", fontSize: 12, color: "#111827", fontWeight: 700 }}>✓ 선택됨</span>
+                        <span style={{ marginLeft: "auto", fontSize: 12, color: "#111827", fontWeight: 700 }}>✓</span>
                       )}
                     </div>
                   ))}
