@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase-browser";
+import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 
 export type DescriptionTemplate = {
@@ -8,8 +10,6 @@ export type DescriptionTemplate = {
   name: string;
   content: string;
 };
-
-export const TEMPLATE_STORAGE_KEY = "upload_description_templates";
 
 type Props = {
   description: string;
@@ -41,35 +41,15 @@ export default function DescriptionTemplateSelector({
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<DescriptionTemplate | null>(null);
   const [editingName, setEditingName] = useState("");
-
-  const loadTemplates = () => {
-    const raw = localStorage.getItem(TEMPLATE_STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      const normalized: DescriptionTemplate[] = parsed.map((item: any, idx: number) => {
-        if (typeof item === "string") {
-          return { id: `legacy-${idx}`, name: `템플릿 ${idx + 1}`, content: item };
-        }
-        return {
-          id: item.id || `template-${idx}`,
-          name: item.name || `템플릿 ${idx + 1}`,
-          content: item.content || "",
-        };
-      });
-      setTemplates(normalized);
-    } catch {}
-  };
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadTemplates();
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === TEMPLATE_STORAGE_KEY) loadTemplates();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    const token = getAccessToken();
+    if (!token) return;
+    const uid = (decodeJwt(token) as any)?.sub as string;
+    if (!uid) return;
+    setUserId(uid);
+    loadTemplates(uid);
   }, []);
 
   useEffect(() => {
@@ -79,28 +59,41 @@ export default function DescriptionTemplateSelector({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [openIdx]);
 
-  const persist = (next: DescriptionTemplate[]) => {
-    setTemplates(next);
-    localStorage.setItem(TEMPLATE_STORAGE_KEY, JSON.stringify(next));
+  const loadTemplates = async (uid: string) => {
+    const { data, error } = await supabase
+      .from("description_templates")
+      .select("id, name, content")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: true });
+    if (error) { console.error("템플릿 로드 실패:", error); return; }
+    setTemplates((data || []) as DescriptionTemplate[]);
   };
 
-  const saveTemplate = () => {
+  const saveTemplate = async () => {
     const value = description.trim();
     if (!value) { showInfo("설명 내용을 먼저 입력하세요."); return; }
+    if (!userId) return;
     if (templates.length >= 10) { showError("템플릿은 최대 10개까지만 저장할 수 있습니다."); return; }
-    persist([
-      ...templates,
-      {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        name: `템플릿 ${templates.length + 1}`,
-        content: value,
-      },
-    ]);
+
+    const { data, error } = await supabase
+      .from("description_templates")
+      .insert({ user_id: userId, name: `템플릿 ${templates.length + 1}`, content: value })
+      .select("id, name, content")
+      .single();
+
+    if (error) { showError("템플릿 저장에 실패했습니다."); return; }
+    setTemplates((prev) => [...prev, data as DescriptionTemplate]);
     showSuccess("설명 템플릿이 저장되었습니다.");
   };
 
-  const deleteTemplate = (id: string) => {
-    persist(templates.filter((t) => t.id !== id));
+  const deleteTemplate = async (id: string) => {
+    const { error } = await supabase
+      .from("description_templates")
+      .delete()
+      .eq("id", id);
+    if (error) { showError("템플릿 삭제에 실패했습니다."); return; }
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    if (openIdx !== null) setOpenIdx(null);
   };
 
   const startRename = (id: string) => {
@@ -110,11 +103,18 @@ export default function DescriptionTemplateSelector({
     setEditingName(target.name);
   };
 
-  const saveRename = () => {
+  const saveRename = async () => {
     if (!editingTemplate) return;
     const name = editingName.trim();
     if (!name) { showInfo("템플릿 이름을 입력하세요."); return; }
-    persist(templates.map((t) => (t.id === editingTemplate.id ? { ...t, name } : t)));
+
+    const { error } = await supabase
+      .from("description_templates")
+      .update({ name })
+      .eq("id", editingTemplate.id);
+
+    if (error) { showError("이름 변경에 실패했습니다."); return; }
+    setTemplates((prev) => prev.map((t) => (t.id === editingTemplate.id ? { ...t, name } : t)));
     setEditingTemplate(null);
     setEditingName("");
   };
@@ -126,7 +126,8 @@ export default function DescriptionTemplateSelector({
 
   return (
     <>
-      <div style={{ display: "grid", gap: 12 }}>
+      {/* onClick stopPropagation: Field 컴포넌트의 <label> 래퍼가 내부 클릭을 가로채는 것을 방지 */}
+      <div style={{ display: "grid", gap: 12 }} onClick={(e) => e.stopPropagation()}>
         {/* 템플릿 저장 버튼 + 기존 템플릿 목록 */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button

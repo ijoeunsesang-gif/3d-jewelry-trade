@@ -50,12 +50,23 @@ export async function DELETE(req: NextRequest) {
   (images || []).forEach((img) => { if (img.image_path) r2Paths.push({ bucket: "thumbnails", key: img.image_path }); });
   (extraFiles || []).forEach((f) => { if (f.file_path) r2Paths.push({ bucket: "models-private", key: f.file_path }); });
 
-  // 1. FK 제약 있는 관련 테이블 먼저 삭제
+  // 1. conversations 먼저 삭제 (models에 FK 걸려 있어 가장 먼저 처리)
+  const { data: convRows } = await adminSupabase
+    .from("conversations")
+    .select("id")
+    .eq("model_id", modelId);
+  const convIds = (convRows || []).map((r: { id: string }) => r.id);
+  if (convIds.length > 0) {
+    await adminSupabase.from("messages").delete().in("conversation_id", convIds);
+  }
+  await adminSupabase.from("conversations").delete().eq("model_id", modelId);
+
+  // 2. 나머지 FK 제약 테이블 삭제
   await adminSupabase.from("model_images").delete().eq("model_id", modelId);
   await adminSupabase.from("model_files").delete().eq("model_id", modelId);
   await adminSupabase.from("purchases").delete().eq("model_id", modelId);
 
-  // 2. models 행 삭제
+  // 3. models 행 삭제
   const { error: deleteError } = await adminSupabase
     .from("models")
     .delete()
