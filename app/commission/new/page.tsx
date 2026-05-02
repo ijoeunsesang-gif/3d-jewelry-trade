@@ -224,8 +224,7 @@ export default function CommissionNewPage() {
     }
   };
 
-  if (!userId) return null;
-
+  // 파생 계산값 — 훅(useMemo) 포함이므로 얼리 리턴 이전에 선언
   const currentSearch = sellerTab === "all" ? allSellerSearch : followedSellerSearch;
   const baseList = sellerTab === "all" ? allSellers : followedSellers;
   const displayedSellers = currentSearch.trim()
@@ -245,6 +244,8 @@ export default function CommissionNewPage() {
     if (!el || !container) return;
     container.scrollBy({ top: el.getBoundingClientRect().top - container.getBoundingClientRect().top, behavior: 'smooth' });
   };
+
+  if (!userId) return null;
 
   return (
     <div style={{
