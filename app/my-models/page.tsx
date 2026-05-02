@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase-browser";
 import { sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
 
@@ -66,12 +65,21 @@ export default function MyModelsPage() {
     if (!confirm("이 모델을 삭제할까요?")) return;
     try {
       setDeletingId(modelId);
-      const { error } = await supabase.from("models").delete().eq("id", modelId);
-      if (error) { showError("모델 삭제에 실패했습니다."); return; }
+      const token = getAccessToken();
+      const res = await fetch(`/api/models/delete?id=${modelId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showError(json.error || "모델 삭제에 실패했습니다.");
+        return;
+      }
       setModels((prev) => prev.filter((item) => item.id !== modelId));
       showSuccess("모델이 삭제되었습니다.");
     } catch (error) {
-      console.error(error); showError("삭제 중 오류가 발생했습니다.");
+      console.error(error);
+      showError("삭제 중 오류가 발생했습니다.");
     } finally {
       setDeletingId(null);
     }

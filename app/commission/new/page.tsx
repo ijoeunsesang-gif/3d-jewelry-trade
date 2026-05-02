@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -9,6 +9,26 @@ import GradeBadge from "@/app/components/GradeBadge";
 import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
+
+const CHOSUNG_ALL = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const CHOSUNG_GROUP = ['ㄱ','ㄱ','ㄴ','ㄷ','ㄷ','ㄹ','ㅁ','ㅂ','ㅂ','ㅅ','ㅅ','ㅇ','ㅈ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const CHOSUNG_DISPLAY = ['ㄱ','ㄴ','ㄷ','ㄹ','ㅁ','ㅂ','ㅅ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+const ALL_INDEX_KEYS = [
+  ...CHOSUNG_DISPLAY,
+  ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)),
+];
+
+function getSellerIndexKey(nickname: string): string {
+  if (!nickname) return '#';
+  const ch = nickname[0];
+  const code = ch.charCodeAt(0);
+  if (code >= 0xAC00 && code <= 0xD7A3) {
+    return CHOSUNG_GROUP[Math.floor((code - 0xAC00) / 588)];
+  }
+  if (/[a-zA-Z]/.test(ch)) return ch.toUpperCase();
+  return '#';
+}
+
 const MAX_IMAGES = 5;
 
 const inputStyle: React.CSSProperties = {
@@ -44,6 +64,8 @@ export default function CommissionNewPage() {
   const [commissionType, setCommissionType] = useState<"지목" | "공개모집">("지목");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const sellerItemRefs = useRef<{ [id: string]: HTMLDivElement | null }>({});
 
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
@@ -210,6 +232,20 @@ export default function CommissionNewPage() {
     ? baseList.filter((s) => s.nickname.includes(currentSearch.trim()))
     : baseList;
 
+  const indexKeySet = useMemo(
+    () => new Set(displayedSellers.map(s => getSellerIndexKey(s.nickname))),
+    [displayedSellers]
+  );
+
+  const scrollToIndexKey = (key: string) => {
+    const firstSeller = displayedSellers.find(s => getSellerIndexKey(s.nickname) === key);
+    if (!firstSeller) return;
+    const el = sellerItemRefs.current[firstSeller.id];
+    const container = listContainerRef.current;
+    if (!el || !container) return;
+    container.scrollBy({ top: el.getBoundingClientRect().top - container.getBoundingClientRect().top, behavior: 'smooth' });
+  };
+
   return (
     <div style={{
       maxWidth: 640, margin: "0 auto",
@@ -217,13 +253,6 @@ export default function CommissionNewPage() {
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
       <h1 style={{ margin: "0 0 28px", fontSize: 22, fontWeight: 800, color: "#111827" }}>의뢰 등록</h1>
-
-      <div style={{
-        backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
-        padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#854d0e",
-      }}>
-        ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
-      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
         {/* 제목 */}
@@ -274,9 +303,9 @@ export default function CommissionNewPage() {
               <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 10 }}>
                 의뢰 방식 <span style={{ color: "#dc2626" }}>*</span>
               </label>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {([
-                  { value: "지목", label: "판매자 지목", desc: "특정 판매자에게 직접 의뢰 (기존 방식)" },
+                  { value: "지목", label: "판매자 지목", desc: "특정 판매자에게 직접 의뢰" },
                   { value: "공개모집", label: "공개 모집", desc: "여러 판매자가 견적 신청, 내가 선택" },
                 ] as const).map(({ value, label, desc }) => (
                   <div
@@ -394,33 +423,66 @@ export default function CommissionNewPage() {
                     : sellerTab === "followed" ? "팔로우한 판매자가 없습니다." : "등록된 판매자가 없습니다."}
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
-                  {displayedSellers.map((s) => (
-                    <div
-                      key={s.id}
-                      onClick={() => handleSelectSeller(s)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 12,
-                        padding: "10px 12px", borderRadius: 10, cursor: "pointer",
-                        border: selectedSellerId === s.id ? "2px solid #111827" : "1px solid #e5e7eb",
-                        background: selectedSellerId === s.id ? "#f3f4f6" : "white",
-                        transition: "all 0.12s",
-                      }}
-                    >
-                      <img
-                        src={s.avatar_url || "/default-avatar.png"}
-                        alt={s.nickname}
-                        style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-                      />
-                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{s.nickname}</span>
-                        <GradeBadge grade={s.grade} size="sm" />
+                <div style={{ display: "flex", gap: 4, alignItems: "flex-start" }}>
+                  {/* 판매자 목록 */}
+                  <div ref={listContainerRef} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
+                    {displayedSellers.map((s) => (
+                      <div
+                        key={s.id}
+                        ref={(el) => { sellerItemRefs.current[s.id] = el; }}
+                        onClick={() => handleSelectSeller(s)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 12,
+                          padding: "10px 12px", borderRadius: 10, cursor: "pointer",
+                          border: selectedSellerId === s.id ? "2px solid #111827" : "1px solid #e5e7eb",
+                          background: selectedSellerId === s.id ? "#f3f4f6" : "white",
+                          transition: "all 0.12s",
+                        }}
+                      >
+                        <img
+                          src={s.avatar_url || "/default-avatar.png"}
+                          alt={s.nickname}
+                          style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+                        />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{s.nickname}</span>
+                          <GradeBadge grade={s.grade} size="sm" />
+                        </div>
+                        {selectedSellerId === s.id && (
+                          <span style={{ marginLeft: "auto", fontSize: 12, color: "#111827", fontWeight: 700 }}>✓</span>
+                        )}
                       </div>
-                      {selectedSellerId === s.id && (
-                        <span style={{ marginLeft: "auto", fontSize: 12, color: "#111827", fontWeight: 700 }}>✓</span>
-                      )}
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* 자음/알파벳 인덱스 바 */}
+                  <div style={{
+                    display: "flex", flexDirection: "column", alignItems: "center",
+                    width: 20, flexShrink: 0,
+                    maxHeight: 300, overflowY: "auto",
+                  }}>
+                    {ALL_INDEX_KEYS.map(key => {
+                      const hasMatch = indexKeySet.has(key);
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => scrollToIndexKey(key)}
+                          disabled={!hasMatch}
+                          style={{
+                            width: "100%", padding: "3px 0", fontSize: 11, lineHeight: 1,
+                            border: "none", background: "none",
+                            cursor: hasMatch ? "pointer" : "default",
+                            color: hasMatch ? "#374151" : "#e5e7eb",
+                            fontWeight: hasMatch ? 700 : 400,
+                            textAlign: "center", flexShrink: 0,
+                          }}
+                        >
+                          {key}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -541,6 +603,15 @@ export default function CommissionNewPage() {
             {submitting ? "등록 중..." : "의뢰 등록"}
           </button>
         </div>
+
+        {isPrivate && (
+          <div style={{
+            backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
+            padding: "12px 16px", fontSize: 13, color: "#854d0e",
+          }}>
+            ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
+          </div>
+        )}
       </div>
     </div>
   );

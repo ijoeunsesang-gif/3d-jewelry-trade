@@ -82,6 +82,11 @@ export default function ProfilePage() {
   const [gradeLoading, setGradeLoading] = useState(false);
   const gradeLoadedRef = useRef(false);
 
+  // 회원탈퇴
+  const [withdrawStep, setWithdrawStep] = useState<0 | 1 | 2>(0);
+  const [withdrawInput, setWithdrawInput] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -99,6 +104,28 @@ export default function ProfilePage() {
       fetchGradeData(userId);
     }
   }, [activeTab, isSeller, userId]);
+
+  const handleWithdraw = async () => {
+    setWithdrawing(true);
+    try {
+      const token = getAccessToken();
+      const res = await fetch("/api/user/delete", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        showError(json.error || "탈퇴 처리 중 오류가 발생했습니다.");
+        return;
+      }
+      await supabase.auth.signOut();
+      router.replace("/");
+    } catch {
+      showError("탈퇴 처리 중 오류가 발생했습니다.");
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -939,6 +966,90 @@ export default function ProfilePage() {
           }
         }
       `}</style>
+
+      {/* 회원탈퇴 버튼 */}
+      <div style={{ marginTop: 40, textAlign: "center" }}>
+        <button
+          type="button"
+          onClick={() => setWithdrawStep(1)}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#9ca3af", textDecoration: "underline" }}
+        >
+          회원탈퇴
+        </button>
+      </div>
+
+      {/* 회원탈퇴 모달 */}
+      {withdrawStep > 0 && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: 20,
+        }} onClick={() => { setWithdrawStep(0); setWithdrawInput(""); }}>
+          <div
+            style={{ background: "white", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420, boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1단계: 경고 */}
+            {withdrawStep === 1 && (
+              <>
+                <h3 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 800, color: "#111827" }}>회원 탈퇴</h3>
+                <p style={{ margin: "0 0 10px", fontSize: 14, color: "#374151", lineHeight: 1.65 }}>
+                  회원 탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.<br />
+                  구매한 모델 다운로드 권한도 사라집니다.
+                </p>
+                {isSeller && (
+                  <div style={{ padding: "10px 14px", borderRadius: 10, background: "#fef9c3", border: "1px solid #fde047", fontSize: 13, color: "#854d0e", marginBottom: 10 }}>
+                    ⚠️ 판매자 등록이 해제되며 등록된 모델은 비공개 처리됩니다.
+                  </div>
+                )}
+                <p style={{ margin: "0 0 20px", fontSize: 14, fontWeight: 700, color: "#111827" }}>
+                  정말 탈퇴하시겠습니까?
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button type="button" onClick={() => { setWithdrawStep(0); setWithdrawInput(""); }} style={{ flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db", background: "white", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#374151" }}>
+                    취소
+                  </button>
+                  <button type="button" onClick={() => setWithdrawStep(2)} style={{ flex: 1, height: 44, borderRadius: 12, border: "none", background: "#374151", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                    확인
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* 2단계: 확인 텍스트 입력 */}
+            {withdrawStep === 2 && (
+              <>
+                <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 800, color: "#111827" }}>탈퇴 확인</h3>
+                <p style={{ margin: "0 0 14px", fontSize: 13, color: "#6b7280" }}>
+                  아래 입력란에 <strong style={{ color: "#111827" }}>탈퇴합니다</strong>를 입력하세요.
+                </p>
+                <input
+                  type="text"
+                  value={withdrawInput}
+                  onChange={(e) => setWithdrawInput(e.target.value)}
+                  placeholder="탈퇴합니다"
+                  autoFocus
+                  style={{ width: "100%", height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 14px", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 16 }}
+                />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button type="button" onClick={() => { setWithdrawStep(0); setWithdrawInput(""); }} style={{ flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db", background: "white", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#374151" }}>
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleWithdraw}
+                    disabled={withdrawInput !== "탈퇴합니다" || withdrawing}
+                    style={{ flex: 1, height: 44, borderRadius: 12, border: "none", background: withdrawInput === "탈퇴합니다" ? "#dc2626" : "#e5e7eb", color: "white", fontWeight: 700, fontSize: 14, cursor: withdrawInput === "탈퇴합니다" && !withdrawing ? "pointer" : "not-allowed" }}
+                  >
+                    {withdrawing ? "처리 중..." : "최종 탈퇴"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

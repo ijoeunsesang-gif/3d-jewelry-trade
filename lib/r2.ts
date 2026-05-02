@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const r2 = new S3Client({
@@ -41,4 +41,12 @@ export async function r2PresignedPutUrl(
 
 export function r2PublicUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${path}`;
+}
+
+export async function r2Delete(bucket: string, key: string): Promise<void> {
+  await r2.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+}
+
+export async function r2DeleteMany(paths: { bucket: string; key: string }[]): Promise<void> {
+  await Promise.allSettled(paths.map(({ bucket, key }) => r2Delete(bucket, key)));
 }
