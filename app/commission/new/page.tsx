@@ -100,7 +100,8 @@ export default function CommissionNewPage() {
       .from("profiles")
       .select("id, nickname, avatar_url, grade")
       .in("id", ids)
-      .eq("role", "seller");
+      .eq("role", "seller")
+      .eq("is_seller_banned", false);
     console.log("[팔로우 판매자] 쿼리 결과:", profiles, "에러:", error);
     setFollowedSellers((profiles || []).map((p: any) => ({
       id: p.id,
@@ -116,6 +117,7 @@ export default function CommissionNewPage() {
       .from("profiles")
       .select("id, nickname, avatar_url, grade")
       .eq("role", "seller")
+      .eq("is_seller_banned", false)
       .order("nickname", { ascending: true });
     console.log("[전체 판매자] 쿼리 결과:", data, "에러:", error);
     setAllSellers((data || []).map((p: any) => ({
@@ -294,6 +296,14 @@ export default function CommissionNewPage() {
           <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9ca3af" }}>
             {isPrivate ? "나와 판매자만 볼 수 있습니다." : "누구나 볼 수 있습니다."}
           </p>
+          {isPrivate && (
+            <div style={{
+              backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
+              padding: "12px 16px", fontSize: 13, color: "#854d0e", marginTop: 10,
+            }}>
+              ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
+            </div>
+          )}
         </div>
 
         {/* 개인 의뢰 전용 섹션 */}
@@ -459,7 +469,7 @@ export default function CommissionNewPage() {
                   {/* 자음/알파벳 인덱스 바 */}
                   <div style={{
                     display: "flex", flexDirection: "column", alignItems: "center",
-                    width: 20, flexShrink: 0,
+                    width: 28, flexShrink: 0,
                     maxHeight: 300, overflowY: "auto",
                   }}>
                     {ALL_INDEX_KEYS.map(key => {
@@ -471,11 +481,11 @@ export default function CommissionNewPage() {
                           onClick={() => scrollToIndexKey(key)}
                           disabled={!hasMatch}
                           style={{
-                            width: "100%", padding: "3px 0", fontSize: 11, lineHeight: 1,
+                            width: "100%", padding: "3px 0", fontSize: 14, lineHeight: 1,
                             border: "none", background: "none",
                             cursor: hasMatch ? "pointer" : "default",
                             color: hasMatch ? "#374151" : "#e5e7eb",
-                            fontWeight: hasMatch ? 700 : 400,
+                            fontWeight: 700,
                             textAlign: "center", flexShrink: 0,
                           }}
                         >
@@ -605,14 +615,6 @@ export default function CommissionNewPage() {
           </button>
         </div>
 
-        {isPrivate && (
-          <div style={{
-            backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
-            padding: "12px 16px", fontSize: 13, color: "#854d0e",
-          }}>
-            ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
-          </div>
-        )}
       </div>
     </div>
   );
