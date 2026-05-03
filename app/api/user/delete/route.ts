@@ -49,8 +49,17 @@ export async function POST(req: NextRequest) {
       .eq("seller_id", userId);
   }
 
-  // auth.admin.deleteUser — profiles는 CASCADE로 자동 삭제
+  // 탈퇴 시각 기록 (판매자 목록 쿼리의 deleted_at IS NULL 필터로 즉시 제외됨)
+  await adminSupabase
+    .from("profiles")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", userId);
+
+  // auth.admin.deleteUser + 명시적 profiles 삭제 (CASCADE FK 미설정 대비)
   const { error: deleteError } = await adminSupabase.auth.admin.deleteUser(userId);
+  if (!deleteError) {
+    await adminSupabase.from("profiles").delete().eq("id", userId);
+  }
   if (deleteError) {
     console.error("deleteUser error:", deleteError);
     return NextResponse.json({ error: "탈퇴 처리 실패: " + deleteError.message }, { status: 500 });
