@@ -55,6 +55,7 @@ export default function ProfilePage() {
 
   // 판매자 정보
   const [isSeller, setIsSeller] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [sellerAppliedAt, setSellerAppliedAt] = useState<string | null>(null);
 
   // 정산 정보
@@ -158,6 +159,7 @@ export default function ProfilePage() {
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
         setIsSeller(profile.role === "seller");
+        setIsAdmin(profile.role === "admin");
         const banned = profile.is_seller_banned || false;
         setIsSellerBanned(banned);
         setSellerAppliedAt(profile.seller_applied_at || null);
@@ -329,6 +331,7 @@ export default function ProfilePage() {
   };
 
   const handleSellerApply = async () => {
+    if (isAdmin) return;
     if (!bankName || !accountHolder || !accountNumber) {
       showError("예금주명, 은행명, 계좌번호는 필수 입력 항목입니다.");
       return;
@@ -925,12 +928,12 @@ export default function ProfilePage() {
                         취소
                       </button>
                     </div>
-                  ) : (
+                  ) : !isAdmin ? (
                     <button type="button" onClick={handleSellerApply} disabled={sellerRegistering}
                       style={{ ...actionBtn, opacity: sellerRegistering ? 0.6 : 1, cursor: sellerRegistering ? "not-allowed" : "pointer" }}>
                       {sellerRegistering ? "신청 중..." : "판매자 신청하기"}
                     </button>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>

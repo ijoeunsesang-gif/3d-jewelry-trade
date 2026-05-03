@@ -169,8 +169,12 @@ export default function EditModelPage() {
       }
       const userId = (decodeJwt(token) as any)?.sub as string;
 
-      const { data: _modelArr, error } = await sbFetch("models", `?id=eq.${id}&limit=1`);
+      const [{ data: _modelArr, error }, { data: profileData }] = await Promise.all([
+        sbFetch("models", `?id=eq.${id}&limit=1`),
+        supabase.from("profiles").select("role").eq("id", userId).single(),
+      ]);
       const data = (_modelArr as any[])?.[0] ?? null;
+      const isAdmin = profileData?.role === "admin";
 
       if (error || !data) {
         console.error("모델 불러오기 실패:", error);
@@ -179,7 +183,7 @@ export default function EditModelPage() {
         return;
       }
 
-      if (data.seller_id !== userId) {
+      if (!isAdmin && data.seller_id !== userId) {
         showError("수정 권한이 없습니다.");
         router.push("/my-models");
         return;

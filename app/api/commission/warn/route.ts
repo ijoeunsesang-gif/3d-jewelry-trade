@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminUser } from "@/lib/isAdminCheck";
 
 const serviceSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,8 +14,7 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authErr } = await serviceSupabase.auth.getUser(token);
   if (authErr || !user) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
 
-  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
-  const isAdmin = adminEmail !== "" && (user.email || "").toLowerCase() === adminEmail;
+  const isAdmin = await isAdminUser(serviceSupabase, user.id);
   if (!isAdmin) return NextResponse.json({ error: "관리자만 접근 가능합니다." }, { status: 403 });
 
   let body: { commission_id?: string; dispute_id?: string };

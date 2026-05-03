@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { r2DeleteMany } from "@/lib/r2";
+import { isAdminUser } from "@/lib/isAdminCheck";
 
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +35,8 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "모델을 찾을 수 없습니다." }, { status: 404 });
   }
 
-  if (model.seller_id !== user.id) {
+  const isAdmin = await isAdminUser(adminSupabase, user.id);
+  if (!isAdmin && model.seller_id !== user.id) {
     return NextResponse.json({ error: "삭제 권한이 없습니다." }, { status: 403 });
   }
 

@@ -236,9 +236,11 @@ export default function CommissionDetailPage() {
       const uid = payload?.sub as string;
       const email = (payload?.email as string) || "";
       setMyId(uid);
-      setIsAdmin(email.toLowerCase() === (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").toLowerCase());
       supabase.from("profiles").select("role").eq("id", uid).single()
-        .then(({ data }) => { setIsSeller(data?.role === "seller"); });
+        .then(({ data }) => {
+          setIsSeller(data?.role === "seller");
+          setIsAdmin(data?.role === "admin");
+        });
     }
     fetchCommission();
     fetchComments();

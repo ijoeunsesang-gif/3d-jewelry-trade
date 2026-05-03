@@ -30,7 +30,7 @@ export default function UploadPage() {
       if (!token) { router.replace("/auth"); return; }
       const uid = (decodeJwt(token) as any)?.sub as string;
       const { data } = await supabase.from("profiles").select("role").eq("id", uid).maybeSingle();
-      setSellerCheck(data?.role === "seller" ? "ok" : "blocked");
+      setSellerCheck(data?.role === "seller" || data?.role === "admin" ? "ok" : "blocked");
     };
     check();
   }, []);

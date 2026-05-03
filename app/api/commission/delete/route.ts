@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminUser } from "@/lib/isAdminCheck";
 
 // Service role client — bypasses RLS for cascade deletion
 const adminSupabase = createClient(
@@ -25,8 +26,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "인증 실패" }, { status: 401 });
   }
 
-  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
-  const isAdmin = adminEmail !== "" && (user.email || "").toLowerCase() === adminEmail;
+  const isAdmin = await isAdminUser(adminSupabase, user.id);
 
   const { data: commission, error: fetchError } = await adminSupabase
     .from("commissions")
