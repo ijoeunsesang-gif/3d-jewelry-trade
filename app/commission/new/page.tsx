@@ -101,9 +101,10 @@ export default function CommissionNewPage() {
       .select("id, nickname, avatar_url, grade")
       .in("id", ids)
       .eq("role", "seller")
+      .neq("role", "admin")
+      .neq("id", uid)
       .eq("is_seller_banned", false)
-      .is("deleted_at", null)
-      .neq("role", "admin");
+      .is("deleted_at", null);
     console.log("[팔로우 판매자] 쿼리 결과:", profiles, "에러:", error);
     setFollowedSellers((profiles || []).map((p: any) => ({
       id: p.id,
@@ -120,6 +121,7 @@ export default function CommissionNewPage() {
       .select("id, nickname, avatar_url, grade")
       .eq("role", "seller")
       .neq("role", "admin")
+      .neq("id", userId)
       .eq("is_seller_banned", false)
       .is("deleted_at", null)
       .order("nickname", { ascending: true });
