@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
@@ -42,23 +42,6 @@ export default function DescriptionTemplateSelector({
   const [editingTemplate, setEditingTemplate] = useState<DescriptionTemplate | null>(null);
   const [editingName, setEditingName] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Field 컴포넌트의 <label> 래퍼가 빈 공간 클릭을 첫 번째 버튼(saveTemplate)으로 전달하는 것을 방지.
-  // React의 onClick stopPropagation은 네이티브 DOM 이벤트가 label을 통과한 후에 실행되어 효과가 없으므로
-  // 네이티브 이벤트 리스너를 사용해 버튼/입력 요소가 아닌 클릭을 컨테이너에서 차단한다.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const handler = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest("button, input, textarea, select")) {
-        e.stopPropagation();
-      }
-    };
-    el.addEventListener("click", handler);
-    return () => el.removeEventListener("click", handler);
-  }, []);
-
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
@@ -142,7 +125,7 @@ export default function DescriptionTemplateSelector({
 
   return (
     <>
-      <div ref={containerRef} style={{ display: "grid", gap: 12 }}>
+      <div style={{ display: "grid", gap: 12 }} onClick={(e) => e.stopPropagation()}>
         {/* 템플릿 저장 버튼 + 기존 템플릿 목록 */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button

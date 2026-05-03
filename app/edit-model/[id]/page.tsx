@@ -92,7 +92,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label style={{ display: "grid", gap: 8 }}>
+    <div style={{ display: "grid", gap: 8 }}>
       <span
         style={{
           fontSize: 14,
@@ -103,7 +103,7 @@ function Field({
         {label}
       </span>
       {children}
-    </label>
+    </div>
   );
 }
 

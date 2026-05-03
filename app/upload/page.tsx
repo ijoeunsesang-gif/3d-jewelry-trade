@@ -474,10 +474,10 @@ export default function UploadPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "grid", gap: 8, fontWeight: 800, color: "#111827" }}>
+    <div style={{ display: "grid", gap: 8, fontWeight: 800, color: "#111827" }}>
       {label}
       {children}
-    </label>
+    </div>
   );
 }
 
