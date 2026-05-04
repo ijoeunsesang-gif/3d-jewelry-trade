@@ -41,12 +41,17 @@
 }
 
 .heroTitleEn {
-  font-family: var(--font-cinzel), "Georgia", serif;
-  letter-spacing: 0.08em;
+  font-size: 60px;
+  line-height: 1.15;
+  vertical-align: baseline;
+  letter-spacing: 0.06em;
 }
 
 .heroTitleKo {
   font-family: var(--font-cormorant), "Georgia", serif;
+  font-size: 60px;
+  line-height: 1.15;
+  vertical-align: baseline;
   letter-spacing: 0.04em;
 }
 
@@ -580,6 +585,14 @@
   }
 
   .heroTitle {
+    font-size: 44px;
+  }
+
+  .heroTitleEn {
+    font-size: 44px;
+  }
+
+  .heroTitleKo {
     font-size: 44px;
   }
 
