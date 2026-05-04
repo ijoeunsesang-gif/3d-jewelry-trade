@@ -3,7 +3,26 @@
 import { useState } from "react";
 import Link from "next/link";
 
-const SECTIONS = [
+type TextBlock   = { type: "text";     body: string };
+type TipBlock    = { type: "tip";      body: string };
+type StepItem    = { icon: string; label: string; desc: string };
+type StepsBlock  = { type: "steps";    items: StepItem[] };
+type CardItem    = { icon: string; label: string; desc: string };
+type CardsBlock  = { type: "cards";    items: CardItem[] };
+type RevisionItem = {
+  tag: string; tagColor: string; tagBg: string;
+  icon: string; label: string; desc: string;
+  okTitle?: string; ok?: string[];
+  noTitle?: string; no?: string[];
+  flow?: string[];
+};
+type RevisionBlock = { type: "revision"; items: RevisionItem[] };
+type InstallBlock  = { type: "install" };
+type ContentBlock  = TextBlock | TipBlock | StepsBlock | CardsBlock | RevisionBlock | InstallBlock;
+
+type SectionDef = { icon: string; title: string; summary: string; content: ContentBlock[] };
+
+const SECTIONS = ([
   {
     icon: "👤",
     title: "회원가입 / 로그인",
@@ -178,7 +197,7 @@ const SECTIONS = [
       },
     ],
   },
-];
+] satisfies SectionDef[]);
 
 function InstallContent() {
   const [tab, setTab] = useState<"ios" | "android">("ios");
@@ -266,7 +285,7 @@ function InstallContent() {
   );
 }
 
-function SectionContent({ content }: { content: (typeof SECTIONS)[0]["content"] }) {
+function SectionContent({ content }: { content: ContentBlock[] }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {content.map((block, i) => {
