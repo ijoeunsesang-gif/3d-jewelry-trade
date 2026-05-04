@@ -1182,10 +1182,12 @@ export default function CommissionDetailPage() {
           {/* 판매자 정보 */}
           {sellerNickname && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 10, background: "white", border: "1px solid #e5e7eb", marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, flexShrink: 0 }}>담당 판매자</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{sellerNickname}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, flex: 1, flexWrap: "wrap", fontSize: 14, color: "#374151" }}>
+                <span style={{ fontWeight: 700, color: "#111827" }}>{commission.nickname}</span>
+                <span>님이</span>
+                <span style={{ fontWeight: 700, color: "#111827" }}>{sellerNickname}</span>
                 {sellerGrade && <GradeBadge grade={sellerGrade as Grade} size="sm" />}
+                <span>님께 의뢰중입니다</span>
               </div>
               {sellerPhone && (
                 <a href={`tel:${sellerPhone}`} style={{ fontSize: 12, color: "#2563eb", fontWeight: 600, textDecoration: "none", flexShrink: 0 }}>

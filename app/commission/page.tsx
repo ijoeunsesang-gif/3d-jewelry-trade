@@ -356,16 +356,15 @@ export default function CommissionListPage() {
                     const workerName = iAmWorker ? "나" : c.seller_nickname;
                     return (
                       <div style={{ fontSize: 12, color: "#6b7280", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-                        <span>의뢰자: <strong style={{ color: iAmRequester ? "#7c3aed" : "#374151" }}>{requesterName}</strong></span>
-                        <span style={{ margin: "0 2px" }}>·</span>
-                        <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                          작업자: <strong style={{ color: iAmWorker ? "#7c3aed" : "#374151" }}>{workerName}</strong>
-                          {!iAmWorker && c.seller_grade && <GradeBadge grade={c.seller_grade as Grade} size="sm" />}
-                        </span>
+                        <strong style={{ color: iAmRequester ? "#7c3aed" : "#374151" }}>{requesterName}</strong>
+                        <span>님이</span>
+                        <strong style={{ color: iAmWorker ? "#7c3aed" : "#374151" }}>{workerName}</strong>
+                        {!iAmWorker && c.seller_grade && <GradeBadge grade={c.seller_grade as Grade} size="sm" />}
+                        <span>님께 의뢰를 맡겼습니다</span>
                       </div>
                     );
                   })() : (
-                    <div style={{ fontSize: 12, color: "#6b7280" }}>{c.nickname}</div>
+                    <div style={{ fontSize: 12, color: "#6b7280" }}><strong>{c.nickname}</strong>님이 의뢰를 했습니다</div>
                   )}
                 </div>
               </div>
