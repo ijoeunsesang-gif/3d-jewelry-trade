@@ -5,8 +5,6 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
-import GradeBadge from "../components/GradeBadge";
-import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 
@@ -215,6 +213,14 @@ export default function CommissionListPage() {
       padding: "32px 20px 80px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
+      <style>{`
+        .cc-desc { font-size: 12px; color: #6b7280; line-height: 18px; height: 36px; overflow: hidden; display: flex; flex-direction: column; }
+        @media (max-width: 640px) { .cc-desc { height: 54px; } }
+        .cc-names { display: flex; flex-direction: row; align-items: baseline; gap: 4px; overflow: hidden; }
+        @media (max-width: 640px) { .cc-names { flex-direction: column; gap: 0; } }
+        .cc-name-part { display: flex; align-items: baseline; flex-shrink: 0; }
+        .cc-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 75px; }
+      `}</style>
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
@@ -352,19 +358,30 @@ export default function CommissionListPage() {
                   {c.is_private && c.seller_nickname ? (() => {
                     const iAmRequester = c.user_id === currentUserId;
                     const iAmWorker = c.target_seller_id === currentUserId;
-                    const requesterName = iAmRequester ? "나" : c.nickname;
-                    const workerName = iAmWorker ? "나" : c.seller_nickname;
                     return (
-                      <div style={{ fontSize: 12, color: "#6b7280", display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
-                        <strong style={{ color: iAmRequester ? "#7c3aed" : "#374151" }}>{requesterName}</strong>
-                        <span>님이</span>
-                        <strong style={{ color: iAmWorker ? "#7c3aed" : "#374151" }}>{workerName}</strong>
-                        {!iAmWorker && c.seller_grade && <GradeBadge grade={c.seller_grade as Grade} size="sm" />}
-                        <span>님께 의뢰를 맡겼습니다</span>
+                      <div className="cc-desc">
+                        <div className="cc-names">
+                          <span className="cc-name-part">
+                            {iAmRequester
+                              ? <strong style={{ fontWeight: 700, color: "#7c3aed" }}>내가</strong>
+                              : <><span className="cc-name" style={{ color: "#374151" }}>{c.nickname}</span><span>님이</span></>}
+                          </span>
+                          <span className="cc-name-part">
+                            {iAmWorker
+                              ? <strong style={{ fontWeight: 700, color: "#7c3aed" }}>나에게</strong>
+                              : <><span className="cc-name" style={{ color: "#374151" }}>{c.seller_nickname}</span><span>님에게</span></>}
+                          </span>
+                        </div>
+                        <div>의뢰를 맡겼습니다.</div>
                       </div>
                     );
                   })() : (
-                    <div style={{ fontSize: 12, color: "#6b7280" }}><strong>{c.nickname}</strong>님이 의뢰를 했습니다</div>
+                    <div className="cc-desc">
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 2, overflow: "hidden" }}>
+                        <span className="cc-name" style={{ color: "#374151" }}>{c.nickname}</span>
+                        <span>님이 의뢰를 했습니다.</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
