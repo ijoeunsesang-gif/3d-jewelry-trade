@@ -136,8 +136,8 @@ export default function CommissionListPage() {
           // 내가 등록한 의뢰 (공개+개인 모두)
           query = query.eq("user_id", uid);
         } else if (tab === "received" && uid) {
-          // 지목된 개인의뢰 + 판매자 미선택 개인의뢰 (모든 판매자에게 노출)
-          query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`);
+          // 지목된 개인의뢰 + 판매자 미선택 개인의뢰, 단 본인이 올린 의뢰 제외
+          query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`).neq("user_id", uid);
         }
 
         const { data: cData, error } = await query;
