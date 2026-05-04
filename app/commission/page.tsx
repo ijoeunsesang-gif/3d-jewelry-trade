@@ -134,8 +134,8 @@ export default function CommissionListPage() {
         if (tab === "public") {
           query = query.eq("is_private", false);
         } else if (tab === "private" && uid) {
-          // 내가 참여한 개인의뢰 (의뢰자 또는 지목된 판매자)
-          query = query.eq("is_private", true).or(`user_id.eq.${uid},target_seller_id.eq.${uid}`);
+          // 내가 참여한 공개의뢰 중 내가 의뢰자이거나 지목된 판매자인 것
+          query = query.eq("is_private", false).or(`user_id.eq.${uid},target_seller_id.eq.${uid}`);
         } else if (tab === "given" && uid) {
           // 내가 등록한 의뢰 (공개+개인 모두)
           query = query.eq("user_id", uid);

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const { data: commission, error: fetchErr } = await serviceSupabase
     .from("commissions")
-    .select("payment_key, user_id, final_price")
+    .select("payment_key, user_id, final_price, title")
     .eq("id", commission_id)
     .single();
 
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   await serviceSupabase.from("notifications").insert({
     user_id: commission.user_id,
     type: "negotiation",
-    title: `환불 처리 완료 (${refundRate}%)`,
+    title: `🔄 ${commission.title} - 환불 처리가 완료되었습니다`,
     link: `/commission/${commission_id}`,
     is_read: false,
   });

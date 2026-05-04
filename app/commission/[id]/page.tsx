@@ -209,6 +209,7 @@ export default function CommissionDetailPage() {
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [myNickname, setMyNickname] = useState<string | null>(null);
 
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeReasonIdx, setDisputeReasonIdx] = useState(-1);
@@ -236,10 +237,11 @@ export default function CommissionDetailPage() {
       const uid = payload?.sub as string;
       const email = (payload?.email as string) || "";
       setMyId(uid);
-      supabase.from("profiles").select("role").eq("id", uid).single()
+      supabase.from("profiles").select("role, nickname").eq("id", uid).single()
         .then(({ data }) => {
           setIsSeller(data?.role === "seller");
           setIsAdmin(data?.role === "admin");
+          setMyNickname(data?.nickname || null);
         });
     }
     fetchCommission();
@@ -356,7 +358,7 @@ export default function CommissionDetailPage() {
       setResults((prev) => [...prev, { id: data.id, commission_id: data.commission_id, seller_id: data.seller_id, result_link: data.result_link, nickname: profile?.nickname || "판매자", grade: (profile as any)?.grade || null }]);
       setLinkPanelOpen(false);
       if (commission?.user_id && commission.user_id !== myId)
-        await sendNotification(commission.user_id, "result_link", "링크 등록", `/commission/${id}`);
+        await sendNotification(commission.user_id, "result_link", `📦 ${commission.title} - 결과물이 등록되었습니다`, `/commission/${id}`);
       showSuccess("등록되었습니다.");
     } catch (e: any) { showError(e.message || "등록 실패"); }
     finally { setResultSaving(false); }
@@ -437,7 +439,7 @@ export default function CommissionDetailPage() {
       await sendNotification(
         bid.seller_id,
         "private_commission",
-        `[개인의뢰] ${commission.title} - 의뢰자가 회원님을 선택했습니다.`,
+        `📬 ${commission.title} - ${commission.nickname}님이 개인 의뢰를 요청했습니다`,
         `/commission/${id}`
       );
       showSuccess(`${bid.nickname} 님을 선택했습니다.`);
@@ -538,7 +540,7 @@ export default function CommissionDetailPage() {
       setCommentText("");
       await fetchComments();
       if (commission?.user_id && commission.user_id !== myId)
-        await sendNotification(commission.user_id, "comment", "새 댓글", `/commission/${id}`);
+        await sendNotification(commission.user_id, "comment", `💬 ${commission.title} - ${myNickname || "익명"}님이 댓글을 남겼습니다`, `/commission/${id}`);
     } catch (e: any) { showError(e.message || "댓글 등록 실패"); }
     finally { setSubmittingComment(false); }
   };
@@ -559,7 +561,7 @@ export default function CommissionDetailPage() {
         final_price: commission.desired_price,
         final_days: commission.desired_days,
       }).eq("id", id);
-      await sendNotification(commission.user_id, "negotiation", `[개인의뢰] ${commission.title} - 판매자가 협의를 시작했습니다.`, `/commission/${id}`);
+      await sendNotification(commission.user_id, "negotiation", `💬 ${commission.title} - ${myNickname || "판매자"}님이 협의를 시작했습니다`, `/commission/${id}`);
       await fetchCommission();
       showSuccess("수락되었습니다.");
     } catch { showError("처리 실패"); }
@@ -584,7 +586,7 @@ export default function CommissionDetailPage() {
       }).eq("id", id);
       const isRequester = myId === commission.user_id;
       const targetId = isRequester ? commission.target_seller_id! : commission.user_id;
-      await sendNotification(targetId, "negotiation", "협의 제안", `/commission/${id}`);
+      await sendNotification(targetId, "negotiation", `💬 ${commission.title} - ${myNickname || "사용자"}님이 협의를 시작했습니다`, `/commission/${id}`);
       setProposeOpen(false); setProposePrice(""); setProposeDays(""); setProposeMsg("");
       await fetchCommission(); await fetchNegotiations();
     } catch { showError("제안 전송 실패"); }
@@ -602,8 +604,8 @@ export default function CommissionDetailPage() {
         status: "payment", final_price: finalP, final_days: finalD,
       }).eq("id", id);
       await Promise.all([
-        sendNotification(commission.user_id, "negotiation", "협의완료", `/commission/${id}`),
-        sendNotification(commission.target_seller_id!, "negotiation", "협의완료", `/commission/${id}`),
+        sendNotification(commission.user_id, "negotiation", `✅ ${commission.title} - 협의가 완료되었습니다`, `/commission/${id}`),
+        sendNotification(commission.target_seller_id!, "negotiation", `✅ ${commission.title} - 협의가 완료되었습니다`, `/commission/${id}`),
       ]);
       await fetchCommission();
       showSuccess("협의완료 처리되었습니다.");
@@ -780,7 +782,7 @@ export default function CommissionDetailPage() {
       if (!res.ok) throw new Error("파일 업로드 실패");
       const { url } = await res.json();
       await supabase.from("commissions").update({ status: "completed", result_link: url }).eq("id", id);
-      await sendNotification(commission.user_id, "file_upload", `[개인의뢰] ${commission.title} - 작업이 완료되었습니다.`, `/commission/${id}`);
+      await sendNotification(commission.user_id, "file_upload", `📦 ${commission.title} - 결과물이 등록되었습니다`, `/commission/${id}`);
       await fetchCommission();
       showSuccess("결과물이 업로드되었습니다.");
     } catch { showError("파일 업로드 실패"); }
