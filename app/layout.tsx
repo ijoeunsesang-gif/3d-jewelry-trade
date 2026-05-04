@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond } from "next/font/google";
+import { Cormorant_Garamond, Cinzel } from "next/font/google";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["700"],
   variable: "--font-cormorant",
+  display: "swap",
+});
+
+const cinzel = Cinzel({
+  subsets: ["latin"],
+  weight: ["700"],
+  variable: "--font-cinzel",
   display: "swap",
 });
 import Header from "@/app/components/Header";
@@ -38,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={cormorant.variable}>
+    <html lang="ko" className={`${cormorant.variable} ${cinzel.variable}`}>
       <body
         style={{
           margin: 0,

@@ -37,8 +37,17 @@
   font-weight: 700;
   line-height: 1.15;
   color: #c9a84c;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+}
+
+.heroTitleEn {
+  font-family: var(--font-cinzel), "Georgia", serif;
+  letter-spacing: 0.08em;
+}
+
+.heroTitleKo {
   font-family: var(--font-cormorant), "Georgia", serif;
+  letter-spacing: 0.04em;
 }
 
 .heroSubTitle {
