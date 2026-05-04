@@ -952,7 +952,7 @@ export default function ProfilePage() {
 
           {/* 포인트 탭 */}
           {activeTab === "points" && (
-            <PointsTab userId={userId} />
+            <PointsTab userId={userId} isSeller={isSeller} isAdmin={isAdmin} />
           )}
 
         </section>
@@ -1549,7 +1549,7 @@ type PointRow = {
   created_at: string;
 };
 
-function PointsTab({ userId }: { userId: string }) {
+function PointsTab({ userId, isSeller, isAdmin }: { userId: string; isSeller: boolean; isAdmin: boolean }) {
   const GOLD = "#c9a84c";
   const [rows, setRows] = useState<PointRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1656,26 +1656,51 @@ function PointsTab({ userId }: { userId: string }) {
         </button>
         {guideOpen && (
           <div style={{ padding: "0 18px 18px", fontSize: 13, color: "#78350f", lineHeight: 1.9 }}>
+            {/* 적립 방법 */}
             <div style={{ marginBottom: 10 }}>
               <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 방법</strong>
-              <div>• 답변 등록 (20자 이상): <strong style={{ color: GOLD }}>+5P</strong></div>
-              <div>• 답변 채택: <strong style={{ color: GOLD }}>+20P</strong></div>
-              <div>• 답변 좋아요 받기: <strong style={{ color: GOLD }}>+2P</strong></div>
               <div>• 상품 구매: <strong style={{ color: GOLD }}>결제금액의 2% 적립</strong></div>
+              {(isSeller || isAdmin) && (
+                <>
+                  <div>• 물어보기 답변 등록 (20자 이상): <strong style={{ color: GOLD }}>+5P</strong></div>
+                  <div>• 물어보기 답변 채택: <strong style={{ color: GOLD }}>+20P</strong></div>
+                  <div>• 물어보기 답변 좋아요 받기: <strong style={{ color: GOLD }}>+2P</strong></div>
+                </>
+              )}
             </div>
+            {/* 사용 방법 */}
             <div style={{ marginBottom: 10 }}>
-              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 제한</strong>
-              <div>• 같은 질문에 첫 번째 답변만 포인트 지급</div>
-              <div>• 해결된 질문(채택 완료)에 답변 시 포인트 미지급</div>
-              <div>• 하루 최대 적립 한도: <strong>100P</strong></div>
-              <div>• 포인트 유효기간: 적립일로부터 1년</div>
+              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>사용 방법</strong>
+              <div>• 상품 구매 시 최대 결제금액의 <strong>50%</strong>까지 사용 가능</div>
+              <div>• 1포인트 = 1원 할인</div>
             </div>
-            <div>
-              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>주의사항</strong>
-              <div>• 복사/붙여넣기, 도배, 관련 없는 답변은 신고 대상</div>
-              <div>• 신고 3회 이상 누적 시 포인트 회수 및 적립 차단</div>
-              <div>• 차단 해제는 관리자에게 문의</div>
-            </div>
+            {/* 적립 제한 (판매자/관리자만) */}
+            {(isSeller || isAdmin) && (
+              <div style={{ marginBottom: 10 }}>
+                <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 제한</strong>
+                <div>• 같은 질문에 첫 번째 답변만 포인트 지급</div>
+                <div>• 해결된 질문(채택 완료)에 답변 시 포인트 미지급</div>
+                <div>• 하루 최대 적립 한도: <strong>100P</strong></div>
+                <div>• 포인트 유효기간: 적립일로부터 1년</div>
+              </div>
+            )}
+            {/* 안내사항 (구매자) */}
+            {!isSeller && !isAdmin && (
+              <div style={{ marginBottom: 10 }}>
+                <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>안내사항</strong>
+                <div>• 포인트 유효기간: 적립일로부터 1년</div>
+                <div>• 만료 30일 전 알림 표시</div>
+              </div>
+            )}
+            {/* 주의사항 (판매자/관리자만) */}
+            {(isSeller || isAdmin) && (
+              <div>
+                <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>주의사항</strong>
+                <div>• 복사/붙여넣기, 도배, 관련 없는 답변은 신고 대상</div>
+                <div>• 신고 3회 이상 누적 시 포인트 회수 및 적립 차단</div>
+                <div>• 차단 해제는 관리자에게 문의</div>
+              </div>
+            )}
           </div>
         )}
       </div>
