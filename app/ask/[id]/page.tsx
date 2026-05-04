@@ -87,8 +87,7 @@ export default function AskDetailPage() {
   const [answers, setAnswers] = useState<AskAnswer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 포인트 안내 아코디언
-  const [pointGuideOpen, setPointGuideOpen] = useState(false);
+
 
   // 답변 작성
   const [answerContent, setAnswerContent] = useState("");
@@ -444,52 +443,6 @@ export default function AskDetailPage() {
       }}>
         ← 목록으로
       </Link>
-
-      {/* 포인트 적립 안내 아코디언 */}
-      <div style={{
-        background: "#fdf8ec", border: `1px solid #f0d88a`,
-        borderRadius: 16, marginBottom: 20, overflow: "hidden",
-      }}>
-        <button
-          onClick={() => setPointGuideOpen((v) => !v)}
-          style={{
-            width: "100%", padding: "14px 18px",
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            background: "transparent", border: "none", cursor: "pointer",
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 800, color: "#92400e" }}>
-            💡 포인트 적립 안내
-          </span>
-          <span style={{
-            fontSize: 18, color: "#c9a84c", transform: pointGuideOpen ? "rotate(180deg)" : "none",
-            transition: "transform 0.2s",
-          }}>▾</span>
-        </button>
-        {pointGuideOpen && (
-          <div style={{ padding: "0 18px 18px", fontSize: 13, color: "#78350f", lineHeight: 1.9 }}>
-            <div style={{ marginBottom: 10 }}>
-              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 방법</strong>
-              <div>• 답변 등록 (20자 이상): <strong style={{ color: GOLD }}>+5P</strong></div>
-              <div>• 답변 채택: <strong style={{ color: GOLD }}>+20P</strong></div>
-              <div>• 답변 좋아요 받기: <strong style={{ color: GOLD }}>+2P</strong></div>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 제한</strong>
-              <div>• 같은 질문에 첫 번째 답변만 포인트 지급</div>
-              <div>• 해결된 질문(채택 완료)에 답변 시 포인트 미지급</div>
-              <div>• 하루 최대 적립 한도: <strong>100P</strong></div>
-              <div>• 포인트 유효기간: 적립일로부터 1년</div>
-            </div>
-            <div>
-              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>주의사항</strong>
-              <div>• 복사/붙여넣기, 도배, 관련 없는 답변은 신고 대상</div>
-              <div>• 신고 3회 이상 누적 시 포인트 회수 및 적립 차단</div>
-              <div>• 차단 해제는 관리자에게 문의</div>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* 질문 카드 */}
       <div style={{
