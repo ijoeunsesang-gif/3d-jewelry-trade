@@ -272,6 +272,8 @@ export default function CommissionDetailPage() {
   const [sellerReNegMessage, setSellerReNegMessage] = useState("");
   const [showSellerReNegForm, setShowSellerReNegForm] = useState(false);
 
+  const [showUploadWarning, setShowUploadWarning] = useState(false);
+
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
@@ -1252,6 +1254,61 @@ export default function CommissionDetailPage() {
       maxWidth: 800, margin: "0 auto", padding: "32px 20px 80px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
+
+      {/* ── 결과물 업로드 경고 모달 ── */}
+      {showUploadWarning && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9999,
+          background: "rgba(0,0,0,0.55)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 20px",
+        }}
+          onClick={() => setShowUploadWarning(false)}
+        >
+          <div style={{
+            background: "white", borderRadius: 20, padding: "32px 28px",
+            maxWidth: 420, width: "100%",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+          }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#111827", marginBottom: 16 }}>
+              ⚠️ 업로드 전 확인해주세요
+            </div>
+            <p style={{
+              margin: "0 0 28px", fontSize: 16, color: "#374151",
+              lineHeight: 1.8, fontWeight: 500,
+            }}>
+              전체적인 이미지 컨펌 후 업로드 하시기 바랍니다.<br />
+              전체 이미지 컨펌을 하지 않고 업로드 시<br />
+              무료 수정요청을 받을 수 있습니다.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowUploadWarning(false)}
+                style={{
+                  flex: 1, height: 48, borderRadius: 12,
+                  border: "1.5px solid #e5e7eb", background: "white",
+                  color: "#6b7280", fontSize: 15, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={() => { setShowUploadWarning(false); fileUploadRef.current?.click(); }}
+                style={{
+                  flex: 1, height: 48, borderRadius: 12,
+                  border: "none", background: "#111827",
+                  color: "#c9a84c", fontSize: 15, fontWeight: 800, cursor: "pointer",
+                }}
+              >
+                확인했습니다
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Link href="/commission" style={{
         display: "inline-flex", alignItems: "center", gap: 6,
         fontSize: 18, fontWeight: 700, color: "#111827",
@@ -1712,7 +1769,7 @@ export default function CommissionDetailPage() {
               </div>
               {isTargetSeller && (
                 <>
-                  <button onClick={() => fileUploadRef.current?.click()} disabled={negSubmitting} style={{
+                  <button onClick={() => setShowUploadWarning(true)} disabled={negSubmitting} style={{
                     width: "100%", height: 44, borderRadius: 10, border: "1px dashed #d1d5db", background: "white",
                     color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
                   }}>
@@ -2248,7 +2305,10 @@ export default function CommissionDetailPage() {
         (isAuthor || isTargetSeller) &&
         !(commission.commission_type === "공개모집" && commission.bid_status === "모집중") && (
         <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 28, paddingTop: 24 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 12 }}>채팅</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>채팅</span>
+            <span style={{ fontSize: 13, color: "#c9a84c", fontWeight: 600 }}>충분한 대화 후 작업을 진행해주세요.</span>
+          </div>
 
           {/* 메시지 목록 */}
           <div
