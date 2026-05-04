@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const { data: model, error: modelError } = await adminSupabase
       .from("models")
-      .select("model_file_path, download_count")
+      .select("model_file_path, download_count, seller_id")
       .eq("id", modelId)
       .single();
 
@@ -86,6 +86,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "모델 파일 경로를 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    if (model.seller_id === user.id) {
+      return NextResponse.json(
+        { error: "본인이 등록한 모델은 다운로드할 수 없습니다." },
+        { status: 403 }
       );
     }
 

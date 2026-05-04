@@ -41,12 +41,15 @@ export default function Home() {
   const [quickSeller, setQuickSeller] = useState<ProfileItem | null>(null);
   const [quickLiked, setQuickLiked] = useState(false);
   const [quickFavoriteLoading, setQuickFavoriteLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const searchWrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     fetchModels();
     fetchFavorites();
+    const token = getAccessToken();
+    if (token) setCurrentUserId((decodeJwt(token) as any)?.sub ?? null);
   }, []);
 
   // 카테고리/정렬/검색 변경 시 페이지 초기화
@@ -599,6 +602,7 @@ export default function Home() {
                     onToggleFavorite={toggleFavorite}
                     onQuickView={openQuickView}
                     getThumbnailUrl={getThumbnailUrl}
+                    currentUserId={currentUserId}
                   />
                 ))
               : <p className={styles.emptyText}>추가로 표시할 모델이 없습니다.</p>}

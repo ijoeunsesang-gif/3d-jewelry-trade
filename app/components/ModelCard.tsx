@@ -26,6 +26,7 @@ type Props = {
   onToggleFavorite: (id: string) => void;
   onQuickView: (item: ModelItem) => void;
   getThumbnailUrl: (item: ModelItem) => string;
+  currentUserId?: string | null;
 };
 
 function highlightText(text: string | null | undefined, keyword: string) {
@@ -52,9 +53,11 @@ export default function ModelCard({
   onToggleFavorite,
   onQuickView,
   getThumbnailUrl,
+  currentUserId,
 }: Props) {
   const thumbUrl = getThumbnailUrl(item);
   const isPopular = (item.download_count || 0) >= 5;
+  const isOwnModel = !!currentUserId && currentUserId === item.seller_id;
 
   return (
     <Link
@@ -129,8 +132,10 @@ export default function ModelCard({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (!liking) onToggleFavorite(item.id);
+              if (!liking && !isOwnModel) onToggleFavorite(item.id);
             }}
+            disabled={isOwnModel}
+            title={isOwnModel ? "본인 모델은 구매할 수 없습니다" : undefined}
             aria-label="찜하기"
             style={{
               position: "absolute",
@@ -144,7 +149,8 @@ export default function ModelCard({
               color: "white",
               fontSize: 18,
               fontWeight: 900,
-              cursor: "pointer",
+              cursor: isOwnModel ? "not-allowed" : "pointer",
+              opacity: isOwnModel ? 0.45 : 1,
             }}
           >
             {liked ? "♥" : "♡"}

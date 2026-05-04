@@ -48,6 +48,14 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [extraFiles, setExtraFiles] = useState<{ file_name: string; file_type: string }[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (token) setCurrentUserId((decodeJwt(token) as any)?.sub ?? null);
+  }, []);
+
+  const isOwnModel = !!currentUserId && currentUserId === model.seller_id;
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -801,7 +809,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
               <>
                 <button
                   type="button"
-                  onClick={handleBuyNow}
+                  onClick={isOwnModel ? undefined : handleBuyNow}
+                  disabled={isOwnModel}
+                  title={isOwnModel ? "본인 모델은 구매할 수 없습니다" : undefined}
                   style={{
                     height: 52,
                     borderRadius: 16,
@@ -809,8 +819,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                     background: "#111827",
                     color: "white",
                     fontWeight: 900,
-                    cursor: "pointer",
+                    cursor: isOwnModel ? "not-allowed" : "pointer",
                     fontSize: 17,
+                    opacity: isOwnModel ? 0.45 : 1,
                   }}
                 >
                   구매하기
@@ -818,7 +829,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
                 <button
                   type="button"
-                  onClick={isInCart ? () => router.push("/cart") : handleAddToCart}
+                  onClick={isOwnModel ? undefined : (isInCart ? () => router.push("/cart") : handleAddToCart)}
+                  disabled={isOwnModel}
+                  title={isOwnModel ? "본인 모델은 구매할 수 없습니다" : undefined}
                   style={{
                     height: 52,
                     borderRadius: 16,
@@ -826,8 +839,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                     background: isInCart ? "#16a34a" : "white",
                     color: isInCart ? "white" : "#111827",
                     fontWeight: 800,
-                    cursor: "pointer",
+                    cursor: isOwnModel ? "not-allowed" : "pointer",
                     fontSize: 17,
+                    opacity: isOwnModel ? 0.45 : 1,
                     ...(isInCart ? {} : { border: "1px solid #d1d5db" }),
                   }}
                 >
@@ -836,8 +850,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
                 <button
                   type="button"
-                  onClick={toggleFavorite}
-                  disabled={favoriteLoading}
+                  onClick={isOwnModel ? undefined : toggleFavorite}
+                  disabled={isOwnModel || favoriteLoading}
+                  title={isOwnModel ? "본인 모델은 구매할 수 없습니다" : undefined}
                   style={{
                     height: 52,
                     borderRadius: 16,
@@ -845,8 +860,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                     background: liked ? "#ef4444" : "white",
                     color: liked ? "white" : "#111827",
                     fontWeight: 900,
-                    cursor: "pointer",
+                    cursor: isOwnModel ? "not-allowed" : "pointer",
                     fontSize: 17,
+                    opacity: isOwnModel ? 0.45 : 1,
                   }}
                 >
                   {favoriteLoading ? "처리 중..." : liked ? "찜 해제" : "찜하기"}
