@@ -122,6 +122,43 @@ function PaymentSuccessContent() {
             body: JSON.stringify({ purchases: gradePayload }),
           }).catch((e) => console.error("등급 업데이트 실패:", e));
         }
+
+        // 포인트 처리 (사용 차감 + 구매 적립)
+        const pointsBase = `${window.location.origin}/api/points`;
+        const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+        // 사용한 포인트 차감
+        const usedPoints = (pending as any).usedPoints as number | undefined;
+        if (usedPoints && usedPoints > 0) {
+          fetch(pointsBase, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: userId,
+              amount: -usedPoints,
+              reason: "구매 사용",
+              reference_id: orderId,
+            }),
+          }).catch((e) => console.error("포인트 차감 실패:", e));
+        }
+
+        // 구매 적립 (최종 결제금액의 2%, 소수점 버림)
+        const originalPrice = (pending as any).originalPrice as number | undefined;
+        const accrualBase = originalPrice ?? amount;
+        const accrual = Math.floor(accrualBase * 0.02);
+        if (accrual > 0) {
+          fetch(pointsBase, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: userId,
+              amount: accrual,
+              reason: "구매 적립",
+              reference_id: orderId,
+              expires_at: expiresAt,
+            }),
+          }).catch((e) => console.error("포인트 적립 실패:", e));
+        }
       }
 
       // 완료 처리

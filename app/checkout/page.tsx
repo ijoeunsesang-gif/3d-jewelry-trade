@@ -28,13 +28,20 @@ function CheckoutContent() {
   const widgetsRef = useRef<any>(null);
   const widgetInitRef = useRef(false);
 
+  const [myPoints, setMyPoints] = useState(0);
+  const [usedPoints, setUsedPoints] = useState(0);
+
   const totalPrice = useMemo(
     () => items.reduce((sum, item) => sum + item.price, 0),
     [items]
   );
 
+  const maxUsable = Math.floor(totalPrice * 0.5);
+  const finalPrice = Math.max(0, totalPrice - usedPoints);
+
   useEffect(() => {
     bootstrap();
+    loadMyPoints();
   }, []);
 
   // 아이템 로드 완료 후 위젯 초기화
@@ -44,6 +51,37 @@ function CheckoutContent() {
       initWidgets(items.reduce((sum, item) => sum + item.price, 0));
     }
   }, [loading, items]);
+
+  const loadMyPoints = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    const uid = (decodeJwt(token) as any)?.sub as string;
+    const { data } = await supabase
+      .from("points")
+      .select("amount, expires_at")
+      .eq("user_id", uid);
+    if (data) {
+      const now = new Date();
+      const effective = (data as { amount: number; expires_at: string | null }[]).reduce(
+        (sum, r) => (r.expires_at && new Date(r.expires_at) <= now ? sum : sum + r.amount),
+        0
+      );
+      setMyPoints(Math.max(0, effective));
+    }
+  };
+
+  const handlePointsInput = async (value: string) => {
+    const num = parseInt(value.replace(/[^0-9]/g, ""), 10) || 0;
+    const clamped = Math.min(num, maxUsable, myPoints);
+    setUsedPoints(clamped);
+    if (widgetsRef.current) {
+      try {
+        await widgetsRef.current.setAmount({ currency: "KRW", value: Math.max(1, totalPrice - clamped) });
+      } catch (e) {
+        console.error("위젯 금액 업데이트 실패:", e);
+      }
+    }
+  };
 
   const bootstrap = async () => {
     try {
@@ -211,7 +249,9 @@ function CheckoutContent() {
       "pendingPayment",
       JSON.stringify({
         items,
-        totalPrice,
+        totalPrice: finalPrice,
+        originalPrice: totalPrice,
+        usedPoints,
         buyerName: buyerName.trim(),
         buyerEmail: buyerEmail.trim(),
         orderId,
@@ -508,38 +548,85 @@ function CheckoutContent() {
               결제 요약
             </h2>
 
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 10,
-                fontSize: 15,
-                color: "#6b7280",
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
               <span>상품 수</span>
               <span>{items.length}개</span>
             </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 18,
-                marginTop: 12,
-                fontSize: 20,
-                fontWeight: 900,
-                color: "#111827",
-                borderTop: "1px solid #f3f4f6",
-                paddingTop: 14,
-              }}
-            >
-              <span>총 결제금액</span>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
+              <span>상품 금액</span>
               <span>{totalPrice.toLocaleString("ko-KR")}원</span>
             </div>
 
+            {/* 포인트 사용 */}
+            <div style={{
+              margin: "14px 0",
+              padding: "16px",
+              borderRadius: 14,
+              background: "#fdf8ec",
+              border: "1px solid #c9a84c44",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 10 }}>
+                포인트 사용
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
+                <span>보유 포인트</span>
+                <span style={{ fontWeight: 700, color: "#c9a84c" }}>{myPoints.toLocaleString("ko-KR")} P</span>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="number"
+                  min={0}
+                  max={Math.min(maxUsable, myPoints)}
+                  value={usedPoints || ""}
+                  onChange={(e) => handlePointsInput(e.target.value)}
+                  placeholder="0"
+                  disabled={myPoints === 0}
+                  style={{
+                    flex: 1, height: 40, borderRadius: 10,
+                    border: "1.5px solid #d1d5db", padding: "0 10px",
+                    fontSize: 14, outline: "none", boxSizing: "border-box",
+                    background: myPoints === 0 ? "#f9fafb" : "white",
+                  }}
+                />
+                <span style={{ fontSize: 13, color: "#374151", fontWeight: 700, flexShrink: 0 }}>P</span>
+                <button
+                  type="button"
+                  onClick={() => handlePointsInput(String(Math.min(maxUsable, myPoints)))}
+                  disabled={myPoints === 0}
+                  style={{
+                    height: 40, padding: "0 12px", borderRadius: 10, border: "none",
+                    background: myPoints === 0 ? "#e5e7eb" : "#111827",
+                    color: myPoints === 0 ? "#9ca3af" : "#c9a84c",
+                    fontSize: 13, fontWeight: 800,
+                    cursor: myPoints === 0 ? "default" : "pointer", flexShrink: 0,
+                  }}
+                >
+                  전액사용
+                </button>
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: "#9ca3af" }}>
+                최대 사용 가능: {Math.min(maxUsable, myPoints).toLocaleString("ko-KR")} P
+                (결제금액의 50%)
+              </div>
+              {usedPoints > 0 && (
+                <div style={{ marginTop: 8, fontSize: 13, color: "#16a34a", fontWeight: 700 }}>
+                  − {usedPoints.toLocaleString("ko-KR")} P 적용됨
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              display: "flex", justifyContent: "space-between",
+              marginBottom: 18, fontSize: 20, fontWeight: 900, color: "#111827",
+              borderTop: "1px solid #f3f4f6", paddingTop: 14,
+            }}>
+              <span>최종 결제금액</span>
+              <span>{finalPrice.toLocaleString("ko-KR")}원</span>
+            </div>
+
             <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>
-              ℹ️ 구매 후 6개월간 횟수 제한없이 다운로드 가능
+              ℹ️ 구매 후 6개월간 횟수 제한없이 다운로드 가능<br />
+              💰 결제금액의 2% 포인트 자동 적립
             </p>
 
             <button

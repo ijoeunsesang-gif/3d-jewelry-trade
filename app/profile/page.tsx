@@ -9,7 +9,7 @@ import GradeBadge from "../components/GradeBadge";
 import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
-type TabId = "basic" | "follow" | "seller" | "stats" | "grade";
+type TabId = "basic" | "follow" | "seller" | "stats" | "grade" | "points";
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
 type PurchaseRow = { id: string; model_id: string; price: number; created_at: string };
 type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
@@ -449,6 +449,7 @@ export default function ProfilePage() {
     { id: "follow", label: "팔로우" },
     { id: "seller", label: "판매자 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
+    { id: "points", label: "포인트" },
   ];
 
   if (loading) {
@@ -947,6 +948,11 @@ export default function ProfilePage() {
           {/* 판매 통계 탭 (seller 전용) */}
           {activeTab === "stats" && isSeller && (
             <SalesTab userId={userId} />
+          )}
+
+          {/* 포인트 탭 */}
+          {activeTab === "points" && (
+            <PointsTab userId={userId} />
           )}
 
         </section>
@@ -1532,3 +1538,165 @@ const actionBtn: React.CSSProperties = {
   cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
   alignSelf: "flex-start",
 };
+
+/* ── 포인트 탭 ── */
+type PointRow = {
+  id: string;
+  amount: number;
+  reason: string;
+  reference_id: string | null;
+  expires_at: string | null;
+  created_at: string;
+};
+
+function PointsTab({ userId }: { userId: string }) {
+  const GOLD = "#c9a84c";
+  const [rows, setRows] = useState<PointRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!userId || loadedRef.current) return;
+    loadedRef.current = true;
+    (async () => {
+      const { data } = await sbAuthFetch(
+        "points",
+        `?user_id=eq.${userId}&order=created_at.desc&limit=50`
+      );
+      setRows((data as PointRow[]) || []);
+      setLoading(false);
+    })();
+  }, [userId]);
+
+  if (loading) {
+    return <p style={{ color: "#6b7280", padding: "20px 0" }}>포인트 정보를 불러오는 중...</p>;
+  }
+
+  const now = new Date();
+  const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  // 유효 포인트만 합산 (만료 제외)
+  const effectiveBalance = rows.reduce((sum, r) => {
+    if (r.expires_at && new Date(r.expires_at) <= now) return sum;
+    return sum + r.amount;
+  }, 0);
+
+  // 30일 내 만료 예정 포인트 (플러스 항목만)
+  const expiringSoon = rows.reduce((sum, r) => {
+    if (!r.expires_at) return sum;
+    const exp = new Date(r.expires_at);
+    if (exp > now && exp <= thirtyDaysLater && r.amount > 0) return sum + r.amount;
+    return sum;
+  }, 0);
+
+  // 최근 10건 표시용 - 잔액 누적 계산 (오래된 순 → 최신 순으로 누적 후 역순)
+  const recent10 = [...rows].slice(0, 10);
+  // 전체 기준 누적 잔액 계산 (오래된 것부터)
+  const chronological = [...rows].reverse();
+  const balanceMap: Record<string, number> = {};
+  let running = 0;
+  for (const r of chronological) {
+    if (r.expires_at && new Date(r.expires_at) <= now) continue;
+    running += r.amount;
+    balanceMap[r.id] = running;
+  }
+
+  return (
+    <div style={{ padding: "4px 0" }}>
+      <h2 style={sectionTitle}>포인트</h2>
+
+      {/* 보유 포인트 카드 */}
+      <div style={{
+        background: "#111827", borderRadius: 18, padding: "24px 22px",
+        marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between",
+        flexWrap: "wrap", gap: 12,
+      }}>
+        <div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontWeight: 600, marginBottom: 6 }}>
+            현재 보유 포인트
+          </div>
+          <div style={{ fontSize: 36, fontWeight: 900, color: GOLD }}>
+            {effectiveBalance.toLocaleString("ko-KR")} P
+          </div>
+        </div>
+        {expiringSoon > 0 && (
+          <div style={{
+            padding: "10px 16px", borderRadius: 12,
+            background: "#fef3c7", border: "1px solid #fcd34d",
+            fontSize: 14, fontWeight: 700, color: "#92400e",
+          }}>
+            ⚠️ 30일 내 만료 예정: {expiringSoon.toLocaleString("ko-KR")} P
+          </div>
+        )}
+      </div>
+
+      {/* 포인트 안내 */}
+      <div style={{
+        padding: "14px 18px", borderRadius: 14,
+        background: "#fdf8ec", border: "1px solid #c9a84c44",
+        marginBottom: 20, fontSize: 13, color: "#78350f", lineHeight: 1.7,
+      }}>
+        💡 구매 적립 포인트는 적립일로부터 1년간 유효합니다. Q&A 포인트(답변/채택/좋아요)는 유효기간이 없습니다.
+        결제 시 최대 결제금액의 50%까지 사용할 수 있습니다.
+      </div>
+
+      {/* 포인트 내역 */}
+      <h3 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: "0 0 12px" }}>
+        포인트 내역 (최근 10건)
+      </h3>
+
+      {recent10.length === 0 ? (
+        <div style={{ padding: "32px 0", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
+          포인트 내역이 없습니다.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 1, borderRadius: 14, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+          {/* 헤더 */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr auto auto",
+            gap: 8, padding: "10px 16px",
+            background: "#f9fafb", fontSize: 12, fontWeight: 700, color: "#6b7280",
+          }}>
+            <span>일시</span>
+            <span>내용</span>
+            <span style={{ textAlign: "right" }}>포인트</span>
+            <span style={{ textAlign: "right", minWidth: 70 }}>잔액</span>
+          </div>
+          {recent10.map((r) => {
+            const isExpired = r.expires_at ? new Date(r.expires_at) <= now : false;
+            const isPlus = r.amount > 0;
+            return (
+              <div key={r.id} style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr auto auto",
+                gap: 8, padding: "12px 16px",
+                background: isExpired ? "#fafafa" : "white",
+                borderTop: "1px solid #f3f4f6",
+                opacity: isExpired ? 0.5 : 1,
+              }}>
+                <span style={{ fontSize: 13, color: "#6b7280" }}>
+                  {new Date(r.created_at).toLocaleDateString("ko-KR")}
+                </span>
+                <span style={{ fontSize: 13, color: "#374151", fontWeight: 600 }}>
+                  {r.reason}
+                  {isExpired && <span style={{ marginLeft: 6, fontSize: 11, color: "#9ca3af" }}>(만료)</span>}
+                </span>
+                <span style={{
+                  fontSize: 14, fontWeight: 800, textAlign: "right",
+                  color: isPlus ? "#16a34a" : "#dc2626",
+                  minWidth: 60,
+                }}>
+                  {isPlus ? "+" : ""}{r.amount.toLocaleString("ko-KR")}P
+                </span>
+                <span style={{ fontSize: 13, color: "#374151", fontWeight: 700, textAlign: "right", minWidth: 70 }}>
+                  {balanceMap[r.id] !== undefined
+                    ? balanceMap[r.id].toLocaleString("ko-KR") + "P"
+                    : "-"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
