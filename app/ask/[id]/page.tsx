@@ -8,6 +8,16 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 
 const GOLD = "#c9a84c";
 const MAX_IMAGES = 5;
+const DAILY_POINT_LIMIT = 100;
+const MIN_ANSWER_LENGTH = 20;
+const REPORT_THRESHOLD = 3;
+
+const REPORT_REASONS = [
+  "복사/붙여넣기 의심",
+  "질문과 관련 없는 답변",
+  "욕설/비방",
+  "기타",
+];
 
 type AskPost = {
   id: string;
@@ -30,14 +40,41 @@ type AskAnswer = {
   images: string[];
   likes: number;
   is_accepted: boolean;
+  report_count: number;
   created_at: string;
   nickname: string;
   liked: boolean;
+  reported: boolean;
 };
 
-const addPoints = async (userId: string, amount: number, reason: string, referenceId?: string) => {
+// 포인트 지급 가능 여부를 확인 후 지급하는 내부 헬퍼
+const tryAddAskPoints = async (
+  userId: string,
+  amount: number,
+  reason: string,
+  referenceId?: string
+): Promise<boolean> => {
+  // 1. is_point_blocked 확인
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_point_blocked")
+    .eq("id", userId)
+    .single();
+  if (profile?.is_point_blocked) return false;
+
+  // 2. 일일 한도 확인
+  const { data: todayRows } = await supabase
+    .from("points")
+    .select("amount")
+    .eq("user_id", userId)
+    .in("reason", ["답변 등록", "답변 좋아요", "답변 채택"])
+    .gte("created_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
+  const todayTotal = (todayRows || []).reduce((s: number, r: any) => s + (r.amount > 0 ? r.amount : 0), 0);
+  if (todayTotal >= DAILY_POINT_LIMIT) return false;
+
   await supabase.from("points").insert({ user_id: userId, amount, reason, reference_id: referenceId || null });
   await supabase.rpc("increment_profile_points", { uid: userId, delta: amount });
+  return true;
 };
 
 export default function AskDetailPage() {
@@ -50,6 +87,9 @@ export default function AskDetailPage() {
   const [answers, setAnswers] = useState<AskAnswer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 포인트 안내 아코디언
+  const [pointGuideOpen, setPointGuideOpen] = useState(false);
+
   // 답변 작성
   const [answerContent, setAnswerContent] = useState("");
   const [answerImages, setAnswerImages] = useState<string[]>([]);
@@ -57,6 +97,14 @@ export default function AskDetailPage() {
   const [answerSubmitting, setAnswerSubmitting] = useState(false);
   const [answerDragOver, setAnswerDragOver] = useState(false);
   const answerFileRef = useRef<HTMLInputElement>(null);
+
+  // 신고 모달
+  const [reportTarget, setReportTarget] = useState<AskAnswer | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  // 신고 누적 답변 펼치기
+  const [expandedReported, setExpandedReported] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const token = getAccessToken();
@@ -73,7 +121,6 @@ export default function AskDetailPage() {
     fetchPost();
   }, [myRole, id]);
 
-  // 드롭존 밖 드래그 시 새창 방지
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
     document.addEventListener("dragover", prevent);
@@ -86,8 +133,6 @@ export default function AskDetailPage() {
 
   const fetchPost = async () => {
     setLoading(true);
-
-    // 조회수 증가
     await supabase.rpc("increment_ask_view", { post_id: id });
 
     const { data: postData } = await supabase
@@ -97,10 +142,7 @@ export default function AskDetailPage() {
       .single();
 
     if (!postData) { setLoading(false); return; }
-    setPost({
-      ...postData,
-      nickname: (postData.profiles as any)?.nickname || "익명",
-    });
+    setPost({ ...postData, nickname: (postData.profiles as any)?.nickname || "익명" });
 
     await fetchAnswers();
     setLoading(false);
@@ -117,14 +159,15 @@ export default function AskDetailPage() {
 
     if (!answersData) return;
 
-    // 내가 좋아요한 답변 목록
     let likedSet = new Set<string>();
+    let reportedSet = new Set<string>();
     if (myId) {
-      const { data: likes } = await supabase
-        .from("ask_answer_likes")
-        .select("answer_id")
-        .eq("user_id", myId);
+      const [{ data: likes }, { data: reports }] = await Promise.all([
+        supabase.from("ask_answer_likes").select("answer_id").eq("user_id", myId),
+        supabase.from("ask_reports").select("answer_id").eq("reporter_id", myId),
+      ]);
       likedSet = new Set((likes || []).map((l: any) => l.answer_id));
+      reportedSet = new Set((reports || []).map((r: any) => r.answer_id));
     }
 
     setAnswers(
@@ -132,6 +175,8 @@ export default function AskDetailPage() {
         ...a,
         nickname: (a.profiles as any)?.nickname || "익명",
         liked: likedSet.has(a.id),
+        reported: reportedSet.has(a.id),
+        report_count: a.report_count ?? 0,
       }))
     );
   };
@@ -166,18 +211,43 @@ export default function AskDetailPage() {
 
     const { data, error } = await supabase
       .from("ask_answers")
-      .insert({
-        post_id: id,
-        user_id: myId,
-        content: answerContent.trim(),
-        images: answerImages,
-      })
+      .insert({ post_id: id, user_id: myId, content: answerContent.trim(), images: answerImages })
       .select()
       .single();
 
     if (!error && data) {
-      // +5 포인트 (답변 등록)
-      await addPoints(myId, 5, "답변 등록", data.id);
+      // 포인트 지급 조건 검사
+      const meetsLength = answerContent.trim().length >= MIN_ANSWER_LENGTH;
+      const isSolved = post?.is_solved ?? false;
+
+      if (meetsLength && !isSolved) {
+        // 이 post_id에 이미 포인트를 받은 적 있는지 확인
+        const { data: prevPoints } = await supabase
+          .from("points")
+          .select("id")
+          .eq("user_id", myId)
+          .eq("reason", "답변 등록")
+          .like("reference_id", `%`) // reference_id는 answer.id — post_id와 맞춰 조회
+          .limit(1);
+
+        // answer.id 기반이므로 post 내 기존 답변 id들로 확인
+        const myPrevAnswers = answers.filter((a) => a.user_id === myId);
+        const alreadyEarned = myPrevAnswers.length > 0
+          ? (await supabase
+              .from("points")
+              .select("id")
+              .eq("user_id", myId)
+              .eq("reason", "답변 등록")
+              .in("reference_id", myPrevAnswers.map((a) => a.id))
+              .limit(1)
+            ).data?.length ?? 0
+          : 0;
+
+        if (alreadyEarned === 0) {
+          await tryAddAskPoints(myId, 5, "답변 등록", data.id);
+        }
+      }
+
       setAnswerContent("");
       setAnswerImages([]);
       await fetchAnswers();
@@ -189,22 +259,13 @@ export default function AskDetailPage() {
     if (!myId || answer.user_id === myId) return;
 
     if (answer.liked) {
-      // 좋아요 취소
-      await supabase.from("ask_answer_likes").delete()
-        .eq("answer_id", answer.id).eq("user_id", myId);
-      await supabase.from("ask_answers")
-        .update({ likes: Math.max(0, answer.likes - 1) })
-        .eq("id", answer.id);
+      await supabase.from("ask_answer_likes").delete().eq("answer_id", answer.id).eq("user_id", myId);
+      await supabase.from("ask_answers").update({ likes: Math.max(0, answer.likes - 1) }).eq("id", answer.id);
     } else {
-      // 좋아요
-      const { error } = await supabase.from("ask_answer_likes")
-        .insert({ answer_id: answer.id, user_id: myId });
+      const { error } = await supabase.from("ask_answer_likes").insert({ answer_id: answer.id, user_id: myId });
       if (!error) {
-        await supabase.from("ask_answers")
-          .update({ likes: answer.likes + 1 })
-          .eq("id", answer.id);
-        // +2 포인트 (답변 좋아요)
-        await addPoints(answer.user_id, 2, "답변 좋아요", answer.id);
+        await supabase.from("ask_answers").update({ likes: answer.likes + 1 }).eq("id", answer.id);
+        await tryAddAskPoints(answer.user_id, 2, "답변 좋아요", answer.id);
       }
     }
     await fetchAnswers();
@@ -213,7 +274,6 @@ export default function AskDetailPage() {
   const handleAccept = async (answer: AskAnswer) => {
     if (!post || post.user_id !== myId || post.is_solved) return;
 
-    // 답변 채택
     await supabase.from("ask_answers").update({ is_accepted: true }).eq("id", answer.id);
     await supabase.from("ask_posts").update({
       is_solved: true,
@@ -221,21 +281,62 @@ export default function AskDetailPage() {
       updated_at: new Date().toISOString(),
     }).eq("id", post.id);
 
-    // +20 포인트 (답변 채택)
-    await addPoints(answer.user_id, 20, "답변 채택", answer.id);
+    await tryAddAskPoints(answer.user_id, 20, "답변 채택", answer.id);
     await fetchPost();
   };
 
+  const handleReport = async () => {
+    if (!myId || !reportTarget || !reportReason || reportSubmitting) return;
+    setReportSubmitting(true);
+
+    const { error } = await supabase.from("ask_reports").insert({
+      answer_id: reportTarget.id,
+      reporter_id: myId,
+      reason: reportReason,
+    });
+
+    if (!error) {
+      // 신고 3회 이상이면 포인트 회수 + is_point_blocked 설정
+      const newCount = (reportTarget.report_count ?? 0) + 1;
+      if (newCount >= REPORT_THRESHOLD) {
+        // 이 답변으로 받은 포인트 회수 (답변 등록 +5)
+        const { data: earnedRows } = await supabase
+          .from("points")
+          .select("amount")
+          .eq("user_id", reportTarget.user_id)
+          .eq("reference_id", reportTarget.id)
+          .gt("amount", 0);
+        const earnedTotal = (earnedRows || []).reduce((s: number, r: any) => s + r.amount, 0);
+        if (earnedTotal > 0) {
+          await supabase.from("points").insert({
+            user_id: reportTarget.user_id,
+            amount: -earnedTotal,
+            reason: "신고 누적 포인트 회수",
+            reference_id: reportTarget.id,
+          });
+          await supabase.rpc("increment_profile_points", { uid: reportTarget.user_id, delta: -earnedTotal });
+        }
+        // 포인트 차단
+        await supabase.from("profiles").update({ is_point_blocked: true }).eq("id", reportTarget.user_id);
+      }
+
+      await fetchAnswers();
+    }
+
+    setReportTarget(null);
+    setReportReason("");
+    setReportSubmitting(false);
+  };
+
+  // 현재 답변 내용의 포인트 지급 여부 미리보기
+  const contentLen = answerContent.trim().length;
+  const willEarnPoints = contentLen >= MIN_ANSWER_LENGTH && !post?.is_solved;
+
   if (myRole !== null && myRole !== "seller" && myRole !== "admin") {
     return (
-      <main style={{
-        maxWidth: 640, margin: "0 auto", padding: "80px 20px",
-        fontFamily: "system-ui, sans-serif", textAlign: "center",
-      }}>
+      <main style={{ maxWidth: 640, margin: "0 auto", padding: "80px 20px", fontFamily: "system-ui, sans-serif", textAlign: "center" }}>
         <div style={{ fontSize: 52 }}>🔒</div>
-        <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111827", marginTop: 16 }}>
-          판매자만 이용 가능한 메뉴입니다
-        </h2>
+        <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111827", marginTop: 16 }}>판매자만 이용 가능한 메뉴입니다</h2>
       </main>
     );
   }
@@ -264,6 +365,77 @@ export default function AskDetailPage() {
       maxWidth: 760, margin: "0 auto", padding: "32px 16px 96px",
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     }}>
+      {/* 신고 모달 */}
+      {reportTarget && (
+        <div
+          onClick={() => { setReportTarget(null); setReportReason(""); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 16px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "white", borderRadius: 20, padding: "28px 24px",
+              width: "100%", maxWidth: 420,
+            }}
+          >
+            <h3 style={{ margin: "0 0 18px", fontSize: 17, fontWeight: 900, color: "#111827" }}>
+              답변 신고
+            </h3>
+            <p style={{ margin: "0 0 14px", fontSize: 13, color: "#6b7280" }}>
+              신고 사유를 선택해주세요. 허위 신고 시 제재를 받을 수 있습니다.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              {REPORT_REASONS.map((r) => (
+                <label key={r} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 14px", borderRadius: 10, cursor: "pointer",
+                  border: `1.5px solid ${reportReason === r ? GOLD : "#e5e7eb"}`,
+                  background: reportReason === r ? "#fdf8ec" : "white",
+                }}>
+                  <input
+                    type="radio"
+                    name="report-reason"
+                    value={r}
+                    checked={reportReason === r}
+                    onChange={() => setReportReason(r)}
+                    style={{ accentColor: GOLD }}
+                  />
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#374151" }}>{r}</span>
+                </label>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { setReportTarget(null); setReportReason(""); }}
+                style={{
+                  flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db",
+                  background: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#374151",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={!reportReason || reportSubmitting}
+                style={{
+                  flex: 1, height: 44, borderRadius: 12, border: "none",
+                  background: !reportReason || reportSubmitting ? "#e5e7eb" : "#ef4444",
+                  color: !reportReason || reportSubmitting ? "#9ca3af" : "white",
+                  fontSize: 14, fontWeight: 800,
+                  cursor: !reportReason || reportSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {reportSubmitting ? "신고 중..." : "신고하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 뒤로가기 */}
       <Link href="/ask" style={{
         display: "inline-flex", alignItems: "center", gap: 6,
@@ -272,6 +444,52 @@ export default function AskDetailPage() {
       }}>
         ← 목록으로
       </Link>
+
+      {/* 포인트 적립 안내 아코디언 */}
+      <div style={{
+        background: "#fdf8ec", border: `1px solid #f0d88a`,
+        borderRadius: 16, marginBottom: 20, overflow: "hidden",
+      }}>
+        <button
+          onClick={() => setPointGuideOpen((v) => !v)}
+          style={{
+            width: "100%", padding: "14px 18px",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "transparent", border: "none", cursor: "pointer",
+          }}
+        >
+          <span style={{ fontSize: 14, fontWeight: 800, color: "#92400e" }}>
+            💡 포인트 적립 안내
+          </span>
+          <span style={{
+            fontSize: 18, color: "#c9a84c", transform: pointGuideOpen ? "rotate(180deg)" : "none",
+            transition: "transform 0.2s",
+          }}>▾</span>
+        </button>
+        {pointGuideOpen && (
+          <div style={{ padding: "0 18px 18px", fontSize: 13, color: "#78350f", lineHeight: 1.9 }}>
+            <div style={{ marginBottom: 10 }}>
+              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 방법</strong>
+              <div>• 답변 등록 (20자 이상): <strong style={{ color: GOLD }}>+5P</strong></div>
+              <div>• 답변 채택: <strong style={{ color: GOLD }}>+20P</strong></div>
+              <div>• 답변 좋아요 받기: <strong style={{ color: GOLD }}>+2P</strong></div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 제한</strong>
+              <div>• 같은 질문에 첫 번째 답변만 포인트 지급</div>
+              <div>• 해결된 질문(채택 완료)에 답변 시 포인트 미지급</div>
+              <div>• 하루 최대 적립 한도: <strong>100P</strong></div>
+              <div>• 포인트 유효기간: 적립일로부터 1년</div>
+            </div>
+            <div>
+              <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>주의사항</strong>
+              <div>• 복사/붙여넣기, 도배, 관련 없는 답변은 신고 대상</div>
+              <div>• 신고 3회 이상 누적 시 포인트 회수 및 적립 차단</div>
+              <div>• 차단 해제는 관리자에게 문의</div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 질문 카드 */}
       <div style={{
@@ -323,89 +541,149 @@ export default function AskDetailPage() {
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {answers.map((answer) => (
-              <div key={answer.id} style={{
-                background: answer.is_accepted ? "#f0fdf4" : "white",
-                borderRadius: 16, padding: "20px 22px",
-                border: answer.is_accepted ? "2px solid #86efac" : "1px solid #e5e7eb",
-              }}>
-                {answer.is_accepted && (
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "4px 12px", borderRadius: 999, marginBottom: 12,
-                    background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 800,
-                    border: "1px solid #86efac",
-                  }}>
-                    ✅ 채택된 답변
-                  </div>
-                )}
+            {answers.map((answer) => {
+              const isReportedBlocked = answer.report_count >= REPORT_THRESHOLD;
+              const isExpanded = expandedReported.has(answer.id);
 
-                <div style={{ fontSize: 14, color: "#9ca3af", marginBottom: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <span>🙋 {answer.nickname}</span>
-                  <span>{new Date(answer.created_at).toLocaleDateString("ko-KR")}</span>
-                </div>
-
-                <p style={{ margin: "0 0 16px", fontSize: 15, color: "#1f2937", lineHeight: 1.8, whiteSpace: "pre-line" }}>
-                  {answer.content}
-                </p>
-
-                {answer.images.length > 0 && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-                    {answer.images.map((url, i) => (
-                      <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                        <img src={url} alt="" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
-                      </a>
-                    ))}
-                  </div>
-                )}
-
-                {/* 좋아요 + 채택 */}
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <button
-                    onClick={() => handleLike(answer)}
-                    disabled={!myId || answer.user_id === myId}
-                    style={{
+              return (
+                <div key={answer.id} style={{
+                  background: answer.is_accepted ? "#f0fdf4" : "white",
+                  borderRadius: 16, padding: "20px 22px",
+                  border: answer.is_accepted ? "2px solid #86efac" : "1px solid #e5e7eb",
+                  opacity: isReportedBlocked && !isExpanded ? 0.45 : 1,
+                  position: "relative",
+                  transition: "opacity 0.2s",
+                }}>
+                  {answer.is_accepted && (
+                    <div style={{
                       display: "inline-flex", alignItems: "center", gap: 6,
-                      padding: "7px 14px", borderRadius: 10,
-                      border: answer.liked ? "none" : "1.5px solid #e5e7eb",
-                      background: answer.liked ? "#fef9ec" : "white",
-                      color: answer.liked ? GOLD : "#6b7280",
-                      fontSize: 14, fontWeight: 700, cursor: answer.user_id === myId ? "default" : "pointer",
-                    }}
-                  >
-                    👍 {answer.likes}
-                  </button>
+                      padding: "4px 12px", borderRadius: 999, marginBottom: 12,
+                      background: "#dcfce7", color: "#16a34a", fontSize: 13, fontWeight: 800,
+                      border: "1px solid #86efac",
+                    }}>
+                      ✅ 채택된 답변
+                    </div>
+                  )}
 
-                  {isAuthor && !post.is_solved && (
-                    <button
-                      onClick={() => handleAccept(answer)}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 6,
-                        padding: "7px 14px", borderRadius: 10,
-                        border: "none", background: "#111827",
-                        color: GOLD, fontSize: 14, fontWeight: 800, cursor: "pointer",
-                      }}
-                    >
-                      ✅ 채택하기
-                    </button>
+                  {/* 신고 누적 안내 */}
+                  {isReportedBlocked && !isExpanded && (
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      gap: 10, flexWrap: "wrap",
+                    }}>
+                      <span style={{ fontSize: 13, color: "#ef4444", fontWeight: 700 }}>
+                        ⚠️ 신고가 누적된 답변입니다
+                      </span>
+                      <button
+                        onClick={() => setExpandedReported((prev) => new Set([...prev, answer.id]))}
+                        style={{
+                          fontSize: 12, fontWeight: 700, color: "#6b7280",
+                          background: "none", border: "1px solid #d1d5db",
+                          borderRadius: 8, padding: "4px 10px", cursor: "pointer",
+                        }}
+                      >
+                        내용 보기
+                      </button>
+                    </div>
+                  )}
+
+                  {(!isReportedBlocked || isExpanded) && (
+                    <>
+                      {isReportedBlocked && (
+                        <div style={{ marginBottom: 10, fontSize: 12, color: "#ef4444", fontWeight: 700 }}>
+                          ⚠️ 신고가 누적된 답변입니다
+                        </div>
+                      )}
+
+                      <div style={{ fontSize: 14, color: "#9ca3af", marginBottom: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <span>🙋 {answer.nickname}</span>
+                        <span>{new Date(answer.created_at).toLocaleDateString("ko-KR")}</span>
+                      </div>
+
+                      <p style={{ margin: "0 0 16px", fontSize: 15, color: "#1f2937", lineHeight: 1.8, whiteSpace: "pre-line" }}>
+                        {answer.content}
+                      </p>
+
+                      {answer.images.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                          {answer.images.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                              <img src={url} alt="" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* 좋아요 + 채택 + 신고 */}
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => handleLike(answer)}
+                          disabled={!myId || answer.user_id === myId}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "7px 14px", borderRadius: 10,
+                            border: answer.liked ? "none" : "1.5px solid #e5e7eb",
+                            background: answer.liked ? "#fef9ec" : "white",
+                            color: answer.liked ? GOLD : "#6b7280",
+                            fontSize: 14, fontWeight: 700,
+                            cursor: answer.user_id === myId ? "default" : "pointer",
+                          }}
+                        >
+                          👍 {answer.likes}
+                        </button>
+
+                        {isAuthor && !post.is_solved && (
+                          <button
+                            onClick={() => handleAccept(answer)}
+                            style={{
+                              display: "inline-flex", alignItems: "center", gap: 6,
+                              padding: "7px 14px", borderRadius: 10,
+                              border: "none", background: "#111827",
+                              color: GOLD, fontSize: 14, fontWeight: 800, cursor: "pointer",
+                            }}
+                          >
+                            ✅ 채택하기
+                          </button>
+                        )}
+
+                        {/* 신고 버튼 (본인 답변 제외) */}
+                        {myId && answer.user_id !== myId && (
+                          <button
+                            onClick={() => { setReportTarget(answer); setReportReason(""); }}
+                            disabled={answer.reported}
+                            title={answer.reported ? "이미 신고한 답변입니다" : "답변 신고"}
+                            style={{
+                              marginLeft: "auto",
+                              display: "inline-flex", alignItems: "center", gap: 4,
+                              padding: "7px 12px", borderRadius: 10,
+                              border: "1px solid #fecaca",
+                              background: answer.reported ? "#f9fafb" : "white",
+                              color: answer.reported ? "#9ca3af" : "#ef4444",
+                              fontSize: 12, fontWeight: 700,
+                              cursor: answer.reported ? "not-allowed" : "pointer",
+                              opacity: answer.reported ? 0.6 : 1,
+                            }}
+                          >
+                            🚩 {answer.reported ? "신고됨" : "신고"}
+                          </button>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* 답변 작성폼 */}
       {myId && (
-        <div style={{
-          background: "white", borderRadius: 20, border: "1px solid #e5e7eb",
-          padding: "24px 22px",
-        }}>
+        <div style={{ background: "white", borderRadius: 20, border: "1px solid #e5e7eb", padding: "24px 22px" }}>
           <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 800, color: "#111827" }}>
             답변 작성
             <span style={{ marginLeft: 10, fontSize: 13, fontWeight: 600, color: GOLD }}>
-              등록 시 +5 포인트
+              {willEarnPoints ? "등록 시 +5 포인트" : ""}
             </span>
           </h3>
 
@@ -418,9 +696,21 @@ export default function AskDetailPage() {
               width: "100%", borderRadius: 12, border: "1.5px solid #e5e7eb",
               padding: "12px 14px", fontSize: 15, outline: "none",
               resize: "vertical", boxSizing: "border-box", lineHeight: 1.7,
-              marginBottom: 14,
+              marginBottom: 6,
             }}
           />
+
+          {/* 20자 미만 안내 */}
+          {contentLen > 0 && contentLen < MIN_ANSWER_LENGTH && (
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: GOLD, fontWeight: 700 }}>
+              20자 이상 작성 시 포인트가 지급됩니다 ({contentLen}/{MIN_ANSWER_LENGTH}자)
+            </p>
+          )}
+          {post.is_solved && contentLen > 0 && (
+            <p style={{ margin: "0 0 10px", fontSize: 12, color: "#9ca3af", fontWeight: 700 }}>
+              이미 해결된 질문에는 포인트가 지급되지 않습니다.
+            </p>
+          )}
 
           {/* 이미지 첨부 */}
           <div

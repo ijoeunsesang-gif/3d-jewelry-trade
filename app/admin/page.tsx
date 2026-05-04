@@ -17,6 +17,12 @@ interface Inquiry {
   answered_at: string | null;
 }
 
+interface BlockedUser {
+  id: string;
+  nickname: string | null;
+  email: string | null;
+}
+
 interface ReinstateRequest {
   id: string;
   seller_id: string;
@@ -42,6 +48,8 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<"all" | "pending" | "answered">("all");
   const [reinstateRequests, setReinstateRequests] = useState<ReinstateRequest[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAdmin();
@@ -76,6 +84,33 @@ export default function AdminPage() {
     setLoading(false);
     fetchInquiries();
     fetchReinstateRequests();
+    fetchBlockedUsers();
+  };
+
+  const fetchBlockedUsers = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, nickname, email")
+      .eq("is_point_blocked", true)
+      .order("nickname", { ascending: true });
+    setBlockedUsers((data as BlockedUser[]) || []);
+  };
+
+  const handleUnblock = async (userId: string) => {
+    setUnblockingId(userId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_point_blocked: false })
+        .eq("id", userId);
+      if (error) { showError("차단 해제 실패: " + error.message); return; }
+      showSuccess("포인트 차단이 해제되었습니다.");
+      fetchBlockedUsers();
+    } catch {
+      showError("처리 중 오류가 발생했습니다.");
+    } finally {
+      setUnblockingId(null);
+    }
   };
 
   const fetchReinstateRequests = async () => {
@@ -250,6 +285,53 @@ export default function AdminPage() {
                     {req.reason}
                   </div>
                 </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 포인트 차단 유저 관리 */}
+      <div style={{ marginTop: 36 }}>
+        <h2 style={{ margin: "0 0 14px", fontSize: 20, fontWeight: 800, color: "#7c3aed" }}>
+          포인트 차단 유저 ({blockedUsers.length})
+        </h2>
+        {blockedUsers.length === 0 ? (
+          <p style={{ color: "#9ca3af", fontSize: 14 }}>포인트 차단된 유저가 없습니다.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {blockedUsers.map((u) => (
+              <div
+                key={u.id}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  gap: 12, flexWrap: "wrap",
+                  border: "1px solid #e9d5ff", borderRadius: 14, background: "#faf5ff",
+                  padding: "14px 18px",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                    {u.nickname || "닉네임 없음"}
+                  </div>
+                  <div style={{ marginTop: 3, fontSize: 12, color: "#9ca3af" }}>
+                    {u.email || u.id}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUnblock(u.id)}
+                  disabled={unblockingId === u.id}
+                  style={{
+                    height: 38, padding: "0 16px", borderRadius: 10, border: "none",
+                    background: unblockingId === u.id ? "#e5e7eb" : "#7c3aed",
+                    color: unblockingId === u.id ? "#9ca3af" : "white",
+                    fontWeight: 700, fontSize: 13, flexShrink: 0,
+                    cursor: unblockingId === u.id ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {unblockingId === u.id ? "처리 중..." : "포인트 차단 해제"}
+                </button>
               </div>
             ))}
           </div>
