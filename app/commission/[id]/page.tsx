@@ -84,6 +84,25 @@ type Commission = {
   bid_status: string | null;
 };
 
+type CommissionRevision = {
+  id: string;
+  commission_id: string;
+  type: "problem" | "additional";
+  status: "pending" | "accepted" | "rejected" | "negotiating";
+  negotiation_round: number;
+  requester_message: string;
+  images: string[] | null;
+  seller_price: number | null;
+  seller_days: number | null;
+  seller_message: string | null;
+  seller_rejection_reason: string | null;
+  requester_neg_price: number | null;
+  requester_neg_days: number | null;
+  requester_neg_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type CommissionBid = {
   id: string;
   commission_id: string;
@@ -230,6 +249,29 @@ export default function CommissionDetailPage() {
   const [bidsLoading, setBidsLoading] = useState(false);
   const [selectingBid, setSelectingBid] = useState<string | null>(null);
 
+  // ── 수정요청 ──
+  const [activeRevision, setActiveRevision] = useState<CommissionRevision | null>(null);
+  const [revisionType, setRevisionType] = useState<"problem" | "additional" | null>(null);
+  const [revisionMessage, setRevisionMessage] = useState("");
+  const [revisionImages, setRevisionImages] = useState<string[]>([]);
+  const [revisionImageUploading, setRevisionImageUploading] = useState(false);
+  const revisionImageRef = useRef<HTMLInputElement>(null);
+  const [revisionDragOver, setRevisionDragOver] = useState(false);
+  const [revisionSubmitting, setRevisionSubmitting] = useState(false);
+  const [sellerRevResponse, setSellerRevResponse] = useState("");
+  const [sellerRevPrice, setSellerRevPrice] = useState("");
+  const [sellerRevDays, setSellerRevDays] = useState("");
+  const [sellerRevRejectReason, setSellerRevRejectReason] = useState("");
+  const [showSellerRejectForm, setShowSellerRejectForm] = useState(false);
+  const [buyerNegPrice, setBuyerNegPrice] = useState("");
+  const [buyerNegDays, setBuyerNegDays] = useState("");
+  const [buyerNegMessage, setBuyerNegMessage] = useState("");
+  const [showBuyerNegForm, setShowBuyerNegForm] = useState(false);
+  const [sellerReNegPrice, setSellerReNegPrice] = useState("");
+  const [sellerReNegDays, setSellerReNegDays] = useState("");
+  const [sellerReNegMessage, setSellerReNegMessage] = useState("");
+  const [showSellerReNegForm, setShowSellerReNegForm] = useState(false);
+
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
@@ -306,6 +348,7 @@ export default function CommissionDetailPage() {
         setSellerPhone((sp as any)?.phone_number || null);
       }
       if (data.is_private) fetchNegotiations();
+      if (data.is_private) fetchActiveRevision();
     } finally {
       setLoading(false);
     }
@@ -801,18 +844,210 @@ export default function CommissionDetailPage() {
     }
   };
 
-  const handleRevision = async () => {
-    if (!commission) return;
-    const newCount = commission.revision_count + 1;
-    setNegSubmitting(true);
+  const fetchActiveRevision = async () => {
+    const { data } = await supabase
+      .from("commission_revisions")
+      .select("*")
+      .eq("commission_id", id)
+      .in("status", ["pending", "negotiating"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setActiveRevision(data || null);
+  };
+
+  const uploadRevisionImage = async (file: File): Promise<string | null> => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("bucket", "thumbnails");
+    form.append("path", `revision-images/${id}/${Date.now()}-${file.name}`);
+    const res = await fetch("/api/upload", { method: "POST", body: form });
+    if (!res.ok) return null;
+    const { url } = await res.json();
+    return url;
+  };
+
+  const handleRevisionImageDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setRevisionDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+    setRevisionImageUploading(true);
+    const urls: string[] = [];
+    for (const file of files) { const url = await uploadRevisionImage(file); if (url) urls.push(url); }
+    setRevisionImages((prev) => [...prev, ...urls]);
+    setRevisionImageUploading(false);
+  };
+
+  const handleRevisionImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+    setRevisionImageUploading(true);
+    const urls: string[] = [];
+    for (const file of files) { const url = await uploadRevisionImage(file); if (url) urls.push(url); }
+    setRevisionImages((prev) => [...prev, ...urls]);
+    setRevisionImageUploading(false);
+    e.target.value = "";
+  };
+
+  const submitRevision = async () => {
+    if (!commission || !revisionType) return;
+    if (!revisionMessage.trim()) { showError("상세 내용을 입력해주세요."); return; }
+    setRevisionSubmitting(true);
     try {
-      await supabase.from("commissions").update({ revision_count: newCount, status: "working" }).eq("id", id);
+      const { error } = await supabase.from("commission_revisions").insert({
+        commission_id: id, type: revisionType, status: "pending",
+        requester_message: revisionMessage.trim(), images: revisionImages,
+      });
+      if (error) throw error;
       if (commission.target_seller_id)
-        await sendNotification(commission.target_seller_id, "revision", `[개인의뢰] ${commission.title} - 수정 요청 (${newCount}/2회)이 접수되었습니다.`, `/commission/${id}`);
-      setCommission((prev) => prev ? { ...prev, revision_count: newCount, status: "working" } : prev);
+        await sendNotification(commission.target_seller_id, "revision",
+          `[${revisionType === "problem" ? "문제수정" : "추가수정"}] ${commission.title} - 수정 요청이 접수되었습니다.`,
+          `/commission/${id}`);
+      setRevisionType(null); setRevisionMessage(""); setRevisionImages([]);
+      await fetchActiveRevision();
       showSuccess("수정 요청이 전송되었습니다.");
-    } catch { showError("수정 요청 실패"); }
-    setNegSubmitting(false);
+    } catch { showError("수정 요청 전송 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const sellerAcceptProblemFix = async () => {
+    if (!activeRevision || !commission) return;
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({ status: "accepted", seller_message: sellerRevResponse.trim() || null }).eq("id", activeRevision.id);
+      await supabase.from("commissions").update({ status: "working" }).eq("id", id);
+      await sendNotification(commission.user_id, "revision", `[문제수정] ${commission.title} - 판매자가 수정 요청을 수락했습니다.`, `/commission/${id}`);
+      setSellerRevResponse("");
+      await fetchCommission();
+      showSuccess("수정 요청을 수락했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const sellerRejectRevision = async () => {
+    if (!activeRevision || !commission) return;
+    if (!sellerRevRejectReason.trim()) { showError("거절 사유를 입력해주세요."); return; }
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({ status: "rejected", seller_rejection_reason: sellerRevRejectReason.trim() }).eq("id", activeRevision.id);
+      await sendNotification(commission.user_id, "revision",
+        `[${activeRevision.type === "problem" ? "문제수정" : "추가수정"}] ${commission.title} - 판매자가 수정 요청을 거절했습니다.`,
+        `/commission/${id}`);
+      setSellerRevRejectReason(""); setShowSellerRejectForm(false);
+      await fetchActiveRevision();
+      showSuccess("수정 요청을 거절했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const sellerOfferAdditional = async () => {
+    if (!activeRevision || !commission) return;
+    if (!sellerRevPrice.trim() || !sellerRevDays.trim()) { showError("비용과 기간을 입력해주세요."); return; }
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({
+        status: "negotiating", negotiation_round: 0,
+        seller_price: Number(sellerRevPrice), seller_days: Number(sellerRevDays),
+        seller_message: sellerRevResponse.trim() || null,
+      }).eq("id", activeRevision.id);
+      await sendNotification(commission.user_id, "revision", `[추가수정] ${commission.title} - 판매자가 추가수정 조건을 제안했습니다.`, `/commission/${id}`);
+      setSellerRevPrice(""); setSellerRevDays(""); setSellerRevResponse("");
+      await fetchActiveRevision();
+      showSuccess("추가수정 조건을 전송했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const buyerAcceptOffer = async () => {
+    if (!activeRevision || !commission) return;
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({ status: "accepted" }).eq("id", activeRevision.id);
+      await supabase.from("commissions").update({ status: "working" }).eq("id", id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "revision", `[추가수정] ${commission.title} - 의뢰자가 추가수정 조건에 동의했습니다.`, `/commission/${id}`);
+      await fetchCommission();
+      showSuccess("추가수정 조건에 동의했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const buyerNegotiateOffer = async () => {
+    if (!activeRevision || !commission) return;
+    if (!buyerNegPrice.trim() || !buyerNegDays.trim()) { showError("제안 비용과 기간을 입력해주세요."); return; }
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({
+        negotiation_round: 1,
+        requester_neg_price: Number(buyerNegPrice), requester_neg_days: Number(buyerNegDays),
+        requester_neg_message: buyerNegMessage.trim() || null,
+      }).eq("id", activeRevision.id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "revision", `[추가수정] ${commission.title} - 의뢰자가 비용/기간 협의를 요청했습니다.`, `/commission/${id}`);
+      setBuyerNegPrice(""); setBuyerNegDays(""); setBuyerNegMessage(""); setShowBuyerNegForm(false);
+      await fetchActiveRevision();
+      showSuccess("협의 요청을 전송했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const sellerAcceptNegotiation = async () => {
+    if (!activeRevision || !commission) return;
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({ status: "accepted" }).eq("id", activeRevision.id);
+      await supabase.from("commissions").update({ status: "working" }).eq("id", id);
+      await sendNotification(commission.user_id, "revision", `[추가수정] ${commission.title} - 판매자가 협의 조건에 동의했습니다.`, `/commission/${id}`);
+      await fetchCommission();
+      showSuccess("협의 조건에 동의했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const sellerReNegotiate = async () => {
+    if (!activeRevision || !commission) return;
+    if (!sellerReNegPrice.trim() || !sellerReNegDays.trim()) { showError("비용과 기간을 입력해주세요."); return; }
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({
+        negotiation_round: 2,
+        seller_price: Number(sellerReNegPrice), seller_days: Number(sellerReNegDays),
+        seller_message: sellerReNegMessage.trim() || null,
+      }).eq("id", activeRevision.id);
+      await sendNotification(commission.user_id, "revision", `[추가수정] ${commission.title} - 판매자가 조건을 재조정했습니다.`, `/commission/${id}`);
+      setSellerReNegPrice(""); setSellerReNegDays(""); setSellerReNegMessage(""); setShowSellerReNegForm(false);
+      await fetchActiveRevision();
+      showSuccess("재협의 조건을 전송했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const buyerFinalAccept = async () => {
+    if (!activeRevision || !commission) return;
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({ status: "accepted" }).eq("id", activeRevision.id);
+      await supabase.from("commissions").update({ status: "working" }).eq("id", id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "revision", `[추가수정] ${commission.title} - 의뢰자가 최종 조건에 동의했습니다.`, `/commission/${id}`);
+      await fetchCommission();
+      showSuccess("최종 조건에 동의했습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
+  };
+
+  const buyerFinalReject = async () => {
+    if (!activeRevision || !commission) return;
+    setRevisionSubmitting(true);
+    try {
+      await supabase.from("commission_revisions").update({ status: "rejected", seller_rejection_reason: "의뢰자 최종 거절" }).eq("id", activeRevision.id);
+      if (commission.target_seller_id)
+        await sendNotification(commission.target_seller_id, "revision", `[추가수정] ${commission.title} - 의뢰자가 최종 조건을 거절했습니다.`, `/commission/${id}`);
+      await fetchActiveRevision();
+      showSuccess("최종 거절 처리되었습니다.");
+    } catch { showError("처리 실패"); }
+    setRevisionSubmitting(false);
   };
 
   const handleReject = async () => {
@@ -1477,16 +1712,11 @@ export default function CommissionDetailPage() {
               </div>
               {isTargetSeller && (
                 <>
-                  {commission.revision_count > 0 && (
-                    <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 14, color: "#92400e", fontWeight: 700, marginBottom: 4 }}>
-                      ✏️ 수정 요청 ({commission.revision_count}/2회)이 접수되었습니다. 수정 파일을 업로드해주세요.
-                    </div>
-                  )}
                   <button onClick={() => fileUploadRef.current?.click()} disabled={negSubmitting} style={{
                     width: "100%", height: 44, borderRadius: 10, border: "1px dashed #d1d5db", background: "white",
                     color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
                   }}>
-                    {negSubmitting ? "업로드 중..." : commission.revision_count > 0 ? "수정 파일 업로드" : "결과물 업로드"}
+                    {negSubmitting ? "업로드 중..." : "결과물 업로드"}
                   </button>
                   <input ref={fileUploadRef} type="file" accept=".stl,.3dm,.obj" style={{ display: "none" }} onChange={handleFileUpload} />
                 </>
@@ -1510,30 +1740,243 @@ export default function CommissionDetailPage() {
               <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 14, color: "#166534", fontWeight: 600 }}>
                 결과물이 업로드되었습니다. 확인 후 다운로드해주세요.
               </div>
+
+              {/* ─── 의뢰자 뷰 ─── */}
               {isAuthor && (
                 <>
-                  <div style={{ display: "flex", gap: 10 }}>
-                    <button onClick={handleDownload} style={{
-                      flex: 1, height: 44, borderRadius: 10, border: "none",
-                      background: "#111827", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer",
-                    }}>파일 다운로드</button>
-                    {commission.revision_count < 2 && (
-                      <button onClick={handleRevision} disabled={negSubmitting} style={{
-                        flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
-                        color: "#374151", fontSize: 14, fontWeight: 700, cursor: negSubmitting ? "not-allowed" : "pointer",
-                      }}>
-                        수정 요청 ({commission.revision_count}/2회)
-                      </button>
-                    )}
-                  </div>
+                  <button onClick={handleDownload} style={{ width: "100%", height: 44, borderRadius: 10, border: "none", background: "#111827", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                    파일 다운로드
+                  </button>
+
+                  {/* 활성 수정요청 없을 때: 요청 버튼 or 폼 */}
+                  {!activeRevision && (
+                    <>
+                      {!revisionType ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={() => setRevisionType("problem")} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                            📋 문제수정 요청
+                          </button>
+                          <button onClick={() => setRevisionType("additional")} style={{ flex: 1, height: 40, borderRadius: 9, border: `1px solid ${GOLD}`, background: "white", color: "#92400e", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                            ✏️ 추가수정 요청
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
+                            {revisionType === "problem" ? "📋 문제수정 요청" : "✏️ 추가수정 요청"}
+                          </div>
+                          {revisionType === "problem" && (
+                            <div style={{ fontSize: 12, color: "#374151", background: "#f9fafb", borderRadius: 8, padding: "10px 12px", lineHeight: 1.8 }}>
+                              <div style={{ fontWeight: 700, color: "#16a34a", marginBottom: 4 }}>✅ 문제수정 가능 항목</div>
+                              <div>· 알 물림이 안되는 경우</div>
+                              <div>· 조립이 안되는 경우</div>
+                              <div>· 두께가 얇아서 주물이 안나오는 경우</div>
+                              <div>· 이미지 컨펌을 하지 않았을 때 라인 변경 가능</div>
+                              <div style={{ fontWeight: 700, color: "#dc2626", marginTop: 8, marginBottom: 4 }}>❌ 문제수정 불가 항목 (추가수정으로 요청)</div>
+                              <div>· 이미지 컨펌 후 전체적인 라인 변경</div>
+                              <div>· 민자 ↔ 알세팅 또는 알세팅 관련 변경</div>
+                            </div>
+                          )}
+                          <textarea
+                            value={revisionMessage}
+                            onChange={(e) => setRevisionMessage(e.target.value)}
+                            placeholder="상세 내용을 입력해주세요"
+                            style={{ width: "100%", minHeight: 80, borderRadius: 8, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
+                          />
+                          {revisionType === "additional" && (
+                            <div>
+                              <div
+                                onDragOver={(e) => { e.preventDefault(); setRevisionDragOver(true); }}
+                                onDragLeave={() => setRevisionDragOver(false)}
+                                onDrop={handleRevisionImageDrop}
+                                onClick={() => revisionImageRef.current?.click()}
+                                style={{ border: `2px dashed ${revisionDragOver ? GOLD : "#d1d5db"}`, borderRadius: 10, padding: "16px 12px", textAlign: "center", cursor: "pointer", background: revisionDragOver ? "#fffbeb" : "#fafafa", transition: "all 0.15s" }}
+                              >
+                                <div style={{ fontSize: 20, marginBottom: 4 }}>🖼️</div>
+                                <div style={{ fontSize: 12, color: "#6b7280" }}>{revisionImageUploading ? "업로드 중..." : "이미지를 드래그하거나 클릭해서 첨부"}</div>
+                              </div>
+                              <input ref={revisionImageRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleRevisionImageSelect} />
+                              {revisionImages.length > 0 && (
+                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                                  {revisionImages.map((url, i) => (
+                                    <div key={i} style={{ position: "relative" }}>
+                                      <img src={url} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+                                      <button onClick={() => setRevisionImages((prev) => prev.filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#ef4444", border: "none", color: "white", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>✕</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => { setRevisionType(null); setRevisionMessage(""); setRevisionImages([]); }} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>취소</button>
+                            <button onClick={submitRevision} disabled={revisionSubmitting} style={{ flex: 2, height: 40, borderRadius: 9, border: "none", background: revisionType === "problem" ? "#16a34a" : GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: revisionSubmitting ? "not-allowed" : "pointer" }}>
+                              {revisionSubmitting ? "전송 중..." : "요청 전송"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* 활성 수정요청 진행 중 - 의뢰자 뷰 */}
+                  {activeRevision && (
+                    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
+                        {activeRevision.type === "problem" ? "📋 문제수정" : "✏️ 추가수정"} 진행 중
+                      </div>
+                      {activeRevision.status === "pending" && (
+                        <div style={{ fontSize: 13, color: "#6b7280", padding: "10px 12px", background: "#f9fafb", borderRadius: 8 }}>
+                          수정 요청이 판매자에게 전달되었습니다. 판매자 응답을 기다리는 중입니다.
+                        </div>
+                      )}
+                      {activeRevision.type === "additional" && activeRevision.status === "negotiating" && activeRevision.negotiation_round === 0 && (
+                        <>
+                          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "12px 14px", display: "flex", gap: 12 }}>
+                            <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: "#92400e", fontWeight: 600, marginBottom: 4 }}>판매자 제안 비용</div><div style={{ fontSize: 16, fontWeight: 700 }}>{activeRevision.seller_price?.toLocaleString()}원</div></div>
+                            <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: "#92400e", fontWeight: 600, marginBottom: 4 }}>판매자 제안 기간</div><div style={{ fontSize: 16, fontWeight: 700 }}>{activeRevision.seller_days}일</div></div>
+                          </div>
+                          {activeRevision.seller_message && <div style={{ fontSize: 13, color: "#374151", padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>{activeRevision.seller_message}</div>}
+                          {!showBuyerNegForm ? (
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <button onClick={buyerAcceptOffer} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: "#16a34a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>수락</button>
+                              <button onClick={() => setShowBuyerNegForm(true)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>비용/기간 협의</button>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <input value={buyerNegPrice} onChange={(e) => setBuyerNegPrice(e.target.value)} placeholder="제안 비용 (원)" type="number" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 13 }} />
+                                <input value={buyerNegDays} onChange={(e) => setBuyerNegDays(e.target.value)} placeholder="제안 기간 (일)" type="number" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 13 }} />
+                              </div>
+                              <textarea value={buyerNegMessage} onChange={(e) => setBuyerNegMessage(e.target.value)} placeholder="협의 내용 (선택)" style={{ borderRadius: 8, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 13, resize: "vertical", minHeight: 60 }} />
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <button onClick={() => setShowBuyerNegForm(false)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>취소</button>
+                                <button onClick={buyerNegotiateOffer} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>협의 요청</button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {activeRevision.type === "additional" && activeRevision.status === "negotiating" && activeRevision.negotiation_round === 1 && (
+                        <div style={{ fontSize: 13, color: "#6b7280", padding: "10px 12px", background: "#f9fafb", borderRadius: 8 }}>
+                          협의 요청을 전달했습니다. 판매자 응답을 기다리는 중입니다.
+                        </div>
+                      )}
+                      {activeRevision.type === "additional" && activeRevision.status === "negotiating" && activeRevision.negotiation_round === 2 && (
+                        <>
+                          <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "12px 14px", display: "flex", gap: 12 }}>
+                            <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: "#92400e", fontWeight: 600, marginBottom: 4 }}>재조정 비용</div><div style={{ fontSize: 16, fontWeight: 700 }}>{activeRevision.seller_price?.toLocaleString()}원</div></div>
+                            <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: "#92400e", fontWeight: 600, marginBottom: 4 }}>재조정 기간</div><div style={{ fontSize: 16, fontWeight: 700 }}>{activeRevision.seller_days}일</div></div>
+                          </div>
+                          {activeRevision.seller_message && <div style={{ fontSize: 13, color: "#374151", padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>{activeRevision.seller_message}</div>}
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={buyerFinalAccept} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: "#16a34a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>최종 수락</button>
+                            <button onClick={buyerFinalReject} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #dc2626", background: "white", color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>최종 거절</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   <a href="/library?tab=commissions" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 36, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
                     내 다운로드에서 받기 →
                   </a>
                 </>
               )}
-              {isTargetSeller && (
+
+              {/* ─── 판매자 뷰 ─── */}
+              {isTargetSeller && !activeRevision && (
                 <div style={{ padding: "12px 16px", borderRadius: 10, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 14, color: "#92400e", fontWeight: 600 }}>
                   구매자가 파일을 다운로드하면 거래가 완료됩니다.
+                </div>
+              )}
+              {isTargetSeller && activeRevision && (
+                <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>
+                    {activeRevision.type === "problem" ? "📋 문제수정 요청 접수" : "✏️ 추가수정 요청 접수"}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#374151", padding: "10px 12px", background: "#f9fafb", borderRadius: 8 }}>
+                    {activeRevision.requester_message}
+                  </div>
+                  {activeRevision.images && activeRevision.images.length > 0 && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {activeRevision.images.map((url, i) => (
+                        <img key={i} src={url} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #e5e7eb" }} />
+                      ))}
+                    </div>
+                  )}
+                  {/* 문제수정 - 판매자 응답 */}
+                  {activeRevision.type === "problem" && activeRevision.status === "pending" && (
+                    <>
+                      <textarea value={sellerRevResponse} onChange={(e) => setSellerRevResponse(e.target.value)} placeholder="응답 내용 (선택)" style={{ borderRadius: 8, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 13, resize: "vertical", minHeight: 60 }} />
+                      {!showSellerRejectForm ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={sellerAcceptProblemFix} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: "#16a34a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>수락</button>
+                          <button onClick={() => setShowSellerRejectForm(true)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #dc2626", background: "white", color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>거절</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <input value={sellerRevRejectReason} onChange={(e) => setSellerRevRejectReason(e.target.value)} placeholder="거절 사유 (필수)" style={{ height: 40, borderRadius: 8, border: "1px solid #dc2626", padding: "0 12px", fontSize: 13 }} />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => setShowSellerRejectForm(false)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>취소</button>
+                            <button onClick={sellerRejectRevision} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: "#dc2626", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>거절 확인</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {/* 추가수정 - 판매자 최초 응답 */}
+                  {activeRevision.type === "additional" && activeRevision.status === "pending" && (
+                    <>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input value={sellerRevPrice} onChange={(e) => setSellerRevPrice(e.target.value)} placeholder="추가 비용 (원)" type="number" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 13 }} />
+                        <input value={sellerRevDays} onChange={(e) => setSellerRevDays(e.target.value)} placeholder="추가 기간 (일)" type="number" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 13 }} />
+                      </div>
+                      <textarea value={sellerRevResponse} onChange={(e) => setSellerRevResponse(e.target.value)} placeholder="내용 (선택)" style={{ borderRadius: 8, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 13, resize: "vertical", minHeight: 60 }} />
+                      {!showSellerRejectForm ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={sellerOfferAdditional} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>수락 (조건 전달)</button>
+                          <button onClick={() => setShowSellerRejectForm(true)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #dc2626", background: "white", color: "#dc2626", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>거절</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <input value={sellerRevRejectReason} onChange={(e) => setSellerRevRejectReason(e.target.value)} placeholder="거절 사유 (필수)" style={{ height: 40, borderRadius: 8, border: "1px solid #dc2626", padding: "0 12px", fontSize: 13 }} />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => setShowSellerRejectForm(false)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>취소</button>
+                            <button onClick={sellerRejectRevision} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: "#dc2626", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>거절 확인</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {/* 추가수정 - 의뢰자 협의 요청 받음 (round 1) */}
+                  {activeRevision.type === "additional" && activeRevision.status === "negotiating" && activeRevision.negotiation_round === 1 && (
+                    <>
+                      <div style={{ background: "#ede9fe", border: "1px solid #ddd6fe", borderRadius: 8, padding: "12px 14px", display: "flex", gap: 12 }}>
+                        <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 4 }}>의뢰자 제안 비용</div><div style={{ fontSize: 16, fontWeight: 700 }}>{activeRevision.requester_neg_price?.toLocaleString()}원</div></div>
+                        <div style={{ flex: 1 }}><div style={{ fontSize: 11, color: "#7c3aed", fontWeight: 600, marginBottom: 4 }}>의뢰자 제안 기간</div><div style={{ fontSize: 16, fontWeight: 700 }}>{activeRevision.requester_neg_days}일</div></div>
+                      </div>
+                      {activeRevision.requester_neg_message && <div style={{ fontSize: 13, color: "#374151", padding: "8px 12px", background: "#f9fafb", borderRadius: 8 }}>{activeRevision.requester_neg_message}</div>}
+                      {!showSellerReNegForm ? (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button onClick={sellerAcceptNegotiation} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: "#16a34a", color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>수락</button>
+                          <button onClick={() => setShowSellerReNegForm(true)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>재협의</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input value={sellerReNegPrice} onChange={(e) => setSellerReNegPrice(e.target.value)} placeholder="재조정 비용 (원)" type="number" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 13 }} />
+                            <input value={sellerReNegDays} onChange={(e) => setSellerReNegDays(e.target.value)} placeholder="재조정 기간 (일)" type="number" style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 13 }} />
+                          </div>
+                          <textarea value={sellerReNegMessage} onChange={(e) => setSellerReNegMessage(e.target.value)} placeholder="내용 (선택)" style={{ borderRadius: 8, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 13, resize: "vertical", minHeight: 60 }} />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => setShowSellerReNegForm(false)} style={{ flex: 1, height: 40, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>취소</button>
+                            <button onClick={sellerReNegotiate} disabled={revisionSubmitting} style={{ flex: 1, height: 40, borderRadius: 9, border: "none", background: GOLD, color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>재협의 전달</button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
