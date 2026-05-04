@@ -29,7 +29,7 @@ const STATUS_BG: Record<string, string> = {
   rejected: "#fef2f2", cancelled: "#f3f4f6",
 };
 
-type Tab = "public" | "private" | "given" | "received" | "joined" | "bookmarks";
+type Tab = "public" | "given" | "received" | "joined" | "bookmarks";
 
 type Commission = {
   id: string;
@@ -48,7 +48,6 @@ type Commission = {
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "public",    label: "공개의뢰" },
-  { key: "private",   label: "개인의뢰" },
   { key: "given",     label: "맡긴의뢰" },
   { key: "received",  label: "받은의뢰" },
   { key: "joined",    label: "참여의뢰" },
@@ -133,15 +132,12 @@ export default function CommissionListPage() {
 
         if (tab === "public") {
           query = query.eq("is_private", false);
-        } else if (tab === "private" && uid) {
-          // 내가 참여한 공개의뢰 중 내가 의뢰자이거나 지목된 판매자인 것
-          query = query.eq("is_private", false).or(`user_id.eq.${uid},target_seller_id.eq.${uid}`);
         } else if (tab === "given" && uid) {
           // 내가 등록한 의뢰 (공개+개인 모두)
           query = query.eq("user_id", uid);
         } else if (tab === "received" && uid) {
-          // 내가 지목된 개인의뢰
-          query = query.eq("is_private", true).eq("target_seller_id", uid);
+          // 지목된 개인의뢰 + 판매자 미선택 개인의뢰 (모든 판매자에게 노출)
+          query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`);
         }
 
         const { data: cData, error } = await query;
