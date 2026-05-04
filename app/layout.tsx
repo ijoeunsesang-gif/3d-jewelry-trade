@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
+
+const cormorant = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["700"],
+  variable: "--font-cormorant",
+  display: "swap",
+});
 import Header from "@/app/components/Header";
 import Footer from "@/app/components/Footer";
 import PwaInstallPrompt from "@/app/components/PwaInstallPrompt";
@@ -30,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko">
+    <html lang="ko" className={cormorant.variable}>
       <body
         style={{
           margin: 0,

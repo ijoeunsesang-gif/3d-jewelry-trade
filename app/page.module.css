@@ -28,16 +28,17 @@
   z-index: 1;
   width: min(920px, 100%);
   text-align: center;
-  padding: 40px 20px;
+  padding: 20px 20px 40px;
 }
 
 .heroTitle {
   margin: 0 0 10px;
   font-size: 60px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.15;
   color: #c9a84c;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.05em;
+  font-family: var(--font-cormorant), "Georgia", serif;
 }
 
 .heroSubTitle {
@@ -566,7 +567,7 @@
   }
 
   .heroContent {
-    padding: 32px 14px;
+    padding: 16px 14px 32px;
   }
 
   .heroTitle {
