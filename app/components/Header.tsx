@@ -26,6 +26,7 @@ export default function Header() {
   const [notifItems, setNotifItems] = useState<any[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
@@ -97,15 +98,17 @@ export default function Header() {
       setUserEmail(payload?.email || "kakao_user");
       const uid = payload?.sub as string;
       setUserId(uid);
-      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${uid}&select=avatar_url,nickname&limit=1`);
+      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${uid}&select=avatar_url,nickname,role&limit=1`);
       const profile = (profileArr as any[])?.[0] ?? null;
       setAvatarUrl(profile?.avatar_url || "");
       setNickname(profile?.nickname || "");
+      setUserRole(profile?.role || "user");
     } else {
       setUserEmail("");
       setAvatarUrl("");
       setNickname("");
       setUserId(null);
+      setUserRole(null);
     }
   };
 
@@ -321,6 +324,9 @@ export default function Header() {
         <MyMenuLink href="/profile"   icon={<IconDropUser   active={pathname.startsWith("/profile")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/profile")}>내 정보</MyMenuLink>
         <MyMenuLink href="/my-models" icon={<IconDropBox    active={pathname.startsWith("/my-models")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/my-models")}>내 모델</MyMenuLink>
         <MyMenuLink href="/upload"    icon={<IconDropUpload active={pathname.startsWith("/upload")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/upload")}>업로드</MyMenuLink>
+        {(userRole === "seller" || userRole === "admin") && (
+          <MyMenuLink href="/ask" icon={<IconDropAsk active={pathname.startsWith("/ask")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/ask")}>물어보기</MyMenuLink>
+        )}
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
@@ -768,4 +774,7 @@ function IconClipboard({ active = false, size = 22, inactiveColor = "#5a5a5a", a
 }
 function IconDropClipboard({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></svg>;
+}
+function IconDropAsk({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" /><line x1="12" y1="7" x2="12" y2="13" /></svg>;
 }
