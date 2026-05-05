@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Raleway } from "next/font/google";
+
+const raleway = Raleway({ subsets: ["latin"], weight: ["700"] });
 import styles from "./page.module.css";
 import { supabase } from "./lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
@@ -403,7 +406,7 @@ export default function Home() {
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
             <p className={styles.heroTitle}>
-              <span className={styles.heroTitleEn}>3D </span>
+              <span className={`${styles.heroTitleEn} ${raleway.className}`}>3D </span>
               <span className={styles.heroTitleKo}>마켓</span>
             </p>
             <p className={styles.heroSubTitle}>
