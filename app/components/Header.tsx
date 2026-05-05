@@ -27,6 +27,7 @@ export default function Header() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [showCommissionModal, setShowCommissionModal] = useState(false);
 
   const desktopMyRef = useRef<HTMLDivElement | null>(null);
   const mobileMyRef = useRef<HTMLDivElement | null>(null);
@@ -389,6 +390,10 @@ export default function Header() {
 
   return (
     <>
+      <style>{`
+        @media (max-width: 768px) { .header-commission-banner { display: none !important; } }
+      `}</style>
+
       <header style={{ borderBottom: "1px solid #f0ead8", background: "white", position: "sticky", top: 0, zIndex: 100 }}>
         <div style={{
           maxWidth: 1240, margin: "0 auto",
@@ -405,6 +410,20 @@ export default function Header() {
             <Link href="/" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
               <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
             </Link>
+
+            {/* 의뢰 안내 배너 (데스크탑 전용) */}
+            <button
+              className="header-commission-banner"
+              onClick={() => setShowCommissionModal(true)}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                background: "#fdf8ec", border: `1px solid ${GOLD}`,
+                borderRadius: 20, padding: "6px 16px", cursor: "pointer",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>찾는 제품이 없으신가요?</span>
+              <span style={{ fontSize: 13, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>→ 의뢰하기</span>
+            </button>
 
             {/* 데스크탑 네비게이션 */}
             <nav className="header-desktop-nav" style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -547,6 +566,101 @@ export default function Header() {
 
         </div>
       </header>
+
+      {/* ── 의뢰 안내 모달 ──────────────────────────────────── */}
+      {showCommissionModal && (
+        <div
+          onClick={() => setShowCommissionModal(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 16px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "white", borderRadius: 24, padding: "32px 28px",
+              width: "100%", maxWidth: 500,
+              maxHeight: "90vh", overflowY: "auto",
+              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            {/* 헤더 */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: "#111827" }}>의뢰란 무엇인가요?</h2>
+              <button
+                onClick={() => setShowCommissionModal(false)}
+                style={{ border: "none", background: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af", lineHeight: 1 }}
+              >✕</button>
+            </div>
+
+            {/* 공개의뢰 */}
+            <div style={{ background: "#f0f9ff", borderRadius: 16, padding: "18px 20px", marginBottom: 14, border: "1px solid #bae6fd" }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#0369a1", marginBottom: 8 }}>1️⃣ 공개의뢰</div>
+              <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.8 }}>
+                여러 판매자가 볼 수 있는 의뢰예요.<br />
+                다양한 판매자가 제작하여 링크등록을 하면<br />
+                가장 마음에 드는 제품을 다운로드 하시면 됩니다.<br />
+                <span style={{ color: "#0369a1", fontWeight: 700 }}>저렴한 가격</span>으로 구입 가능하지만<br />
+                다른 사람도 구매할 수 있어요.
+              </p>
+            </div>
+
+            {/* 개인의뢰 */}
+            <div style={{ background: GOLD_LIGHT, borderRadius: 16, padding: "18px 20px", marginBottom: 14, border: `1px solid ${GOLD}` }}>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#92400e", marginBottom: 8 }}>2️⃣ 개인의뢰</div>
+              <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.8 }}>
+                원하는 판매자를 직접 지정하거나<br />
+                판매자 미지정으로 의뢰할 수 있어요.<br />
+                <span style={{ color: "#92400e", fontWeight: 700 }}>맞춤 제작</span>이 가능하고<br />
+                다른 사람은 구매할 수 없어요.
+              </p>
+            </div>
+
+            {/* 진행 순서 */}
+            <div style={{ background: "#f9fafb", borderRadius: 14, padding: "14px 18px", marginBottom: 24, border: "1px solid #e5e7eb" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 8 }}>📋 의뢰 진행 순서</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                {["의뢰 등록", "판매자 선택", "결제", "작업 진행", "결과물 수령"].map((step, i, arr) => (
+                  <span key={step} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827", background: "white", border: "1px solid #e5e7eb", borderRadius: 8, padding: "3px 10px" }}>{step}</span>
+                    {i < arr.length - 1 && <span style={{ color: GOLD, fontWeight: 800 }}>→</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <Link
+                href="/commission/new?type=public"
+                onClick={() => setShowCommissionModal(false)}
+                style={{
+                  flex: 1, height: 48, borderRadius: 13, border: "1.5px solid #0369a1",
+                  background: "#f0f9ff", color: "#0369a1",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  textDecoration: "none", fontSize: 14, fontWeight: 800,
+                }}
+              >
+                🌐 공개의뢰 등록하기
+              </Link>
+              <Link
+                href="/commission/new?type=private"
+                onClick={() => setShowCommissionModal(false)}
+                style={{
+                  flex: 1, height: 48, borderRadius: 13, border: "none",
+                  background: "#111827", color: GOLD,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  textDecoration: "none", fontSize: 14, fontWeight: 800,
+                }}
+              >
+                👤 개인의뢰 등록하기
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 모바일 하단 탭 네비게이션 ─────────────────────────── */}
       <nav className="mobile-bottom-tab-bar">
