@@ -98,6 +98,18 @@ export default function CommissionListPage() {
     try {
       let data: any[] = [];
 
+      // 전체관리 탭: 서비스롤 API로 RLS 우회 전체 조회
+      if (tab === "admin") {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        const res = await fetch("/api/commission/admin", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) { setCommissions([]); return; }
+        const { data: adminData } = await res.json();
+        setCommissions(adminData || []);
+        return;
+      }
+
       const BASE_SELECT = "id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)";
 
       if (tab === "bookmarks") {
@@ -147,7 +159,6 @@ export default function CommissionListPage() {
           // 지목된 개인의뢰 + 판매자 미선택 개인의뢰, 단 본인이 올린 의뢰 제외
           query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`).neq("user_id", uid);
         }
-        // "admin" 탭: 필터 없음 — 전체 조회
 
         const { data: cData, error } = await query;
         if (error || !cData) { setCommissions([]); return; }
