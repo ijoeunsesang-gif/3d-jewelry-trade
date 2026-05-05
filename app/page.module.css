@@ -33,26 +33,11 @@
 
 .heroTitle {
   margin: 0 0 10px;
-  font-weight: 700;
-  color: #c9a84c;
-  display: flex;
-  align-items: flex-end;
-}
-
-.heroTitleEn {
   font-size: 64px;
+  font-weight: 700;
   line-height: 1.15;
-  position: relative;
-  top: -6px;
   letter-spacing: -0.02em;
-  margin-right: 0.12em;
-}
-
-.heroTitleKo {
-  font-family: var(--font-cormorant), "Georgia", serif;
-  font-size: 56px;
-  line-height: 1.15;
-  letter-spacing: 0.04em;
+  color: #b8960c;
 }
 
 .heroSubTitle {
@@ -584,13 +569,8 @@
     padding: 16px 14px 32px;
   }
 
-  .heroTitleEn {
+  .heroTitle {
     font-size: 46px;
-    top: -4px;
-  }
-
-  .heroTitleKo {
-    font-size: 40px;
   }
 
   .heroSubTitle {

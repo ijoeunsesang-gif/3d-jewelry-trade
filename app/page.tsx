@@ -405,9 +405,8 @@ export default function Home() {
         <section className={styles.hero}>
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
-            <p className={styles.heroTitle}>
-              <span className={`${styles.heroTitleEn} ${raleway.className}`}>3D</span>
-              <span className={styles.heroTitleKo}>마켓</span>
+            <p className={`${styles.heroTitle} ${raleway.className}`}>
+              3D 마켓
             </p>
             <p className={styles.heroSubTitle}>
               주얼리 3D 모델 거래 플랫폼
