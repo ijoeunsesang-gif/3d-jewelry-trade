@@ -43,7 +43,8 @@
 .heroTitleEn {
   font-size: 60px;
   line-height: 1.15;
-  vertical-align: baseline;
+  position: relative;
+  top: -0.08em;
   letter-spacing: -0.02em;
   margin-right: 0.12em;
 }
