@@ -352,6 +352,13 @@ export default function Header() {
 
         <MyMenuLink href="/jobs" icon={<IconDropJobs active={pathname.startsWith("/jobs")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/jobs")}>구인구직</MyMenuLink>
 
+        {userRole === "admin" && (
+          <>
+            <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
+            <MyMenuLink href="/admin" icon={<IconDropAdmin active={pathname.startsWith("/admin")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/admin")}>관리자 페이지</MyMenuLink>
+          </>
+        )}
+
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
         {/* 로그아웃 */}
@@ -902,4 +909,7 @@ function IconDropAsk({ active = false }: { active?: boolean }) {
 }
 function IconDropJobs({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" /></svg>;
+}
+function IconDropAdmin({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>;
 }
