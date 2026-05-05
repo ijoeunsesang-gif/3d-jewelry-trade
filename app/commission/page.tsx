@@ -57,6 +57,7 @@ export default function CommissionListPage() {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("public");
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
@@ -68,9 +69,13 @@ export default function CommissionListPage() {
       const payload = decodeJwt(token) as any;
       uid = payload?.sub || null;
       setCurrentUserId(uid);
-      if (uid) loadBookmarks(uid);
+      if (uid) {
+        loadBookmarks(uid);
+        supabase.from("profiles").select("role").eq("id", uid).single()
+          .then(({ data }) => setCurrentUserRole(data?.role || "user"));
+      }
     }
-    fetchCommissions("public", uid);
+    fetchCommissions("public", uid, null);
   }, []);
 
   const loadBookmarks = async (uid: string) => {
@@ -83,7 +88,7 @@ export default function CommissionListPage() {
     }
   };
 
-  const fetchCommissions = async (tab: Tab, uid: string | null) => {
+  const fetchCommissions = async (tab: Tab, uid: string | null, role: string | null) => {
     setLoading(true);
     try {
       let data: any[] = [];
@@ -130,9 +135,9 @@ export default function CommissionListPage() {
 
         if (tab === "public") {
           query = query.eq("is_private", false);
-        } else if (tab === "given" && uid) {
-          // 내가 등록한 의뢰 (공개+개인 모두)
-          query = query.eq("user_id", uid);
+        } else if (tab === "given") {
+          // 관리자는 전체 조회, 일반 유저는 본인 의뢰만
+          if (role !== "admin" && uid) query = query.eq("user_id", uid);
         } else if (tab === "received" && uid) {
           // 지목된 개인의뢰 + 판매자 미선택 개인의뢰, 단 본인이 올린 의뢰 제외
           query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`).neq("user_id", uid);
@@ -175,7 +180,7 @@ export default function CommissionListPage() {
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     if (!isLoggedIn && tab !== "public") return;
-    fetchCommissions(tab, currentUserId);
+    fetchCommissions(tab, currentUserId, currentUserRole);
   };
 
   const toggleBookmark = async (e: React.MouseEvent, commissionId: string) => {
