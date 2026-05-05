@@ -333,20 +333,39 @@ export default function CommissionListPage() {
                 {/* 카드 내용 */}
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    {(() => {
-                      const resultCount = c.commission_results?.[0]?.count ?? 0;
-                      const showResultBadge = !c.is_private && c.status === "open" && resultCount >= 1;
-                      return (
-                        <span style={{
-                          fontSize: 11, fontWeight: 700,
-                          color: showResultBadge ? "#16a34a" : (STATUS_COLOR[c.status] || "#374151"),
-                          background: showResultBadge ? "#dcfce7" : (STATUS_BG[c.status] || "#f3f4f6"),
-                          padding: "2px 9px", borderRadius: 999,
-                        }}>
-                          {showResultBadge ? `링크 ${resultCount}개` : (STATUS_LABEL[c.status] || c.status)}
-                        </span>
-                      );
-                    })()}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {(() => {
+                        const resultCount = c.commission_results?.[0]?.count ?? 0;
+                        const showResultBadge = !c.is_private && c.status === "open" && resultCount >= 1;
+                        return (
+                          <span style={{
+                            fontSize: 11, fontWeight: 700,
+                            color: showResultBadge ? "#16a34a" : (STATUS_COLOR[c.status] || "#374151"),
+                            background: showResultBadge ? "#dcfce7" : (STATUS_BG[c.status] || "#f3f4f6"),
+                            padding: "2px 9px", borderRadius: 999,
+                          }}>
+                            {showResultBadge ? `링크 ${resultCount}개` : (STATUS_LABEL[c.status] || c.status)}
+                          </span>
+                        );
+                      })()}
+                      {activeTab === "given" && (() => {
+                        if (!c.is_private) return (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#1d4ed8", background: "#dbeafe", padding: "2px 9px", borderRadius: 999 }}>
+                            🌐 공개의뢰
+                          </span>
+                        );
+                        if (c.target_seller_id) return (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#92400e", background: "#fef3c7", padding: "2px 9px", borderRadius: 999 }}>
+                            👤 개인의뢰
+                          </span>
+                        );
+                        return (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#4b5563", background: "#f3f4f6", padding: "2px 9px", borderRadius: 999 }}>
+                            👥 미지정의뢰
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <span style={{ fontSize: 11, color: "#9ca3af" }}>{formatDate(c.created_at)}</span>
                   </div>
                   <div style={{
