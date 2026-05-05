@@ -27,7 +27,7 @@ const STATUS_BG: Record<string, string> = {
   rejected: "#fef2f2", cancelled: "#f3f4f6",
 };
 
-type Tab = "public" | "given" | "received" | "joined" | "bookmarks";
+type Tab = "public" | "given" | "received" | "joined" | "bookmarks" | "admin";
 
 type Commission = {
   id: string;
@@ -147,6 +147,7 @@ export default function CommissionListPage() {
           // 지목된 개인의뢰 + 판매자 미선택 개인의뢰, 단 본인이 올린 의뢰 제외
           query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`).neq("user_id", uid);
         }
+        // "admin" 탭: 필터 없음 — 전체 조회
 
         const { data: cData, error } = await query;
         if (error || !cData) { setCommissions([]); return; }
@@ -215,7 +216,7 @@ export default function CommissionListPage() {
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
   };
 
-  const needsLogin = !isLoggedIn && activeTab !== "public";
+  const needsLogin = !isLoggedIn && activeTab !== "public" && activeTab !== "admin";
 
   const STATUS_GROUP: Record<string, string[]> = {
     "의뢰중": ["pending", "open"],
@@ -226,8 +227,8 @@ export default function CommissionListPage() {
   };
 
   const displayCommissions = (() => {
-    const isAdminGiven = activeTab === "given" && currentUserRole === "admin";
-    if (!isAdminGiven) return commissions;
+    const hasFilter = (activeTab === "given" && currentUserRole === "admin") || activeTab === "admin";
+    if (!hasFilter) return commissions;
     return commissions.filter((c) => {
       if (adminSearch) {
         const q = adminSearch.toLowerCase();
@@ -278,7 +279,7 @@ export default function CommissionListPage() {
       </div>
 
       {/* 탭 네비게이션 */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "2px solid #e5e7eb" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "2px solid #e5e7eb", flexWrap: "wrap" }}>
         {TABS.map(({ key, label }) => (
           <button
             key={key}
@@ -298,10 +299,28 @@ export default function CommissionListPage() {
             {label}
           </button>
         ))}
+        {currentUserRole === "admin" && (
+          <button
+            onClick={() => handleTabChange("admin")}
+            style={{
+              background: "none",
+              border: "none",
+              padding: "10px 20px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: activeTab === "admin" ? "#dc2626" : "#9ca3af",
+              cursor: "pointer",
+              borderBottom: activeTab === "admin" ? "2px solid #dc2626" : "2px solid transparent",
+              marginBottom: -2,
+            }}
+          >
+            🛠 전체관리
+          </button>
+        )}
       </div>
 
-      {/* 관리자 전용 필터 (맡긴의뢰 탭) */}
-      {activeTab === "given" && currentUserRole === "admin" && (
+      {/* 관리자 전용 필터 (맡긴의뢰·전체관리 탭) */}
+      {((activeTab === "given" && currentUserRole === "admin") || activeTab === "admin") && (
         <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
           <input
             type="text"
@@ -414,7 +433,7 @@ export default function CommissionListPage() {
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {activeTab === "given" && (() => {
+                      {(activeTab === "given" || activeTab === "admin") && (() => {
                         if (!c.is_private) return (
                           <span style={{ fontSize: 11, fontWeight: 700, color: "#1d4ed8", background: "#dbeafe", padding: "2px 9px", borderRadius: 999 }}>
                             🌐 공개의뢰
@@ -454,7 +473,15 @@ export default function CommissionListPage() {
                   }}>
                     {c.title}
                   </div>
-                  {c.is_private && c.seller_nickname ? (() => {
+                  {activeTab === "admin" ? (
+                    <div className="cc-desc">
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 2, overflow: "hidden" }}>
+                        <span style={{ fontSize: 11, color: "#9ca3af", marginRight: 2 }}>의뢰자</span>
+                        <span className="cc-name" style={{ color: "#374151" }}>{c.nickname}</span>
+                        <span>님</span>
+                      </div>
+                    </div>
+                  ) : c.is_private && c.seller_nickname ? (() => {
                     const iAmRequester = c.user_id === currentUserId;
                     const iAmWorker = c.target_seller_id === currentUserId;
                     return (
