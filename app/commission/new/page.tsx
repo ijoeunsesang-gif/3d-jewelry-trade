@@ -49,6 +49,7 @@ function CommissionNewInner() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const typeParam = searchParams.get("type");
   const [isPrivate, setIsPrivate] = useState(typeParam === "private");
 
@@ -150,6 +151,17 @@ function CommissionNewInner() {
   const handleSelectSeller = (s: SellerProfile) => {
     setSelectedSellerId(s.id);
     setSelectedSeller(s);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (imageFiles.length >= MAX_IMAGES) return;
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    const toAdd = files.slice(0, MAX_IMAGES - imageFiles.length);
+    if (toAdd.length === 0) return;
+    setImageFiles(prev => [...prev, ...toAdd]);
+    setPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))]);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -577,7 +589,19 @@ function CommissionNewInner() {
           <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
             참고 이미지 (최대 {MAX_IMAGES}장)
           </label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+          <div
+            onDragOver={(e) => { e.preventDefault(); if (imageFiles.length < MAX_IMAGES) setIsDragging(true); }}
+            onDragEnter={(e) => { e.preventDefault(); if (imageFiles.length < MAX_IMAGES) setIsDragging(true); }}
+            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+            onDrop={handleDrop}
+            style={{
+              display: "flex", flexWrap: "wrap", gap: 10,
+              padding: 8, borderRadius: 12,
+              border: isDragging ? `2px dashed ${GOLD}` : "2px dashed transparent",
+              background: isDragging ? "#fdf6e3" : "transparent",
+              transition: "border-color 0.15s, background 0.15s",
+            }}
+          >
             {previews.map((src, i) => (
               <div key={i} style={{ position: "relative", width: 100, height: 100, flexShrink: 0 }}>
                 <img src={src} alt="" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
@@ -593,12 +617,14 @@ function CommissionNewInner() {
             {imageFiles.length < MAX_IMAGES && (
               <button type="button" onClick={() => fileInputRef.current?.click()} style={{
                 width: 100, height: 100, borderRadius: 10,
-                border: "1px dashed #d1d5db", background: "#f8fafc",
+                border: "1px dashed #d1d5db",
+                background: isDragging ? "rgba(201,168,76,0.08)" : "#f8fafc",
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", color: "#9ca3af", fontSize: 11, gap: 4,
+                cursor: "pointer", color: isDragging ? GOLD : "#9ca3af", fontSize: 11, gap: 4,
+                transition: "color 0.15s, background 0.15s",
               }}>
                 <span style={{ fontSize: 26, lineHeight: 1 }}>+</span>
-                <span>이미지 추가</span>
+                <span>{isDragging ? "여기에 놓기" : "이미지 추가"}</span>
               </button>
             )}
           </div>
