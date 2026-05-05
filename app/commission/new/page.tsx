@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -40,7 +40,7 @@ const inputStyle: React.CSSProperties = {
 
 type SellerProfile = { id: string; nickname: string; avatar_url: string | null; grade: Grade };
 
-export default function CommissionNewPage() {
+function CommissionNewInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
@@ -625,5 +625,13 @@ export default function CommissionNewPage() {
 
       </div>
     </div>
+  );
+}
+
+export default function CommissionNewPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "60px 20px", textAlign: "center", color: "#9ca3af" }}>로딩 중...</div>}>
+      <CommissionNewInner />
+    </Suspense>
   );
 }
