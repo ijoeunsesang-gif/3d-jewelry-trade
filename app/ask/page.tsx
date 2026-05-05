@@ -118,7 +118,7 @@ export default function AskPage() {
           </div>
           <h1 style={{ margin: 0, fontSize: 26, fontWeight: 900, color: "white" }}>물어보기</h1>
           <p style={{ margin: "6px 0 0", fontSize: 14, color: "rgba(255,255,255,0.55)" }}>
-            판매자끼리 질문하고 답변해요
+            도움이 필요한 부분이 있으면 자유롭게 물어보세요.
           </p>
         </div>
         <Link href="/ask/new" style={{
