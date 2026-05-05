@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../../lib/toast";
@@ -42,13 +42,15 @@ type SellerProfile = { id: string; nickname: string; avatar_url: string | null; 
 
 export default function CommissionNewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [userId, setUserId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [isPrivate, setIsPrivate] = useState(false);
+  const typeParam = searchParams.get("type");
+  const [isPrivate, setIsPrivate] = useState(typeParam === "private");
 
   // 개인 의뢰 전용
   const [sellerTab, setSellerTab] = useState<"all" | "followed">("all");
