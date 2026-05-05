@@ -219,7 +219,9 @@ export default function AskDetailPage() {
       const meetsLength = answerContent.trim().length >= MIN_ANSWER_LENGTH;
       const isSolved = post?.is_solved ?? false;
 
-      if (meetsLength && !isSolved) {
+      const isSelfAnswer = post?.user_id === myId;
+
+      if (meetsLength && !isSolved && !isSelfAnswer) {
         // 이 post_id에 이미 포인트를 받은 적 있는지 확인
         const { data: prevPoints } = await supabase
           .from("points")
@@ -329,7 +331,7 @@ export default function AskDetailPage() {
 
   // 현재 답변 내용의 포인트 지급 여부 미리보기
   const contentLen = answerContent.trim().length;
-  const willEarnPoints = contentLen >= MIN_ANSWER_LENGTH && !post?.is_solved;
+  const willEarnPoints = contentLen >= MIN_ANSWER_LENGTH && !post?.is_solved && myId !== post?.user_id;
 
   if (myRole !== null && myRole !== "seller" && myRole !== "admin") {
     return (
