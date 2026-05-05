@@ -42,6 +42,8 @@ function MessagesContent() {
   const [profilesMap, setProfilesMap] = useState<Record<string, ProfileItem>>({});
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     initMessages();
@@ -97,7 +99,7 @@ function MessagesContent() {
 
       const { data: convRows, error: convError } = await sbAuthFetch(
         "conversations",
-        `?or=(user1_id.eq.${myId},user2_id.eq.${myId})&order=updated_at.desc`
+        `?or=(and(user1_id.eq.${myId},deleted_by_user1.eq.false),and(user2_id.eq.${myId},deleted_by_user2.eq.false))&order=updated_at.desc`
       );
 
       if (convError) {
@@ -132,6 +134,34 @@ function MessagesContent() {
       console.error("메시지 초기화 오류:", error);
     } finally {
       if (!silent) setLoading(false);
+    }
+  };
+
+  const deleteConversation = async (convId: string) => {
+    const conv = conversations.find(c => c.id === convId);
+    if (!conv) return;
+    const column = conv.user1_id === currentUserId ? "deleted_by_user1" : "deleted_by_user2";
+
+    setDeletingId(convId);
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .update({ [column]: true })
+        .eq("id", convId);
+
+      if (error) { showError("삭제에 실패했습니다."); return; }
+
+      setConversations(prev => prev.filter(c => c.id !== convId));
+      if (selectedConversationId === convId) {
+        setSelectedConversationId("");
+        setMessages([]);
+      }
+      showSuccess("대화가 삭제되었습니다.");
+    } catch {
+      showError("삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
+      setDeleteTargetId(null);
     }
   };
 
@@ -309,80 +339,82 @@ function MessagesContent() {
               const otherProfile = profilesMap[otherId];
 
               return (
-              <button
-                key={conv.id}
-                type="button"
-                onClick={async () => {
-                  setSelectedConversationId(conv.id);
-
-                  if (currentUserId) {
-                    await markConversationAsRead(conv.id, currentUserId);
-                  }
-                }}
-                  style={{
-                    width: "100%",
-                    minHeight: 90,
-                    border: "none",
-                    borderBottom: "1px solid #f3f4f6",
-                    borderLeft: selectedConversationId === conv.id ? "3px solid #111827" : "3px solid transparent",
-                    background:
-                      selectedConversationId === conv.id ? "#e5e7eb" : "white",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <img
-                    src={otherProfile?.avatar_url || "/default-avatar.png"}
-                    alt="profile"
+                <div key={conv.id} style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setSelectedConversationId(conv.id);
+                      if (currentUserId) {
+                        await markConversationAsRead(conv.id, currentUserId);
+                      }
+                    }}
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: "100%",
+                      minHeight: 90,
+                      border: "none",
+                      borderBottom: "1px solid #f3f4f6",
+                      borderLeft: selectedConversationId === conv.id ? "3px solid #111827" : "3px solid transparent",
+                      background: selectedConversationId === conv.id ? "#e5e7eb" : "white",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "12px 40px 12px 16px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <img
+                      src={otherProfile?.avatar_url || "/default-avatar.png"}
+                      alt="profile"
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        objectFit: "cover",
+                        border: "1px solid #e5e7eb",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: "#111827" }}>
+                        {otherProfile?.nickname || "사용자"}
+                      </div>
+                      {conv.model_title && (
+                        <div style={{ marginTop: 4, fontSize: 12, color: "#374151", fontWeight: 700 }}>
+                          상품: {conv.model_title}
+                        </div>
+                      )}
+                      <div style={{ marginTop: 4, fontSize: 12, color: "#6b7280" }}>
+                        {new Date(conv.updated_at).toLocaleString("ko-KR")}
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    title="대화 삭제"
+                    onClick={() => setDeleteTargetId(conv.id)}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: 10,
+                      transform: "translateY(-50%)",
+                      width: 24,
+                      height: 24,
                       borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "1px solid #e5e7eb",
+                      border: "none",
+                      background: "rgba(0,0,0,0.06)",
+                      color: "#9ca3af",
+                      cursor: "pointer",
+                      fontSize: 15,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       flexShrink: 0,
                     }}
-                  />
-
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 900,
-                        color: "#111827",
-                      }}
-                    >
-                      {otherProfile?.nickname || "사용자"}
-                    </div>
-
-                    {conv.model_title && (
-                      <div
-                        style={{
-                          marginTop: 4,
-                          fontSize: 12,
-                          color: "#374151",
-                          fontWeight: 700,
-                        }}
-                      >
-                        상품: {conv.model_title}
-                      </div>
-                    )}
-
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 12,
-                        color: "#6b7280",
-                      }}
-                    >
-                      {new Date(conv.updated_at).toLocaleString("ko-KR")}
-                    </div>
-                  </div>
-                </button>
+                  >
+                    ×
+                  </button>
+                </div>
               );
             })
           )}
@@ -631,6 +663,57 @@ function MessagesContent() {
           </form>
         </section>
       </section>
+      {deleteTargetId && (
+        <div
+          onClick={() => setDeleteTargetId(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "white", borderRadius: 20, padding: "28px 24px",
+              width: 320, boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+              fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 8 }}>대화 삭제</div>
+            <div style={{ fontSize: 14, color: "#6b7280", marginBottom: 24, lineHeight: 1.6 }}>
+              이 대화를 삭제하시겠습니까?<br />
+              상대방의 대화 목록에는 영향이 없습니다.
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+                style={{
+                  flex: 1, height: 44, borderRadius: 12,
+                  border: "1px solid #d1d5db", background: "white",
+                  color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteConversation(deleteTargetId)}
+                disabled={deletingId === deleteTargetId}
+                style={{
+                  flex: 1, height: 44, borderRadius: 12,
+                  border: "none", background: "#dc2626",
+                  color: "white", fontSize: 14, fontWeight: 700,
+                  cursor: deletingId === deleteTargetId ? "not-allowed" : "pointer",
+                  opacity: deletingId === deleteTargetId ? 0.6 : 1,
+                }}
+              >
+                {deletingId === deleteTargetId ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
