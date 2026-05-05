@@ -33,11 +33,22 @@
 
 .heroTitle {
   margin: 0 0 10px;
-  font-size: 64px;
   font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.02em;
   color: #b8960c;
+  display: flex;
+  align-items: baseline;
+  gap: 0.08em;
+}
+
+.heroTitleEn {
+  font-size: 64px;
+  letter-spacing: -0.02em;
+}
+
+.heroTitleKo {
+  font-size: 64px;
+  letter-spacing: -0.02em;
 }
 
 .heroSubTitle {
@@ -569,7 +580,11 @@
     padding: 16px 14px 32px;
   }
 
-  .heroTitle {
+  .heroTitleEn {
+    font-size: 46px;
+  }
+
+  .heroTitleKo {
     font-size: 46px;
   }
 
