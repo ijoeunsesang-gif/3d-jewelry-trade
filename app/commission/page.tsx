@@ -61,6 +61,11 @@ export default function CommissionListPage() {
   const [activeTab, setActiveTab] = useState<Tab>("public");
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
+  // 관리자 전용 필터 (맡긴의뢰 탭)
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminStatusFilter, setAdminStatusFilter] = useState("");
+  const [adminTypeFilter, setAdminTypeFilter] = useState("");
+
   useEffect(() => {
     const token = getAccessToken();
     let uid: string | null = null;
@@ -212,6 +217,33 @@ export default function CommissionListPage() {
 
   const needsLogin = !isLoggedIn && activeTab !== "public";
 
+  const STATUS_GROUP: Record<string, string[]> = {
+    "의뢰중": ["pending", "open"],
+    "결제중": ["payment"],
+    "작업중": ["working", "in_progress"],
+    "완료":   ["completed", "downloaded"],
+    "취소":   ["cancelled", "rejected"],
+  };
+
+  const displayCommissions = (() => {
+    const isAdminGiven = activeTab === "given" && currentUserRole === "admin";
+    if (!isAdminGiven) return commissions;
+    return commissions.filter((c) => {
+      if (adminSearch) {
+        const q = adminSearch.toLowerCase();
+        if (!c.title.toLowerCase().includes(q) && !c.nickname.toLowerCase().includes(q)) return false;
+      }
+      if (adminStatusFilter) {
+        const allowed = STATUS_GROUP[adminStatusFilter] ?? [];
+        if (!allowed.includes(c.status)) return false;
+      }
+      if (adminTypeFilter === "공개의뢰" && c.is_private) return false;
+      if (adminTypeFilter === "개인의뢰" && (!c.is_private || !c.target_seller_id)) return false;
+      if (adminTypeFilter === "미지정의뢰" && (!c.is_private || c.target_seller_id)) return false;
+      return true;
+    });
+  })();
+
   return (
     <div style={{
       maxWidth: 960, margin: "0 auto",
@@ -268,6 +300,49 @@ export default function CommissionListPage() {
         ))}
       </div>
 
+      {/* 관리자 전용 필터 (맡긴의뢰 탭) */}
+      {activeTab === "given" && currentUserRole === "admin" && (
+        <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="제목 또는 의뢰자 닉네임 검색"
+            value={adminSearch}
+            onChange={(e) => setAdminSearch(e.target.value)}
+            style={{
+              flex: "1 1 200px", height: 38, borderRadius: 10,
+              border: "1.5px solid #e5e7eb", padding: "0 12px",
+              fontSize: 14, outline: "none",
+            }}
+          />
+          <select
+            value={adminStatusFilter}
+            onChange={(e) => setAdminStatusFilter(e.target.value)}
+            style={{
+              height: 38, borderRadius: 10, border: "1.5px solid #e5e7eb",
+              padding: "0 10px", fontSize: 14, background: "white", cursor: "pointer",
+            }}
+          >
+            <option value="">상태: 전체</option>
+            {["의뢰중", "결제중", "작업중", "완료", "취소"].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={adminTypeFilter}
+            onChange={(e) => setAdminTypeFilter(e.target.value)}
+            style={{
+              height: 38, borderRadius: 10, border: "1.5px solid #e5e7eb",
+              padding: "0 10px", fontSize: 14, background: "white", cursor: "pointer",
+            }}
+          >
+            <option value="">타입: 전체</option>
+            {["공개의뢰", "개인의뢰", "미지정의뢰"].map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {needsLogin ? (
         <div style={{ textAlign: "center", padding: "80px 0", color: "#9ca3af" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
@@ -279,7 +354,7 @@ export default function CommissionListPage() {
             <div key={i} style={{ borderRadius: 14, background: "#f3f4f6", height: 240 }} />
           ))}
         </div>
-      ) : commissions.length === 0 ? (
+      ) : displayCommissions.length === 0 ? (
         <div style={{ textAlign: "center", padding: "80px 0", color: "#9ca3af" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: "#6b7280" }}>아직 의뢰가 없습니다</div>
@@ -289,7 +364,7 @@ export default function CommissionListPage() {
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
-          {commissions.map((c) => (
+          {displayCommissions.map((c) => (
             <Link key={c.id} href={`/commission/${c.id}`} style={{ textDecoration: "none" }}>
               <div
                 style={{
