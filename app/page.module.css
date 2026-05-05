@@ -44,7 +44,8 @@
   font-size: 60px;
   line-height: 1.15;
   vertical-align: baseline;
-  letter-spacing: 0.06em;
+  letter-spacing: -0.02em;
+  margin-right: 0.12em;
 }
 
 .heroTitleKo {

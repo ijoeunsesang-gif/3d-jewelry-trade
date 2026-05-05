@@ -406,7 +406,7 @@ export default function Home() {
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
             <p className={styles.heroTitle}>
-              <span className={`${styles.heroTitleEn} ${raleway.className}`}>3D </span>
+              <span className={`${styles.heroTitleEn} ${raleway.className}`}>3D</span>
               <span className={styles.heroTitleKo}>마켓</span>
             </p>
             <p className={styles.heroSubTitle}>
