@@ -61,7 +61,7 @@ export default function CommissionListPage() {
   const [activeTab, setActiveTab] = useState<Tab>("public");
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
-  // 관리자 전용 필터 (맡긴의뢰 탭)
+  // 관리자 전용 필터 (전체관리 탭)
   const [adminSearch, setAdminSearch] = useState("");
   const [adminStatusFilter, setAdminStatusFilter] = useState("");
   const [adminTypeFilter, setAdminTypeFilter] = useState("");
@@ -227,8 +227,7 @@ export default function CommissionListPage() {
   };
 
   const displayCommissions = (() => {
-    const hasFilter = (activeTab === "given" && currentUserRole === "admin") || activeTab === "admin";
-    if (!hasFilter) return commissions;
+    if (activeTab !== "admin") return commissions;
     return commissions.filter((c) => {
       if (adminSearch) {
         const q = adminSearch.toLowerCase();
@@ -319,8 +318,8 @@ export default function CommissionListPage() {
         )}
       </div>
 
-      {/* 관리자 전용 필터 (맡긴의뢰·전체관리 탭) */}
-      {((activeTab === "given" && currentUserRole === "admin") || activeTab === "admin") && (
+      {/* 관리자 전용 필터 (전체관리 탭) */}
+      {activeTab === "admin" && (
         <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
           <input
             type="text"
