@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Raleway, Noto_Sans_KR } from "next/font/google";
+import { Noto_Sans_KR } from "next/font/google";
 
-const raleway = Raleway({ subsets: ["latin"], weight: ["700"] });
 const notoSansKR = Noto_Sans_KR({ subsets: ["latin"], weight: ["700"] });
 import styles from "./page.module.css";
 import { supabase } from "./lib/supabase-browser";
@@ -406,9 +405,8 @@ export default function Home() {
         <section className={styles.hero}>
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
-            <p className={styles.heroTitle}>
-              <span className={`${styles.heroTitleEn} ${raleway.className}`}>3D</span>
-              <span className={`${styles.heroTitleKo} ${notoSansKR.className}`}>마켓</span>
+            <p className={`${styles.heroTitle} ${notoSansKR.className}`}>
+              3D 마켓
             </p>
             <p className={styles.heroSubTitle}>
               주얼리 3D 모델 거래 플랫폼
