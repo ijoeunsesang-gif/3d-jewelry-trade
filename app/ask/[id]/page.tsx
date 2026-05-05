@@ -97,6 +97,10 @@ export default function AskDetailPage() {
   const [answerDragOver, setAnswerDragOver] = useState(false);
   const answerFileRef = useRef<HTMLInputElement>(null);
 
+  // 삭제 모달
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
   // 신고 모달
   const [reportTarget, setReportTarget] = useState<AskAnswer | null>(null);
   const [reportReason, setReportReason] = useState("");
@@ -286,6 +290,26 @@ export default function AskDetailPage() {
     await fetchPost();
   };
 
+  const handleDeletePost = async () => {
+    if (!myId || deleteSubmitting) return;
+    setDeleteSubmitting(true);
+
+    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const res = await fetch(`/api/ask/delete?id=${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      router.push("/ask");
+    } else {
+      const { error } = await res.json();
+      alert(error || "삭제에 실패했습니다.");
+      setDeleteSubmitting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   const handleReport = async () => {
     if (!myId || !reportTarget || !reportReason || reportSubmitting) return;
     setReportSubmitting(true);
@@ -437,6 +461,58 @@ export default function AskDetailPage() {
         </div>
       )}
 
+      {/* 삭제 확인 모달 */}
+      {showDeleteModal && (
+        <div
+          onClick={() => !deleteSubmitting && setShowDeleteModal(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 16px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "white", borderRadius: 20, padding: "28px 24px",
+              width: "100%", maxWidth: 380,
+            }}
+          >
+            <h3 style={{ margin: "0 0 10px", fontSize: 17, fontWeight: 900, color: "#111827" }}>
+              게시물 삭제
+            </h3>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6b7280", lineHeight: 1.6 }}>
+              게시물을 삭제하면 답변도 모두 삭제됩니다.<br />정말 삭제하시겠습니까?
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleteSubmitting}
+                style={{
+                  flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db",
+                  background: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", color: "#374151",
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeletePost}
+                disabled={deleteSubmitting}
+                style={{
+                  flex: 1, height: 44, borderRadius: 12, border: "none",
+                  background: deleteSubmitting ? "#e5e7eb" : "#ef4444",
+                  color: deleteSubmitting ? "#9ca3af" : "white",
+                  fontSize: 14, fontWeight: 800,
+                  cursor: deleteSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {deleteSubmitting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 뒤로가기 */}
       <Link href="/ask" style={{
         display: "inline-flex", alignItems: "center", gap: 6,
@@ -480,6 +556,21 @@ export default function AskDetailPage() {
                 <img src={url} alt="" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
               </a>
             ))}
+          </div>
+        )}
+
+        {(isAuthor || myRole === "admin") && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{
+                padding: "7px 16px", borderRadius: 10,
+                border: "1px solid #fecaca", background: "white",
+                color: "#ef4444", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              삭제
+            </button>
           </div>
         )}
       </div>
