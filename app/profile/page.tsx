@@ -462,7 +462,7 @@ export default function ProfilePage() {
 
   return (
     <main style={pageWrap}>
-      <div style={{ marginBottom: 28 }}>
+      <div className="pf-page-header" style={{ marginBottom: 28 }}>
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: DARK }}>내 정보</h1>
         <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>계정 정보 및 판매자 설정을 관리합니다.</p>
       </div>
@@ -470,9 +470,9 @@ export default function ProfilePage() {
       <div className="profile-grid" style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 24, alignItems: "start" }}>
 
         {/* ── 왼쪽 사이드바 ── */}
-        <aside style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 20, position: "sticky", top: 88 }}>
+        <aside className="profile-aside" style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 20, position: "sticky", top: 88 }}>
           {/* 프로필 이미지 + 업로드 */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <div className="profile-avatar-section" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 20 }}>
             <div style={{ position: "relative" }}>
               <img
                 src={previewUrl || "/default-avatar.png"}
@@ -480,29 +480,31 @@ export default function ProfilePage() {
                 style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "2px solid #e5e7eb", display: "block" }}
               />
             </div>
-            <label style={{
-              height: 34, padding: "0 14px", borderRadius: 10,
-              background: DARK, color: "white",
-              display: "inline-flex", alignItems: "center",
-              cursor: uploading ? "not-allowed" : "pointer",
-              fontWeight: 700, fontSize: 12, opacity: uploading ? 0.6 : 1,
-            }}>
-              {uploading ? "업로드 중..." : "이미지 업로드"}
-              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
-            </label>
-            {isSeller && !isSellerBanned && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
-                ✓ 판매자
-              </span>
-            )}
-            {isSellerBanned && (
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
-                ✗ 판매자 정지
-              </span>
-            )}
+            <div className="profile-avatar-info">
+              <label style={{
+                height: 34, padding: "0 14px", borderRadius: 10,
+                background: DARK, color: "white",
+                display: "inline-flex", alignItems: "center",
+                cursor: uploading ? "not-allowed" : "pointer",
+                fontWeight: 700, fontSize: 12, opacity: uploading ? 0.6 : 1,
+              }}>
+                {uploading ? "업로드 중..." : "이미지 업로드"}
+                <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
+              </label>
+              {isSeller && !isSellerBanned && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
+                  ✓ 판매자
+                </span>
+              )}
+              {isSellerBanned && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
+                  ✗ 판매자 정지
+                </span>
+              )}
+            </div>
           </div>
 
-          <div style={{ height: 1, background: "#e5e7eb", marginBottom: 14 }} />
+          <div className="profile-divider" style={{ height: 1, background: "#e5e7eb", marginBottom: 14 }} />
 
           {/* 탭 버튼 목록 */}
           <nav className="profile-tabs-nav" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -528,12 +530,12 @@ export default function ProfilePage() {
         </aside>
 
         {/* ── 오른쪽 콘텐츠 영역 ── */}
-        <section style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 28, minHeight: 360 }}>
+        <section className="profile-section-card" style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 28, minHeight: 360 }}>
 
           {/* 기본 정보 탭 */}
           {activeTab === "basic" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              <h2 style={sectionTitle}>기본 정보</h2>
+              <h2 className="pf-section-title" style={sectionTitle}>기본 정보</h2>
 
               <div style={fieldWrap}>
                 <label style={labelStyle}>이메일</label>
@@ -581,7 +583,7 @@ export default function ProfilePage() {
           {/* 팔로우 탭 */}
           {activeTab === "follow" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-              <h2 style={sectionTitle}>팔로우</h2>
+              <h2 className="pf-section-title" style={sectionTitle}>팔로우</h2>
               {followLoading ? (
                 <p style={{ color: "#6b7280", fontSize: 14 }}>불러오는 중...</p>
               ) : (
@@ -671,7 +673,7 @@ export default function ProfilePage() {
           {/* 판매자 등록 탭 */}
           {activeTab === "seller" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              <h2 style={sectionTitle}>판매자 등록</h2>
+              <h2 className="pf-section-title" style={sectionTitle}>판매자 등록</h2>
 
               {/* ─ 정지 안내 ─ */}
               {isSellerBanned && (
@@ -962,6 +964,31 @@ export default function ProfilePage() {
         @media (max-width: 768px) {
           .profile-grid {
             grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .profile-aside {
+            border-radius: 14px !important;
+            padding: 14px 14px 10px !important;
+            position: static !important;
+          }
+          .profile-avatar-section {
+            flex-direction: row !important;
+            justify-content: flex-start !important;
+            gap: 14px !important;
+            margin-bottom: 12px !important;
+          }
+          .profile-avatar-section img {
+            width: 60px !important;
+            height: 60px !important;
+          }
+          .profile-avatar-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+          }
+          .profile-divider {
+            margin: 8px 0 10px !important;
           }
           .profile-tabs-nav {
             flex-direction: row !important;
@@ -972,6 +999,22 @@ export default function ProfilePage() {
           }
           .profile-tabs-nav button {
             flex-shrink: 0;
+            height: 36px !important;
+            padding: 0 12px !important;
+            font-size: 13px !important;
+          }
+          .profile-section-card {
+            border-radius: 14px !important;
+            padding: 18px 16px !important;
+          }
+          .pf-section-title {
+            display: none !important;
+          }
+          .pf-page-header {
+            margin-bottom: 16px !important;
+          }
+          .pf-page-header h1 {
+            font-size: 22px !important;
           }
         }
       `}</style>
@@ -1096,7 +1139,7 @@ function GradeTab({
   if (gradeLoading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <h2 style={sectionTitle}>내 등급</h2>
+        <h2 className="pf-section-title" style={sectionTitle}>내 등급</h2>
         <p style={{ color: "#6b7280", fontSize: 14 }}>불러오는 중...</p>
       </div>
     );
@@ -1104,7 +1147,7 @@ function GradeTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-      <h2 style={sectionTitle}>내 등급</h2>
+      <h2 className="pf-section-title" style={sectionTitle}>내 등급</h2>
 
       {/* 1. 현재 등급 */}
       <div style={{
@@ -1371,7 +1414,7 @@ function SalesTab({ userId }: { userId: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-        <h2 style={sectionTitle}>판매 통계</h2>
+        <h2 className="pf-section-title" style={sectionTitle}>판매 통계</h2>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value as PeriodType)}
@@ -1604,7 +1647,7 @@ function PointsTab({ userId, isSeller, isAdmin }: { userId: string; isSeller: bo
 
   return (
     <div style={{ padding: "4px 0" }}>
-      <h2 style={sectionTitle}>포인트</h2>
+      <h2 className="pf-section-title" style={sectionTitle}>포인트</h2>
 
       {/* 보유 포인트 카드 */}
       <div style={{
