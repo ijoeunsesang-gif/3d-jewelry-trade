@@ -338,8 +338,9 @@ export default function Header() {
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* 섹션 3: 의뢰 / 문의함 / 고객센터 / 도움말 */}
+        {/* 섹션 3: 의뢰 / 구인구직 / 문의함 / 고객센터 / 도움말 */}
         <MyMenuLink href="/commission"       icon={<IconDropClipboard  active={pathname.startsWith("/commission")}       />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/commission")}>의뢰</MyMenuLink>
+        <MyMenuLink href="/jobs"             icon={<IconDropJobs       active={pathname.startsWith("/jobs")}             />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/jobs")}>구인구직</MyMenuLink>
         <MyMenuLink href="/messages"         icon={<IconDropMail       active={pathname.startsWith("/messages")}         />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>문의함</MyMenuLink>
         <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>고객센터</MyMenuLink>
         <MyMenuLink href="/help"             icon={<IconDropHelp       active={pathname.startsWith("/help")}             />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>도움말</MyMenuLink>
@@ -891,4 +892,7 @@ function IconDropClipboard({ active = false }: { active?: boolean }) {
 }
 function IconDropAsk({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" /><line x1="12" y1="7" x2="12" y2="13" /></svg>;
+}
+function IconDropJobs({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" /></svg>;
 }
