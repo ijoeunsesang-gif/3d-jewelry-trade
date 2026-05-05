@@ -33,27 +33,25 @@
 
 .heroTitle {
   margin: 0 0 10px;
-  font-size: 60px;
   font-weight: 700;
-  line-height: 1.15;
   color: #c9a84c;
-  letter-spacing: 0.04em;
+  display: flex;
+  align-items: flex-end;
 }
 
 .heroTitleEn {
-  font-size: 60px;
+  font-size: 64px;
   line-height: 1.15;
   position: relative;
-  top: -0.08em;
+  top: -6px;
   letter-spacing: -0.02em;
   margin-right: 0.12em;
 }
 
 .heroTitleKo {
   font-family: var(--font-cormorant), "Georgia", serif;
-  font-size: 60px;
+  font-size: 56px;
   line-height: 1.15;
-  vertical-align: baseline;
   letter-spacing: 0.04em;
 }
 
@@ -586,16 +584,13 @@
     padding: 16px 14px 32px;
   }
 
-  .heroTitle {
-    font-size: 44px;
-  }
-
   .heroTitleEn {
-    font-size: 44px;
+    font-size: 46px;
+    top: -4px;
   }
 
   .heroTitleKo {
-    font-size: 44px;
+    font-size: 40px;
   }
 
   .heroSubTitle {
