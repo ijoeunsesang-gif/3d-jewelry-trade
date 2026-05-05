@@ -338,8 +338,12 @@ export default function Header() {
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* 섹션 3: 의뢰 / 문의함 / 고객센터 / 도움말 */}
-        <MyMenuLink href="/commission"       icon={<IconDropClipboard  active={pathname.startsWith("/commission")}       />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/commission")}>의뢰</MyMenuLink>
+        {/* 섹션 3: 의뢰 */}
+        <MyMenuLink href="/commission" icon={<IconDropClipboard active={pathname.startsWith("/commission")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/commission")}>의뢰</MyMenuLink>
+
+        <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
+
+        {/* 섹션 4: 문의함 / 고객센터 / 도움말 */}
         <MyMenuLink href="/messages"         icon={<IconDropMail       active={pathname.startsWith("/messages")}         />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>문의함</MyMenuLink>
         <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>고객센터</MyMenuLink>
         <MyMenuLink href="/help"             icon={<IconDropHelp       active={pathname.startsWith("/help")}             />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>도움말</MyMenuLink>
