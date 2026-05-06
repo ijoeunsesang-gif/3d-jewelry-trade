@@ -420,24 +420,26 @@ export default function Header() {
             min-width: 0 !important;
           }
           .header-commission-banner-label {
-            display: block !important;
+            display: flex !important;
+            flex-direction: column !important;
             font-size: 11px !important;
             color: #c9a84c !important;
             font-weight: 700 !important;
-            text-align: right !important;
-            white-space: pre-line !important;
             line-height: 1.4 !important;
           }
+          .hcbl-line1 { display: block; text-align: left; }
+          .hcbl-line2 { display: block; text-align: right; }
           .header-commission-banner-arrow { display: none !important; }
           .header-logo { width: 85px !important; height: auto !important; max-height: 44px !important; }
           .header-row-1 { height: 68px !important; padding: 0 16px !important; }
         }
         @media (max-width: 768px) and (orientation: landscape) {
           .header-commission-banner-label {
-            white-space: nowrap !important;
-            text-align: center !important;
+            flex-direction: row !important;
+            gap: 3px !important;
             font-size: 12px !important;
           }
+          .hcbl-line2 { text-align: left !important; }
         }
       `}</style>
 
@@ -468,7 +470,10 @@ export default function Header() {
                 borderRadius: 20, padding: "6px 16px", cursor: "pointer",
               }}
             >
-              <span className="header-commission-banner-label" style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>{"찾는 제품이\n없으신가요?"}</span>
+              <span className="header-commission-banner-label" style={{ fontSize: 13, color: "#6b7280" }}>
+                <span className="hcbl-line1">찾는 제품이</span>
+                <span className="hcbl-line2">없으신가요?</span>
+              </span>
               <span className="header-commission-banner-arrow" style={{ fontSize: 13, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>→ 의뢰하기</span>
             </button>
 
