@@ -513,6 +513,7 @@ export default function ProfilePage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
+                className={`pf-tab-btn${activeTab === tab.id ? " pf-tab-btn--active" : ""}`}
                 style={{
                   width: "100%", textAlign: "left",
                   padding: "10px 14px", borderRadius: 10, border: "none",
@@ -962,6 +963,7 @@ export default function ProfilePage() {
 
       <style>{`
         @media (max-width: 768px) {
+          /* ── 전체 래퍼 ── */
           .pf-wrap {
             padding: 0 16px 80px !important;
             overflow-x: hidden !important;
@@ -972,57 +974,72 @@ export default function ProfilePage() {
             padding-top: 16px !important;
             margin-bottom: 16px !important;
           }
-          .pf-page-header h1 {
-            font-size: 22px !important;
-          }
+          .pf-page-header h1 { font-size: 22px !important; }
+
+          /* ── 그리드 ── */
           .profile-grid {
             grid-template-columns: 1fr !important;
             gap: 12px !important;
             width: 100% !important;
             overflow-x: hidden !important;
           }
+
+          /* ── 사이드바 ── */
           .profile-aside {
             border-radius: 14px !important;
-            padding: 14px 14px 10px !important;
+            padding: 16px !important;
             position: static !important;
             width: 100% !important;
             max-width: 100% !important;
             box-sizing: border-box !important;
           }
+
+          /* ── 프로필 이미지: 세로 가운데 정렬 ── */
           .profile-avatar-section {
-            flex-direction: row !important;
-            justify-content: flex-start !important;
-            gap: 14px !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 10px !important;
             margin-bottom: 12px !important;
           }
           .profile-avatar-section img {
-            width: 60px !important;
-            height: 60px !important;
+            width: 80px !important;
+            height: 80px !important;
           }
           .profile-avatar-info {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 6px;
-          }
-          .profile-divider {
-            margin: 8px 0 10px !important;
-          }
-          .profile-tabs-nav {
-            flex-direction: row !important;
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 4px;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
             gap: 6px !important;
+          }
+
+          /* ── 구분선 ── */
+          .profile-divider { margin: 8px 0 10px !important; }
+
+          /* ── 탭 2열 그리드 ── */
+          .profile-tabs-nav {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+            overflow-x: visible !important;
+            padding-bottom: 0 !important;
             max-width: 100% !important;
           }
-          .profile-tabs-nav button {
-            flex-shrink: 0;
-            height: 36px !important;
-            padding: 0 12px !important;
+          .pf-tab-btn {
+            width: 100% !important;
+            height: 40px !important;
+            text-align: center !important;
+            padding: 0 6px !important;
             font-size: 13px !important;
-            white-space: nowrap !important;
+            white-space: normal !important;
+            line-height: 1.3 !important;
+            border-radius: 10px !important;
           }
+          .pf-tab-btn--active {
+            background: #c9a84c !important;
+            color: white !important;
+          }
+
+          /* ── 콘텐츠 카드 ── */
           .profile-section-card {
             border-radius: 14px !important;
             padding: 16px !important;
@@ -1031,19 +1048,14 @@ export default function ProfilePage() {
             box-sizing: border-box !important;
             overflow-x: hidden !important;
           }
-          .pf-section-title {
-            display: none !important;
-          }
-          .grade-fee-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-          .grade-stats-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-          .points-container {
-            overflow-x: auto !important;
-            max-width: 100% !important;
-          }
+          .pf-section-title { display: none !important; }
+
+          /* ── 내부 그리드 ── */
+          .grade-fee-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .grade-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .points-container { overflow-x: auto !important; max-width: 100% !important; }
+
+          /* ── 입력 필드 ── */
           .pf-wrap input,
           .pf-wrap select,
           .pf-wrap textarea {
