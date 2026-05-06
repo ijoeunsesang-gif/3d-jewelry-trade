@@ -79,6 +79,7 @@ export default function ProfilePage() {
   const followLoadedRef = useRef(false);
 
   // 내 등급
+  const [grade, setGrade] = useState<Grade | null>(null);
   const [gradeInfo, setGradeInfo] = useState<{ grade: Grade; totalCount: number; totalAmount: number } | null>(null);
   const [gradeLoading, setGradeLoading] = useState(false);
   const gradeLoadedRef = useRef(false);
@@ -158,6 +159,7 @@ export default function ProfilePage() {
         setBio(profile.bio || "");
         setAvatarUrl(profile.avatar_url || "");
         setPreviewUrl(profile.avatar_url || "");
+        setGrade((profile.grade as Grade) || null);
         setIsSeller(profile.role === "seller");
         setIsAdmin(profile.role === "admin");
         const banned = profile.is_seller_banned || false;
@@ -471,36 +473,42 @@ export default function ProfilePage() {
 
         {/* ── 왼쪽 사이드바 ── */}
         <aside className="profile-aside" style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: 20, position: "sticky", top: 88 }}>
-          {/* 프로필 이미지 + 업로드 */}
+          {/* 프로필 이미지 + 닉네임 + 업로드 */}
           <div className="profile-avatar-section" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <div style={{ position: "relative" }}>
+            <div className="profile-avatar-img-wrap" style={{ position: "relative", flexShrink: 0 }}>
               <img
                 src={previewUrl || "/default-avatar.png"}
                 alt="profile"
                 style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "2px solid #e5e7eb", display: "block" }}
               />
             </div>
-            <div className="profile-avatar-info">
-              <label style={{
-                height: 34, padding: "0 14px", borderRadius: 10,
-                background: DARK, color: "white",
-                display: "inline-flex", alignItems: "center",
-                cursor: uploading ? "not-allowed" : "pointer",
-                fontWeight: 700, fontSize: 12, opacity: uploading ? 0.6 : 1,
-              }}>
-                {uploading ? "업로드 중..." : "이미지 업로드"}
-                <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
-              </label>
-              {isSeller && !isSellerBanned && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
-                  ✓ 판매자
-                </span>
-              )}
-              {isSellerBanned && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
-                  ✗ 판매자 정지
-                </span>
-              )}
+            <div className="profile-avatar-right" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <div className="profile-avatar-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: DARK }}>{nickname || "닉네임"}</span>
+                {grade && <GradeBadge grade={grade} size="sm" />}
+              </div>
+              <div className="profile-avatar-info" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                <label style={{
+                  height: 34, padding: "0 14px", borderRadius: 10,
+                  background: DARK, color: "white",
+                  display: "inline-flex", alignItems: "center",
+                  cursor: uploading ? "not-allowed" : "pointer",
+                  fontWeight: 700, fontSize: 12, opacity: uploading ? 0.6 : 1,
+                }}>
+                  {uploading ? "업로드 중..." : "이미지 업로드"}
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
+                </label>
+                {isSeller && !isSellerBanned && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
+                    ✓ 판매자
+                  </span>
+                )}
+                {isSellerBanned && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
+                    ✗ 판매자 정지
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -994,21 +1002,24 @@ export default function ProfilePage() {
             box-sizing: border-box !important;
           }
 
-          /* ── 프로필 이미지: 세로 가운데 정렬 ── */
+          /* ── 프로필 이미지: 모바일 가로 배치 ── */
           .profile-avatar-section {
-            flex-direction: column !important;
+            flex-direction: row !important;
             align-items: center !important;
-            gap: 10px !important;
+            gap: 14px !important;
             margin-bottom: 12px !important;
           }
-          .profile-avatar-section img {
-            width: 80px !important;
-            height: 80px !important;
+          .profile-avatar-img-wrap img {
+            width: 72px !important;
+            height: 72px !important;
+          }
+          .profile-avatar-right {
+            align-items: flex-start !important;
           }
           .profile-avatar-info {
             display: flex !important;
             flex-direction: column !important;
-            align-items: center !important;
+            align-items: flex-start !important;
             gap: 6px !important;
           }
 
