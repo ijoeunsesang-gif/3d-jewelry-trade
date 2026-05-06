@@ -406,7 +406,11 @@ export default function Header() {
   return (
     <>
       <style>{`
-        @media (max-width: 768px) { .header-commission-banner { display: none !important; } }
+        @media (max-width: 768px) {
+          .header-commission-banner { padding: 4px 9px !important; gap: 3px !important; }
+          .header-commission-banner-label { display: none; }
+          .header-commission-banner-arrow { font-size: 11px !important; }
+        }
       `}</style>
 
       <header style={{ borderBottom: "1px solid #f0ead8", background: "white", position: "sticky", top: 0, zIndex: 100 }}>
@@ -436,8 +440,8 @@ export default function Header() {
                 borderRadius: 20, padding: "6px 16px", cursor: "pointer",
               }}
             >
-              <span style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>찾는 제품이 없으신가요?</span>
-              <span style={{ fontSize: 13, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>→ 의뢰하기</span>
+              <span className="header-commission-banner-label" style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>찾는 제품이 없으신가요?</span>
+              <span className="header-commission-banner-arrow" style={{ fontSize: 13, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>→ 의뢰하기</span>
             </button>
 
             {/* 데스크탑 네비게이션 */}
