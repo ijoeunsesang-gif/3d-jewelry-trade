@@ -336,7 +336,39 @@ export default function CommissionDetailPage() {
         .select("id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason, commission_type, bid_status")
         .eq("id", id)
         .single();
-      if (error || !data) { console.error("fetchCommission error:", error); return; }
+
+      if (error || !data) {
+        // RLS may be blocking — try admin API if user is admin
+        const token = getAccessToken();
+        if (token) {
+          const uid = (decodeJwt(token) as any)?.sub as string;
+          if (uid) {
+            const { data: pData } = await supabase.from("profiles").select("role").eq("id", uid).single();
+            if (pData?.role === "admin") {
+              setIsAdmin(true);
+              const res = await fetch(`/api/commission/admin?id=${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (res.ok) {
+                const { data: adminData } = await res.json();
+                if (adminData) {
+                  setCommission({ ...adminData, nickname: adminData.nickname || "익명" });
+                  if (adminData.is_private && adminData.target_seller_id) {
+                    setSellerNickname(adminData.seller_nickname || "알 수 없음");
+                    setSellerGrade(adminData.seller_grade || null);
+                    setSellerPhone(adminData.seller_phone || null);
+                  }
+                  if (adminData.is_private) { fetchNegotiations(); fetchActiveRevision(); }
+                  return;
+                }
+              }
+            }
+          }
+        }
+        console.error("fetchCommission error:", error);
+        return;
+      }
+
       const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", data.user_id).single();
       setCommission({ ...data, nickname: profile?.nickname || "익명" });
       if (data.is_private && data.target_seller_id) {
@@ -2510,8 +2542,8 @@ export default function CommissionDetailPage() {
         </div>
       )}
 
-      {/* 삭제 버튼 — 관리자: 항상 표시 / 의뢰자: 의뢰중(open) 상태일 때만 표시 */}
-      {(isAdmin || (isAuthor && commission.status === "open")) && (
+      {/* 삭제 버튼 — 관리자: 항상 표시 / 의뢰자: 결제 전(pending/open) 상태일 때만 표시 */}
+      {(isAdmin || (isAuthor && (commission.status === "pending" || commission.status === "open"))) && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 36 }}>
           <button type="button" onClick={handleDelete} disabled={deleting} style={{
             padding: "8px 18px", borderRadius: 8, border: "1px solid #fca5a5", background: "white",

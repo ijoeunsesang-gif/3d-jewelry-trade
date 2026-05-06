@@ -27,7 +27,7 @@ const STATUS_BG: Record<string, string> = {
   rejected: "#fef2f2", cancelled: "#f3f4f6",
 };
 
-type Tab = "public" | "given" | "received" | "joined" | "bookmarks" | "admin";
+type Tab = "public" | "given" | "received" | "joined" | "bookmarks";
 
 type Commission = {
   id: string;
@@ -61,11 +61,6 @@ export default function CommissionListPage() {
   const [activeTab, setActiveTab] = useState<Tab>("public");
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
-  // 관리자 전용 필터 (전체관리 탭)
-  const [adminSearch, setAdminSearch] = useState("");
-  const [adminStatusFilter, setAdminStatusFilter] = useState("");
-  const [adminTypeFilter, setAdminTypeFilter] = useState("");
-
   useEffect(() => {
     const token = getAccessToken();
     let uid: string | null = null;
@@ -97,18 +92,6 @@ export default function CommissionListPage() {
     setLoading(true);
     try {
       let data: any[] = [];
-
-      // 전체관리 탭: 서비스롤 API로 RLS 우회 전체 조회
-      if (tab === "admin") {
-        const token = (await supabase.auth.getSession()).data.session?.access_token;
-        const res = await fetch("/api/commission/admin", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) { setCommissions([]); return; }
-        const { data: adminData } = await res.json();
-        setCommissions(adminData || []);
-        return;
-      }
 
       const BASE_SELECT = "id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)";
 
@@ -153,8 +136,7 @@ export default function CommissionListPage() {
         if (tab === "public") {
           query = query.eq("is_private", false);
         } else if (tab === "given") {
-          // 관리자는 전체 조회, 일반 유저는 본인 의뢰만
-          if (role !== "admin" && uid) query = query.eq("user_id", uid);
+          if (uid) query = query.eq("user_id", uid);
         } else if (tab === "received" && uid) {
           // 지목된 개인의뢰 + 판매자 미선택 개인의뢰, 단 본인이 올린 의뢰 제외
           query = query.eq("is_private", true).or(`target_seller_id.eq.${uid},target_seller_id.is.null`).neq("user_id", uid);
@@ -227,7 +209,7 @@ export default function CommissionListPage() {
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
   };
 
-  const needsLogin = !isLoggedIn && activeTab !== "public" && activeTab !== "admin";
+  const needsLogin = !isLoggedIn && activeTab !== "public";
 
   const STATUS_GROUP: Record<string, string[]> = {
     "의뢰중": ["pending", "open"],
@@ -237,23 +219,7 @@ export default function CommissionListPage() {
     "취소":   ["cancelled", "rejected"],
   };
 
-  const displayCommissions = (() => {
-    if (activeTab !== "admin") return commissions;
-    return commissions.filter((c) => {
-      if (adminSearch) {
-        const q = adminSearch.toLowerCase();
-        if (!c.title.toLowerCase().includes(q) && !c.nickname.toLowerCase().includes(q)) return false;
-      }
-      if (adminStatusFilter) {
-        const allowed = STATUS_GROUP[adminStatusFilter] ?? [];
-        if (!allowed.includes(c.status)) return false;
-      }
-      if (adminTypeFilter === "공개의뢰" && c.is_private) return false;
-      if (adminTypeFilter === "개인의뢰" && (!c.is_private || !c.target_seller_id)) return false;
-      if (adminTypeFilter === "미지정의뢰" && (!c.is_private || c.target_seller_id)) return false;
-      return true;
-    });
-  })();
+  const displayCommissions = commissions;
 
   return (
     <div style={{
@@ -309,68 +275,8 @@ export default function CommissionListPage() {
             {label}
           </button>
         ))}
-        {currentUserRole === "admin" && (
-          <button
-            onClick={() => handleTabChange("admin")}
-            style={{
-              background: "none",
-              border: "none",
-              padding: "10px 20px",
-              fontSize: 14,
-              fontWeight: 600,
-              color: activeTab === "admin" ? "#dc2626" : "#9ca3af",
-              cursor: "pointer",
-              borderBottom: activeTab === "admin" ? "2px solid #dc2626" : "2px solid transparent",
-              marginBottom: -2,
-            }}
-          >
-            🛠 전체관리
-          </button>
-        )}
       </div>
 
-      {/* 관리자 전용 필터 (전체관리 탭) */}
-      {activeTab === "admin" && (
-        <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-          <input
-            type="text"
-            placeholder="제목 또는 의뢰자 닉네임 검색"
-            value={adminSearch}
-            onChange={(e) => setAdminSearch(e.target.value)}
-            style={{
-              flex: "1 1 200px", height: 38, borderRadius: 10,
-              border: "1.5px solid #e5e7eb", padding: "0 12px",
-              fontSize: 14, outline: "none",
-            }}
-          />
-          <select
-            value={adminStatusFilter}
-            onChange={(e) => setAdminStatusFilter(e.target.value)}
-            style={{
-              height: 38, borderRadius: 10, border: "1.5px solid #e5e7eb",
-              padding: "0 10px", fontSize: 14, background: "white", cursor: "pointer",
-            }}
-          >
-            <option value="">상태: 전체</option>
-            {["의뢰중", "결제중", "작업중", "완료", "취소"].map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <select
-            value={adminTypeFilter}
-            onChange={(e) => setAdminTypeFilter(e.target.value)}
-            style={{
-              height: 38, borderRadius: 10, border: "1.5px solid #e5e7eb",
-              padding: "0 10px", fontSize: 14, background: "white", cursor: "pointer",
-            }}
-          >
-            <option value="">타입: 전체</option>
-            {["공개의뢰", "개인의뢰", "미지정의뢰"].map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-      )}
 
       {needsLogin ? (
         <div style={{ textAlign: "center", padding: "80px 0", color: "#9ca3af" }}>
@@ -443,7 +349,7 @@ export default function CommissionListPage() {
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      {(activeTab === "given" || activeTab === "admin") && (() => {
+                      {activeTab === "given" && (() => {
                         if (!c.is_private) return (
                           <span style={{ fontSize: 11, fontWeight: 700, color: "#1d4ed8", background: "#dbeafe", padding: "2px 9px", borderRadius: 999 }}>
                             🌐 공개의뢰
@@ -483,15 +389,7 @@ export default function CommissionListPage() {
                   }}>
                     {c.title}
                   </div>
-                  {activeTab === "admin" ? (
-                    <div className="cc-desc">
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 2, overflow: "hidden" }}>
-                        <span style={{ fontSize: 11, color: "#9ca3af", marginRight: 2 }}>의뢰자</span>
-                        <span className="cc-name" style={{ color: "#374151" }}>{c.nickname}</span>
-                        <span>님</span>
-                      </div>
-                    </div>
-                  ) : c.is_private && c.seller_nickname ? (() => {
+                  {c.is_private && c.seller_nickname ? (() => {
                     const iAmRequester = c.user_id === currentUserId;
                     const iAmWorker = c.target_seller_id === currentUserId;
                     return (

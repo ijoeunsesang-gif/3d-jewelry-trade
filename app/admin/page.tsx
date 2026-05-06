@@ -160,6 +160,7 @@ export default function AdminPage() {
   const [commSearch, setCommSearch] = useState("");
   const [commStatusFilter, setCommStatusFilter] = useState("");
   const [commTypeFilter, setCommTypeFilter] = useState("");
+  const [commDeleting, setCommDeleting] = useState<string | null>(null);
 
   /* ── Auth ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -284,6 +285,20 @@ export default function AdminPage() {
       setCommissions(data || []);
     } catch { showError("의뢰 목록 불러오기 실패"); }
     finally { setCommLoading(false); }
+  };
+
+  const handleDeleteCommission = async (id: string) => {
+    if (!confirm("정말 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.")) return;
+    setCommDeleting(id);
+    try {
+      const res = await fetch(`/api/commission/delete?id=${id}`, {
+        method: "DELETE", headers: await authHeader(),
+      });
+      if (!res.ok) { showError("삭제 실패"); return; }
+      showSuccess("의뢰가 삭제되었습니다.");
+      setCommissions(prev => prev.filter(c => c.id !== id));
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setCommDeleting(null); }
   };
 
   /* ── User Actions ──────────────────────────────────────── */
@@ -911,29 +926,30 @@ export default function AdminPage() {
               ) : (
                 <div style={{ display: "grid", gap: 10 }}>
                   {filteredCommissions.map(c => (
-                    <Link key={c.id} href={`/commission/${c.id}`} target="_blank"
-                      style={{ display: "flex", alignItems: "center", gap: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: "14px 18px", textDecoration: "none", flexWrap: "wrap" }}>
+                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: "14px 18px", flexWrap: "wrap" }}>
                       {/* Thumbnail */}
-                      {c.images?.[0] ? (
-                        <img src={c.images[0]} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f3f4f6", flexShrink: 0 }} />
-                      )}
+                      <a href={`/commission/${c.id}`} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, textDecoration: "none" }}>
+                        {c.images?.[0] ? (
+                          <img src={c.images[0]} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f3f4f6", flexShrink: 0 }} />
+                        )}
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {c.title}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {c.title}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                            {c.nickname}
+                            {c.is_private && c.target_seller_id && c.seller_nickname && (
+                              <> → <span style={{ color: GOLD, fontWeight: 700 }}>{c.seller_nickname}</span></>
+                            )}
+                            {c.is_private && !c.target_seller_id && " (미지정 개인의뢰)"}
+                            {!c.is_private && " (공개의뢰)"}
+                            {" · "}{new Date(c.created_at).toLocaleDateString("ko-KR")}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                          {c.nickname}
-                          {c.is_private && c.target_seller_id && c.seller_nickname && (
-                            <> → <span style={{ color: GOLD, fontWeight: 700 }}>{c.seller_nickname}</span></>
-                          )}
-                          {c.is_private && !c.target_seller_id && " (미지정 개인의뢰)"}
-                          {!c.is_private && " (공개의뢰)"}
-                          {" · "}{new Date(c.created_at).toLocaleDateString("ko-KR")}
-                        </div>
-                      </div>
+                      </a>
 
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
                         {c.commission_results?.[0]?.count !== undefined && (
@@ -947,8 +963,20 @@ export default function AdminPage() {
                         }}>
                           {STATUS_LABEL[c.status] || c.status}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCommission(c.id)}
+                          disabled={commDeleting === c.id}
+                          style={{
+                            height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid #fca5a5",
+                            background: "white", color: "#dc2626", fontSize: 12, fontWeight: 700,
+                            cursor: commDeleting === c.id ? "not-allowed" : "pointer", opacity: commDeleting === c.id ? 0.6 : 1,
+                          }}
+                        >
+                          {commDeleting === c.id ? "삭제 중..." : "삭제"}
+                        </button>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}
