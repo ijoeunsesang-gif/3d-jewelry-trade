@@ -988,7 +988,6 @@ export default function ProfilePage() {
             width: 100% !important;
             max-width: 100% !important;
             box-sizing: border-box !important;
-            overflow-x: hidden !important;
           }
           .profile-avatar-section {
             flex-direction: row !important;
@@ -1015,6 +1014,7 @@ export default function ProfilePage() {
             -webkit-overflow-scrolling: touch;
             padding-bottom: 4px;
             gap: 6px !important;
+            max-width: 100% !important;
           }
           .profile-tabs-nav button {
             flex-shrink: 0;
