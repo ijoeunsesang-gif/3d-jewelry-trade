@@ -963,20 +963,32 @@ export default function ProfilePage() {
       <style>{`
         @media (max-width: 768px) {
           .pf-wrap {
-            padding: 16px 16px 80px !important;
+            padding: 0 16px 80px !important;
             overflow-x: hidden !important;
+            max-width: 100vw !important;
             box-sizing: border-box !important;
+          }
+          .pf-page-header {
+            padding-top: 16px !important;
+            margin-bottom: 16px !important;
+          }
+          .pf-page-header h1 {
+            font-size: 22px !important;
           }
           .profile-grid {
             grid-template-columns: 1fr !important;
             gap: 12px !important;
+            width: 100% !important;
+            overflow-x: hidden !important;
           }
           .profile-aside {
             border-radius: 14px !important;
             padding: 14px 14px 10px !important;
             position: static !important;
             width: 100% !important;
+            max-width: 100% !important;
             box-sizing: border-box !important;
+            overflow-x: hidden !important;
           }
           .profile-avatar-section {
             flex-direction: row !important;
@@ -1015,17 +1027,12 @@ export default function ProfilePage() {
             border-radius: 14px !important;
             padding: 16px !important;
             width: 100% !important;
+            max-width: 100% !important;
             box-sizing: border-box !important;
             overflow-x: hidden !important;
           }
           .pf-section-title {
             display: none !important;
-          }
-          .pf-page-header {
-            margin-bottom: 16px !important;
-          }
-          .pf-page-header h1 {
-            font-size: 22px !important;
           }
           .grade-fee-grid {
             grid-template-columns: repeat(2, 1fr) !important;
@@ -1035,6 +1042,14 @@ export default function ProfilePage() {
           }
           .points-container {
             overflow-x: auto !important;
+            max-width: 100% !important;
+          }
+          .pf-wrap input,
+          .pf-wrap select,
+          .pf-wrap textarea {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
           }
         }
       `}</style>
