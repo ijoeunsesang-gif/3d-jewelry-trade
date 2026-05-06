@@ -424,13 +424,20 @@ export default function Header() {
             font-size: 11px !important;
             color: #c9a84c !important;
             font-weight: 700 !important;
-            text-align: center !important;
+            text-align: right !important;
             white-space: pre-line !important;
             line-height: 1.4 !important;
           }
           .header-commission-banner-arrow { display: none !important; }
           .header-logo { width: 85px !important; height: auto !important; max-height: 44px !important; }
           .header-row-1 { height: 68px !important; padding: 0 16px !important; }
+        }
+        @media (max-width: 768px) and (orientation: landscape) {
+          .header-commission-banner-label {
+            white-space: nowrap !important;
+            text-align: center !important;
+            font-size: 12px !important;
+          }
         }
       `}</style>
 
