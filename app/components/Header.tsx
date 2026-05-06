@@ -407,9 +407,10 @@ export default function Header() {
     <>
       <style>{`
         @media (max-width: 768px) {
-          .header-commission-banner { padding: 4px 9px !important; gap: 3px !important; }
-          .header-commission-banner-label { display: none; }
-          .header-commission-banner-arrow { font-size: 11px !important; }
+          .header-commission-banner { display: none !important; }
+          .header-commission-mobile { display: block !important; }
+          .header-logo { width: 85px !important; height: auto !important; max-height: 44px !important; }
+          .header-row-1 { height: auto !important; min-height: 58px !important; padding: 8px 16px !important; }
         }
       `}</style>
 
@@ -420,15 +421,24 @@ export default function Header() {
         }}>
 
           {/* ── Row 1: 로고 + 네비 ───────────────────────────── */}
-          <div style={{
+          <div className="header-row-1" style={{
             height: 68, padding: "0 20px",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
 
-            {/* 로고 */}
-            <Link href="/" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
-              <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
-            </Link>
+            {/* 로고 + 모바일 의뢰 텍스트 */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", flexShrink: 0 }}>
+              <Link href="/" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}>
+                <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
+              </Link>
+              <button
+                className="header-commission-mobile"
+                onClick={() => setShowCommissionModal(true)}
+                style={{ display: "none", background: "none", border: "none", cursor: "pointer", padding: "2px 0 0", margin: 0 }}
+              >
+                <span style={{ fontSize: 11, color: GOLD, fontWeight: 700, whiteSpace: "nowrap" }}>찾는 제품이 없으신가요?</span>
+              </button>
+            </div>
 
             {/* 의뢰 안내 배너 (데스크탑 전용) */}
             <button
