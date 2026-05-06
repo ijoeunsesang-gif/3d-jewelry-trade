@@ -483,9 +483,19 @@ export default function ProfilePage() {
               />
             </div>
             <div className="profile-avatar-right" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-              <div className="profile-avatar-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div className="profile-avatar-name" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
                 <span style={{ fontWeight: 700, fontSize: 15, color: DARK }}>{nickname || "닉네임"}</span>
                 {grade && <GradeBadge grade={grade} size="sm" />}
+                {isSeller && !isSellerBanned && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
+                    ✓ 판매자
+                  </span>
+                )}
+                {isSellerBanned && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
+                    ✗ 판매자 정지
+                  </span>
+                )}
               </div>
               <div className="profile-avatar-info" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                 <label style={{
@@ -498,16 +508,6 @@ export default function ProfilePage() {
                   {uploading ? "업로드 중..." : "이미지 업로드"}
                   <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
                 </label>
-                {isSeller && !isSellerBanned && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "3px 10px", borderRadius: 999 }}>
-                    ✓ 판매자
-                  </span>
-                )}
-                {isSellerBanned && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 10px", borderRadius: 999 }}>
-                    ✗ 판매자 정지
-                  </span>
-                )}
               </div>
             </div>
           </div>
