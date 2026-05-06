@@ -461,7 +461,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main style={pageWrap}>
+    <main className="pf-wrap" style={pageWrap}>
       <div className="pf-page-header" style={{ marginBottom: 28 }}>
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: DARK }}>내 정보</h1>
         <p style={{ margin: "6px 0 0", color: "#6b7280", fontSize: 14 }}>계정 정보 및 판매자 설정을 관리합니다.</p>
@@ -735,7 +735,7 @@ export default function ProfilePage() {
                 {/* 수수료 표 */}
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 8 }}>등급별 수수료</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                  <div className="grade-fee-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
                     {(["sprout","skilled","pro","master"] as const).map((g) => {
                       const cfg = GRADE_CONFIG[g];
                       return (
@@ -962,6 +962,11 @@ export default function ProfilePage() {
 
       <style>{`
         @media (max-width: 768px) {
+          .pf-wrap {
+            padding: 16px 16px 80px !important;
+            overflow-x: hidden !important;
+            box-sizing: border-box !important;
+          }
           .profile-grid {
             grid-template-columns: 1fr !important;
             gap: 12px !important;
@@ -970,6 +975,8 @@ export default function ProfilePage() {
             border-radius: 14px !important;
             padding: 14px 14px 10px !important;
             position: static !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
           }
           .profile-avatar-section {
             flex-direction: row !important;
@@ -1002,10 +1009,14 @@ export default function ProfilePage() {
             height: 36px !important;
             padding: 0 12px !important;
             font-size: 13px !important;
+            white-space: nowrap !important;
           }
           .profile-section-card {
             border-radius: 14px !important;
-            padding: 18px 16px !important;
+            padding: 16px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
           }
           .pf-section-title {
             display: none !important;
@@ -1015,6 +1026,15 @@ export default function ProfilePage() {
           }
           .pf-page-header h1 {
             font-size: 22px !important;
+          }
+          .grade-fee-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .grade-stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .points-container {
+            overflow-x: auto !important;
           }
         }
       `}</style>
@@ -1161,7 +1181,7 @@ function GradeTab({
         gap: 14,
       }}>
         <GradeBadge grade={grade} size="xl" />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4, width: "100%" }}>
+        <div className="grade-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4, width: "100%" }}>
           {[
             { label: "수수료율", value: `${Math.round(cfg.commission * 100)}%` },
             { label: "총 판매 건수", value: `${count.toLocaleString("ko-KR")}건` },
@@ -1758,7 +1778,7 @@ function PointsTab({ userId, isSeller, isAdmin }: { userId: string; isSeller: bo
           포인트 내역이 없습니다.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 1, borderRadius: 14, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+        <div className="points-container" style={{ display: "flex", flexDirection: "column", gap: 1, borderRadius: 14, overflow: "hidden", border: "1px solid #e5e7eb" }}>
           {/* 헤더 */}
           <div style={{
             display: "grid", gridTemplateColumns: "1fr 1fr auto auto",
