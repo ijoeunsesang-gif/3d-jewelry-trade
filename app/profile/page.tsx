@@ -499,13 +499,13 @@ export default function ProfilePage() {
               </div>
               <div className="profile-avatar-info" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                 <label style={{
-                  height: 34, padding: "0 14px", borderRadius: 10,
+                  height: 28, padding: "0 10px", borderRadius: 8,
                   background: DARK, color: "white",
                   display: "inline-flex", alignItems: "center",
                   cursor: uploading ? "not-allowed" : "pointer",
-                  fontWeight: 700, fontSize: 12, opacity: uploading ? 0.6 : 1,
+                  fontWeight: 700, fontSize: 11, opacity: uploading ? 0.6 : 1,
                 }}>
-                  {uploading ? "업로드 중..." : "이미지 업로드"}
+                  {uploading ? "업로드 중..." : "이미지 업로드 & 변경"}
                   <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
                 </label>
               </div>
