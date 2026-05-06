@@ -425,7 +425,7 @@ export default function Header() {
             color: #c9a84c !important;
             font-weight: 700 !important;
             text-align: center !important;
-            white-space: normal !important;
+            white-space: pre-line !important;
             line-height: 1.4 !important;
           }
           .header-commission-banner-arrow { display: none !important; }
@@ -461,7 +461,7 @@ export default function Header() {
                 borderRadius: 20, padding: "6px 16px", cursor: "pointer",
               }}
             >
-              <span className="header-commission-banner-label" style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>찾는 제품이 없으신가요?</span>
+              <span className="header-commission-banner-label" style={{ fontSize: 13, color: "#6b7280", whiteSpace: "nowrap" }}>{"찾는 제품이\n없으신가요?"}</span>
               <span className="header-commission-banner-arrow" style={{ fontSize: 13, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>→ 의뢰하기</span>
             </button>
 
