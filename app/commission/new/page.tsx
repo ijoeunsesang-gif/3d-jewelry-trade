@@ -70,6 +70,7 @@ function CommissionNewInner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const sellerItemRefs = useRef<{ [id: string]: HTMLDivElement | null }>({});
+  const priceInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
@@ -148,6 +149,22 @@ function CommissionNewInner() {
   useEffect(() => {
     if (isPrivate && sellerTab === "all") loadAllSellers();
   }, [isPrivate]);
+
+  useEffect(() => {
+    const el = priceInputRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 1000 : -1000;
+      setDesiredPrice(prev => {
+        const newVal = Math.max(5000, (prev || 0) + delta);
+        setPriceInput(newVal.toLocaleString('ko-KR'));
+        return newVal;
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, '');
@@ -557,17 +574,11 @@ function CommissionNewInner() {
                   희망 비용 (원)
                 </label>
                 <input
+                  ref={priceInputRef}
                   type="text"
                   inputMode="numeric"
                   value={priceInput}
                   onChange={handlePriceChange}
-                  onWheel={(e) => {
-                    e.preventDefault();
-                    const delta = e.deltaY < 0 ? 1000 : -1000;
-                    const newVal = Math.max(5000, (desiredPrice || 0) + delta);
-                    setDesiredPrice(newVal);
-                    setPriceInput(newVal.toLocaleString('ko-KR'));
-                  }}
                   placeholder="최소 5,000원"
                   style={inputStyle}
                 />
