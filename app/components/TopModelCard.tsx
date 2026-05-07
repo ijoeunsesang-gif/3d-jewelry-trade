@@ -146,31 +146,53 @@ export default function TopModelCard({
             {liked ? "♥" : "♡"}
           </button>
 
-          <button
-            type="button"
-            className={styles.quickBtn}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onQuickView(item);
-            }}
+          <div
             style={{
               position: "absolute",
-              left: 12,
-              bottom: 5,
-              height: 20,
-              padding: "0 5px",
-              borderRadius: 999,
-              border: "none",
-              background: "rgba(255,255,255,0.92)",
-              color: "#111827",
-              fontSize: 11,
-              fontWeight: 900,
-              cursor: "pointer",
+              left: 8,
+              bottom: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
             }}
           >
-            Quick View
-          </button>
+            <button
+              type="button"
+              className={styles.quickBtn}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickView(item);
+              }}
+              style={{
+                width: 28,
+                height: 24,
+                borderRadius: 999,
+                border: "none",
+                background: "rgba(255,255,255,0.92)",
+                color: "#111827",
+                fontSize: 11,
+                fontWeight: 900,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              Q
+            </button>
+            <span
+              style={{
+                background: "rgba(15,23,42,0.55)",
+                color: "white",
+                fontSize: 10,
+                fontWeight: 600,
+                padding: "2px 7px",
+                borderRadius: 999,
+                whiteSpace: "nowrap",
+              }}
+            >
+              👁 {item.view_count || 0} · 💬 {item.comment_count || 0} · ↓ {item.download_count || 0}
+            </span>
+          </div>
         </div>
 
         <div
@@ -218,11 +240,15 @@ export default function TopModelCard({
             <span
               style={{
                 fontSize: 11,
-                color: "#6b7280",
-                fontWeight: 700,
+                color: "#9ca3af",
+                fontWeight: 500,
+                maxWidth: 100,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              다운로드 {item.download_count || 0}
+              {item.seller_nickname ?? "판매자"}
             </span>
 
             <span
