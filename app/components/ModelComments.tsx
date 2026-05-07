@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase-browser";
-import { showError, showSuccess } from "@/lib/toast";
+import { supabase } from "../lib/supabase-browser";
+import { showError, showSuccess } from "../lib/toast";
 
 type CommentProfile = { nickname: string | null; avatar_url: string | null };
 
