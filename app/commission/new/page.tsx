@@ -156,15 +156,13 @@ function CommissionNewInner() {
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY < 0 ? 1000 : -1000;
-      setDesiredPrice(prev => {
-        const newVal = Math.max(5000, (prev || 0) + delta);
-        setPriceInput(newVal.toLocaleString('ko-KR'));
-        return newVal;
-      });
+      const newVal = Math.max(5000, (desiredPrice || 0) + delta);
+      setDesiredPrice(newVal);
+      setPriceInput(newVal.toLocaleString('ko-KR'));
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
-  }, []);
+  }, [desiredPrice]);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, '');

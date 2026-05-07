@@ -94,15 +94,13 @@ export default function UploadPage() {
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       const delta = e.deltaY < 0 ? 1000 : -1000;
-      setPrice(prev => {
-        const newVal = Math.max(5000, (prev || 0) + delta);
-        setPriceInput(newVal.toLocaleString('ko-KR'));
-        return newVal;
-      });
+      const newVal = Math.max(5000, (price || 0) + delta);
+      setPrice(newVal);
+      setPriceInput(newVal.toLocaleString('ko-KR'));
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
-  }, []);
+  }, [price]);
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/,/g, '');
