@@ -14,6 +14,7 @@ type ModelItem = {
   seller_id: string;
   category: string;
   created_at: string;
+  view_count?: number;
 };
 
 export default function ModelDetailPage({

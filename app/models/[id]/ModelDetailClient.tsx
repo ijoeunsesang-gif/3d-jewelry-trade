@@ -10,6 +10,7 @@ import { getProfile } from "../../lib/getProfile";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
+import ModelComments from "../../components/ModelComments";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
@@ -27,6 +28,7 @@ type ModelItem = {
   seller_id: string;
   category: string;
   created_at: string;
+  view_count?: number;
 };
 
 export default function ModelDetailClient({ model }: { model: ModelItem }) {
@@ -49,11 +51,24 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [inquiryLoading, setInquiryLoading] = useState(false);
   const [extraFiles, setExtraFiles] = useState<{ file_name: string; file_type: string }[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [viewCount, setViewCount] = useState(model.view_count || 0);
 
   useEffect(() => {
     const token = getAccessToken();
-    if (token) setCurrentUserId((decodeJwt(token) as any)?.sub ?? null);
+    if (!token) return;
+    const uid = (decodeJwt(token) as any)?.sub ?? null;
+    setCurrentUserId(uid);
+    if (uid) {
+      supabase.from("profiles").select("role").eq("id", uid).single()
+        .then(({ data }) => setIsAdmin(data?.role === "admin"));
+    }
   }, []);
+
+  useEffect(() => {
+    supabase.rpc("increment_model_view", { mid: model.id });
+    setViewCount((model.view_count || 0) + 1);
+  }, [model.id]);
 
   const isOwnModel = !!currentUserId && currentUserId === model.seller_id;
 
@@ -743,6 +758,10 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
             {model.title}
           </h1>
 
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, fontSize: 13, color: "#9ca3af", fontWeight: 700 }}>
+            <span>👁 {viewCount.toLocaleString("ko-KR")} 조회</span>
+          </div>
+
           {seller && (
             <Link
               href={`/seller/${seller.id}`}
@@ -1040,6 +1059,12 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
           </div>
         </aside>
       </div>
+
+      <ModelComments
+        modelId={model.id}
+        currentUserId={currentUserId}
+        isAdmin={isAdmin}
+      />
 
       <section style={{ marginTop: 56 }}>
         <div
