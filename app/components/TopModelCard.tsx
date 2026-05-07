@@ -170,9 +170,9 @@ export default function TopModelCard({
                 onQuickView(item);
               }}
               style={{
-                width: 28,
                 height: 22,
                 lineHeight: "22px",
+                padding: "0 10px",
                 textAlign: "center",
                 borderRadius: 999,
                 border: "none",
@@ -182,10 +182,9 @@ export default function TopModelCard({
                 fontWeight: 900,
                 cursor: "pointer",
                 flexShrink: 0,
-                padding: 0,
               }}
             >
-              Q
+              Quick
             </button>
             <span
               style={{
