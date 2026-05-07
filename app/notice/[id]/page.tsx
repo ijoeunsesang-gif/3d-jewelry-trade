@@ -32,6 +32,11 @@ export default function NoticeDetailPage() {
           }
         );
         const data = await res.json();
+        if (!res.ok) {
+          console.error("[notice detail] 응답 오류:", data);
+          setNotFound(true);
+          return;
+        }
         if (Array.isArray(data) && data.length > 0) {
           setNotice(data[0]);
         } else {

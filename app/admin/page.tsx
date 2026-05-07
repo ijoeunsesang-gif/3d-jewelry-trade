@@ -329,14 +329,30 @@ export default function AdminPage() {
   const fetchNotices = async () => {
     setNoticesLoading(true);
     try {
+      const token = getAccessToken();
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices?select=*&order=is_pinned.desc,created_at.desc`,
-        { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${getAccessToken()}` } }
+        {
+          headers: {
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            Authorization: `Bearer ${token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+          },
+        }
       );
       const data = await res.json();
+      if (!res.ok) {
+        console.error("[admin/notices] 응답 오류:", data);
+        showError(`공지사항 불러오기 실패: ${data?.message || data?.code || res.status}`);
+        setNotices([]);
+        return;
+      }
       setNotices(Array.isArray(data) ? data : []);
-    } catch { showError("공지사항 불러오기 실패"); }
-    finally { setNoticesLoading(false); }
+    } catch (e) {
+      console.error("[admin/notices] 예외:", e);
+      showError("공지사항 불러오기 실패");
+    } finally {
+      setNoticesLoading(false);
+    }
   };
 
   const saveNotice = async () => {
