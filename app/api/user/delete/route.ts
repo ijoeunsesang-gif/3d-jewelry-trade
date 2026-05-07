@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
 
   const userId = user.id;
 
+  // 탈퇴 사유 (선택)
+  let reason: string | null = null;
+  try {
+    const body = await req.json().catch(() => ({}));
+    reason = body?.reason?.trim() || null;
+  } catch { /* body 없으면 무시 */ }
+
   // 진행중인 의뢰가 있으면 탈퇴 차단
   const { data: activeCommissions } = await adminSupabase
     .from("commissions")
@@ -35,13 +42,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 판매자인 경우 등록된 모델 비공개 처리
+  // 탈퇴 전 핵심 정보 조회
   const { data: profile } = await adminSupabase
     .from("profiles")
-    .select("role")
+    .select("nickname, email, phone_number, role, warning_count, bank_name, account_holder, account_number")
     .eq("id", userId)
     .single();
 
+  // deleted_profiles에 핵심 정보 보관 (전자상거래법 기준 5년)
+  const bankAccount = [
+    profile?.bank_name,
+    profile?.account_holder,
+    profile?.account_number,
+  ]
+    .filter(Boolean)
+    .join(" / ") || null;
+
+  await adminSupabase.from("deleted_profiles").insert({
+    original_user_id: userId,
+    nickname:         profile?.nickname    || null,
+    email:            profile?.email       || user.email || null,
+    phone:            profile?.phone_number || null,
+    bank_account:     bankAccount,
+    role:             profile?.role        || "user",
+    warning_count:    profile?.warning_count ?? 0,
+    reason,
+  });
+
+  // 판매자인 경우 등록된 모델 비공개 처리
   if (profile?.role === "seller") {
     await adminSupabase
       .from("models")
@@ -49,13 +77,24 @@ export async function POST(req: NextRequest) {
       .eq("seller_id", userId);
   }
 
-  // 탈퇴 시각 기록 (판매자 목록 쿼리의 deleted_at IS NULL 필터로 즉시 제외됨)
+  // 개인 식별 정보 익명화 + 소프트 삭제
   await adminSupabase
     .from("profiles")
-    .update({ deleted_at: new Date().toISOString() })
+    .update({
+      nickname:       "탈퇴한 사용자",
+      avatar_url:     null,
+      bio:            null,
+      phone_number:   null,
+      bank_name:      null,
+      account_holder: null,
+      account_number: null,
+      business_number: null,
+      business_name:  null,
+      deleted_at:     new Date().toISOString(),
+    })
     .eq("id", userId);
 
-  // auth.admin.deleteUser + 명시적 profiles 삭제 (CASCADE FK 미설정 대비)
+  // auth.users 삭제 + profiles 하드 삭제
   const { error: deleteError } = await adminSupabase.auth.admin.deleteUser(userId);
   if (!deleteError) {
     await adminSupabase.from("profiles").delete().eq("id", userId);

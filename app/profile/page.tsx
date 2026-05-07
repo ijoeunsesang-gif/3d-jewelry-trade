@@ -87,6 +87,7 @@ export default function ProfilePage() {
   // 회원탈퇴
   const [withdrawStep, setWithdrawStep] = useState<0 | 1 | 2>(0);
   const [withdrawInput, setWithdrawInput] = useState("");
+  const [withdrawReason, setWithdrawReason] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
 
   useEffect(() => {
@@ -113,7 +114,11 @@ export default function ProfilePage() {
       const token = getAccessToken();
       const res = await fetch("/api/user/delete", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ reason: withdrawReason.trim() || null }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -1095,7 +1100,7 @@ export default function ProfilePage() {
           background: "rgba(0,0,0,0.45)",
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: 20,
-        }} onClick={() => { setWithdrawStep(0); setWithdrawInput(""); }}>
+        }} onClick={() => { setWithdrawStep(0); setWithdrawInput(""); setWithdrawReason(""); }}>
           <div
             style={{ background: "white", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420, boxShadow: "0 8px 40px rgba(0,0,0,0.18)" }}
             onClick={(e) => e.stopPropagation()}
@@ -1117,7 +1122,7 @@ export default function ProfilePage() {
                   정말 탈퇴하시겠습니까?
                 </p>
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setWithdrawStep(0); setWithdrawInput(""); }} style={{ flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db", background: "white", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#374151" }}>
+                  <button type="button" onClick={() => { setWithdrawStep(0); setWithdrawInput(""); setWithdrawReason(""); }} style={{ flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db", background: "white", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#374151" }}>
                     취소
                   </button>
                   <button type="button" onClick={() => setWithdrawStep(2)} style={{ flex: 1, height: 44, borderRadius: 12, border: "none", background: "#374151", color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
@@ -1134,6 +1139,13 @@ export default function ProfilePage() {
                 <p style={{ margin: "0 0 14px", fontSize: 13, color: "#6b7280" }}>
                   아래 입력란에 <strong style={{ color: "#111827" }}>탈퇴합니다</strong>를 입력하세요.
                 </p>
+                <textarea
+                  value={withdrawReason}
+                  onChange={(e) => setWithdrawReason(e.target.value)}
+                  placeholder="탈퇴 사유를 입력해주세요. (선택)"
+                  rows={3}
+                  style={{ width: "100%", borderRadius: 10, border: "1px solid #d1d5db", padding: "10px 14px", fontSize: 13, outline: "none", boxSizing: "border-box", marginBottom: 12, resize: "none", color: "#374151" }}
+                />
                 <input
                   type="text"
                   value={withdrawInput}
@@ -1143,7 +1155,7 @@ export default function ProfilePage() {
                   style={{ width: "100%", height: 44, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 14px", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 16 }}
                 />
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setWithdrawStep(0); setWithdrawInput(""); }} style={{ flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db", background: "white", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#374151" }}>
+                  <button type="button" onClick={() => { setWithdrawStep(0); setWithdrawInput(""); setWithdrawReason(""); }} style={{ flex: 1, height: 44, borderRadius: 12, border: "1px solid #d1d5db", background: "white", fontWeight: 700, fontSize: 14, cursor: "pointer", color: "#374151" }}>
                     취소
                   </button>
                   <button

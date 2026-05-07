@@ -11,7 +11,7 @@ const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers";
 
 interface UserProfile {
   id: string;
@@ -120,7 +120,8 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "reports",       label: "신고 관리",   icon: "🚩" },
   { key: "stats",         label: "판매 통계",   icon: "📊" },
   { key: "commissions",   label: "의뢰 관리",   icon: "📋" },
-  { key: "bannedWords",   label: "금지어 관리",  icon: "🚫" },
+  { key: "bannedWords",    label: "금지어 관리",  icon: "🚫" },
+  { key: "deletedMembers", label: "탈퇴 회원",    icon: "👤" },
 ];
 
 export default function AdminPage() {
@@ -154,6 +155,15 @@ export default function AdminPage() {
   const [allUsers, setAllUsers] = useState<{ id: string; created_at: string }[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<"today" | "week" | "month" | "all">("month");
+
+  /* ── Deleted Members ── */
+  const [deletedMembers, setDeletedMembers] = useState<{
+    id: string; original_user_id: string; nickname: string | null; email: string | null;
+    phone: string | null; bank_account: string | null; role: string | null;
+    warning_count: number; deleted_at: string; reason: string | null;
+  }[]>([]);
+  const [deletedMembersLoading, setDeletedMembersLoading] = useState(false);
+  const [deletedMemberSearch, setDeletedMemberSearch] = useState("");
 
   /* ── Banned Words ── */
   const [bannedWords, setBannedWords] = useState<{ id: string; word: string; created_at: string }[]>([]);
@@ -214,7 +224,8 @@ export default function AdminPage() {
     if (tab === "reports"       && reports.length === 0)     fetchReports();
     if (tab === "stats"         && purchases.length === 0)   fetchStats();
     if (tab === "commissions"   && commissions.length === 0) fetchCommissions();
-    if (tab === "bannedWords"   && bannedWords.length === 0) fetchBannedWords();
+    if (tab === "bannedWords"    && bannedWords.length === 0)    fetchBannedWords();
+    if (tab === "deletedMembers" && deletedMembers.length === 0) fetchDeletedMembers();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -294,6 +305,16 @@ export default function AdminPage() {
       setCommissions(data || []);
     } catch { showError("의뢰 목록 불러오기 실패"); }
     finally { setCommLoading(false); }
+  };
+
+  const fetchDeletedMembers = async () => {
+    setDeletedMembersLoading(true);
+    try {
+      const res = await fetch("/api/admin/deleted-profiles", { headers: await authHeader() });
+      const { data } = await res.json();
+      setDeletedMembers(data || []);
+    } catch { showError("탈퇴 회원 목록 불러오기 실패"); }
+    finally { setDeletedMembersLoading(false); }
   };
 
   const fetchBannedWords = async () => {
@@ -1037,7 +1058,82 @@ export default function AdminPage() {
           )}
 
           {/* ══════════════════════════════════════════════
-              6. 금지어 관리
+              6. 탈퇴 회원
+          ══════════════════════════════════════════════ */}
+          {activeTab === "deletedMembers" && (() => {
+            const q = deletedMemberSearch.toLowerCase();
+            const filtered = deletedMembers.filter(m =>
+              !q ||
+              (m.nickname || "").toLowerCase().includes(q) ||
+              (m.email    || "").toLowerCase().includes(q) ||
+              (m.phone    || "").toLowerCase().includes(q)
+            );
+            return (
+              <section>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>탈퇴 회원</h2>
+                    <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                      탈퇴한 판매자·회원 정보 — 전자상거래법 기준 5년 보관 ({deletedMembers.length}명)
+                    </p>
+                  </div>
+                  <button type="button" onClick={fetchDeletedMembers} style={btnStyle("outline")}>새로고침</button>
+                </div>
+
+                <input
+                  value={deletedMemberSearch}
+                  onChange={e => setDeletedMemberSearch(e.target.value)}
+                  placeholder="닉네임, 이메일, 연락처 검색"
+                  style={{
+                    width: "100%", maxWidth: 400, height: 42, padding: "0 14px",
+                    borderRadius: 10, border: "1px solid #d1d5db", fontSize: 14,
+                    outline: "none", marginBottom: 16, boxSizing: "border-box",
+                  }}
+                />
+
+                {deletedMembersLoading ? <LoadingSpinner /> : filtered.length === 0 ? (
+                  <Empty text="탈퇴 회원이 없습니다." />
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: "#f3f4f6", textAlign: "left" }}>
+                          {["닉네임", "이메일", "연락처", "역할", "경고", "탈퇴일", "사유"].map(h => (
+                            <th key={h} style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", whiteSpace: "nowrap", borderBottom: "1px solid #e5e7eb" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map(m => (
+                          <tr key={m.id} className="adm-row" style={{ borderBottom: "1px solid #f3f4f6" }}>
+                            <td style={{ padding: "10px 12px", fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
+                              {m.nickname || "—"}
+                              {m.role === "seller" && (
+                                <span style={{ ...badgeStyle(GOLD, "#fdf6e3"), marginLeft: 4 }}>판매자</span>
+                              )}
+                            </td>
+                            <td style={{ padding: "10px 12px", color: "#374151" }}>{m.email || "—"}</td>
+                            <td style={{ padding: "10px 12px", color: "#374151", whiteSpace: "nowrap" }}>{m.phone || "—"}</td>
+                            <td style={{ padding: "10px 12px", color: "#6b7280" }}>{m.role || "user"}</td>
+                            <td style={{ padding: "10px 12px", color: "#6b7280", textAlign: "center" }}>{m.warning_count}</td>
+                            <td style={{ padding: "10px 12px", color: "#6b7280", whiteSpace: "nowrap" }}>
+                              {new Date(m.deleted_at).toLocaleDateString("ko-KR")}
+                            </td>
+                            <td style={{ padding: "10px 12px", color: "#6b7280", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {m.reason || "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            );
+          })()}
+
+          {/* ══════════════════════════════════════════════
+              7. 금지어 관리
           ══════════════════════════════════════════════ */}
           {activeTab === "bannedWords" && (
             <section>
