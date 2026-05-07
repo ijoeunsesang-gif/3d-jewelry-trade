@@ -148,7 +148,7 @@ export default function Home() {
     try {
       setLoading(true);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=*,profiles!seller_id(nickname,grade)&order=created_at.desc&limit=200`,
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=*&order=created_at.desc&limit=200`,
         {
           headers: {
             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -157,14 +157,34 @@ export default function Home() {
         }
       );
       const data = await res.json();
-      const mapped = Array.isArray(data)
-        ? data.map((m: any) => ({
-            ...m,
-            seller_nickname: m.profiles?.nickname ?? null,
-            seller_grade: m.profiles?.grade ?? null,
-            profiles: undefined,
-          }))
-        : [];
+      if (!Array.isArray(data)) { setModels([]); return; }
+
+      // 고유 seller_id 수집 후 profiles 일괄 조회
+      const sellerIds = [...new Set(data.map((m: any) => m.seller_id).filter(Boolean))];
+      let profileMap: Record<string, { nickname: string; grade: string }> = {};
+      if (sellerIds.length > 0) {
+        const pRes = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=id,nickname,grade&id=in.(${sellerIds.join(",")})`,
+          {
+            headers: {
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+            }
+          }
+        );
+        const profiles = await pRes.json();
+        if (Array.isArray(profiles)) {
+          for (const p of profiles) {
+            profileMap[p.id] = { nickname: p.nickname, grade: p.grade };
+          }
+        }
+      }
+
+      const mapped = data.map((m: any) => ({
+        ...m,
+        seller_nickname: profileMap[m.seller_id]?.nickname ?? null,
+        seller_grade: profileMap[m.seller_id]?.grade ?? null,
+      }));
       setModels(mapped);
     } catch (e) {
       console.error('[fetchModels] 에러:', e);
