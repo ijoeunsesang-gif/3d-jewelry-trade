@@ -177,9 +177,10 @@ export async function POST(req: NextRequest) {
         <td align="left" style="padding: 8px 14px; font-size: 13px; color: ${r.highlight ? "#b45309" : "#111827"}; font-weight: 800; border-bottom: 1px solid #f3f4f6; text-align: left;">${r.value}</td>
       </tr>`).join("");
 
+    const scaleVerb = scaleType?.includes("축소") ? "축소" : "확대";
     const scaleComment = hasScale
       ? `<p align="left" style="color: #e53e3e; font-weight: bold; margin: 0 0 24px; font-size: 14px; text-align: left;">
-          ※ 확대/축소 출력 요청: <span style="background: #fef08a; padding: 2px 6px;">${scaleText}</span> 배율로 확대 또는 축소하여 출력 부탁드립니다.
+          ※ 확대/축소 출력 요청: <span style="background: #fef08a; padding: 2px 6px;">${scaleText}</span> 배율로 ${scaleVerb}하여 출력 부탁드립니다.
         </p>`
       : "";
 
