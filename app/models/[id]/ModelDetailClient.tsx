@@ -57,6 +57,12 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [commentCount, setCommentCount] = useState(0);
   const downloadCount = model.download_count || 0;
 
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [alreadyReported, setAlreadyReported] = useState(false);
+
   useEffect(() => {
     const token = getAccessToken();
     if (!token) return;
@@ -74,6 +80,50 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   }, [model.id]);
 
   const isOwnModel = !!currentUserId && currentUserId === model.seller_id;
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    supabase
+      .from("model_reports")
+      .select("id")
+      .eq("model_id", model.id)
+      .eq("reporter_id", currentUserId)
+      .maybeSingle()
+      .then(({ data }) => { if (data) setAlreadyReported(true); });
+  }, [currentUserId, model.id]);
+
+  const handleSubmitReport = async () => {
+    if (!currentUserId) { showInfo("로그인 후 신고할 수 있습니다."); return; }
+    if (!reportReason) { showError("신고 사유를 선택해주세요."); return; }
+    setReportSubmitting(true);
+    try {
+      const { error } = await supabase.from("model_reports").insert({
+        model_id: model.id,
+        reporter_id: currentUserId,
+        reason: reportReason,
+        detail: reportDetail.trim() || null,
+      });
+      if (error) {
+        if (error.code === "23505") {
+          showInfo("이미 신고한 모델입니다.");
+          setAlreadyReported(true);
+        } else {
+          throw error;
+        }
+      } else {
+        showSuccess("신고가 접수되었습니다. 검토 후 조치하겠습니다.");
+        setAlreadyReported(true);
+      }
+      setReportModalOpen(false);
+      setReportReason("");
+      setReportDetail("");
+    } catch (e) {
+      console.error("[report] 신고 실패:", e);
+      showError("신고 접수에 실패했습니다.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -474,6 +524,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const displayImage = selectedImage || thumbnailUrl;
 
   return (
+    <>
     <main className="detail-main">
       <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>
         홈 / 3D 모델 / 상세보기
@@ -947,6 +998,30 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
               {copied ? "복사 완료!" : "링크 복사"}
             </button>
 
+            {!isOwnModel && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (!currentUserId) { showInfo("로그인 후 신고할 수 있습니다."); return; }
+                  setReportModalOpen(true);
+                }}
+                disabled={alreadyReported}
+                style={{
+                  height: 40,
+                  borderRadius: 12,
+                  border: "1px solid #fca5a5",
+                  background: "white",
+                  color: alreadyReported ? "#9ca3af" : "#dc2626",
+                  fontWeight: 700,
+                  cursor: alreadyReported ? "not-allowed" : "pointer",
+                  fontSize: 13,
+                  opacity: alreadyReported ? 0.6 : 1,
+                }}
+              >
+                {alreadyReported ? "신고 접수됨" : "🚨 신고하기"}
+              </button>
+            )}
+
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>포함 파일</div>
               <div
@@ -1192,5 +1267,108 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         )}
       </section>
     </main>
+
+    {/* ── 신고 모달 ── */}
+    {reportModalOpen && (
+      <div
+        onClick={() => setReportModalOpen(false)}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 16px",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "white", borderRadius: 20, padding: "28px 24px",
+            width: "100%", maxWidth: 460,
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111827" }}>모델 신고</h2>
+            <button
+              onClick={() => setReportModalOpen(false)}
+              style={{ border: "none", background: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af", lineHeight: 1 }}
+            >✕</button>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+            {[
+              "저작권/상표권 침해 의심",
+              "카피 제품 (유명 브랜드 모방)",
+              "허위/과장 정보",
+              "불법 콘텐츠",
+              "기타 (직접 입력)",
+            ].map((r) => (
+              <label
+                key={r}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 14px", borderRadius: 10, cursor: "pointer",
+                  border: `1px solid ${reportReason === r ? "#dc2626" : "#e5e7eb"}`,
+                  background: reportReason === r ? "#fff5f5" : "white",
+                  fontWeight: reportReason === r ? 700 : 500,
+                  fontSize: 14, color: "#374151",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value={r}
+                  checked={reportReason === r}
+                  onChange={() => setReportReason(r)}
+                  style={{ accentColor: "#dc2626" }}
+                />
+                {r}
+              </label>
+            ))}
+          </div>
+
+          <textarea
+            placeholder="추가 내용을 입력하세요 (선택)"
+            value={reportDetail}
+            onChange={(e) => setReportDetail(e.target.value)}
+            rows={3}
+            style={{
+              width: "100%", border: "1px solid #e5e7eb", borderRadius: 10,
+              padding: "10px 12px", fontSize: 14, lineHeight: 1.7,
+              resize: "vertical", boxSizing: "border-box", marginBottom: 16,
+            }}
+          />
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setReportModalOpen(false)}
+              style={{
+                flex: 1, height: 44, borderRadius: 12,
+                border: "1px solid #d1d5db", background: "white",
+                color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer",
+              }}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitReport}
+              disabled={reportSubmitting || !reportReason}
+              style={{
+                flex: 1, height: 44, borderRadius: 12,
+                border: "none", background: reportReason ? "#dc2626" : "#f3f4f6",
+                color: reportReason ? "white" : "#9ca3af",
+                fontWeight: 800, fontSize: 14,
+                cursor: reportSubmitting || !reportReason ? "not-allowed" : "pointer",
+                opacity: reportSubmitting ? 0.6 : 1,
+              }}
+            >
+              {reportSubmitting ? "접수 중..." : "신고 제출"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

@@ -11,7 +11,7 @@ const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports";
 
 interface UserProfile {
   id: string;
@@ -123,6 +123,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "bannedWords",    label: "금지어 관리",  icon: "🚫" },
   { key: "deletedMembers", label: "탈퇴 회원",    icon: "👤" },
   { key: "notices",        label: "공지사항",     icon: "📢" },
+  { key: "modelReports",   label: "모델 신고",    icon: "🚨" },
 ];
 
 export default function AdminPage() {
@@ -165,6 +166,14 @@ export default function AdminPage() {
   }[]>([]);
   const [deletedMembersLoading, setDeletedMembersLoading] = useState(false);
   const [deletedMemberSearch, setDeletedMemberSearch] = useState("");
+
+  /* ── Model Reports ── */
+  const [modelReports, setModelReports] = useState<{
+    id: string; model_id: string; reporter_id: string; reason: string;
+    detail: string | null; status: string; created_at: string;
+    model_title?: string; reporter_nickname?: string;
+  }[]>([]);
+  const [modelReportsLoading, setModelReportsLoading] = useState(false);
 
   /* ── Notices ── */
   const [notices, setNotices] = useState<{ id: string; title: string; content: string; is_pinned: boolean; created_at: string }[]>([]);
@@ -235,6 +244,7 @@ export default function AdminPage() {
     if (tab === "bannedWords"    && bannedWords.length === 0)    fetchBannedWords();
     if (tab === "deletedMembers" && deletedMembers.length === 0) fetchDeletedMembers();
     if (tab === "notices"        && notices.length === 0)        fetchNotices();
+    if (tab === "modelReports"   && modelReports.length === 0)  fetchModelReports();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -324,6 +334,57 @@ export default function AdminPage() {
       setDeletedMembers(data || []);
     } catch { showError("탈퇴 회원 목록 불러오기 실패"); }
     finally { setDeletedMembersLoading(false); }
+  };
+
+  const fetchModelReports = async () => {
+    setModelReportsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("model_reports")
+        .select("id, model_id, reporter_id, reason, detail, status, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) { setModelReports([]); return; }
+
+      const modelIds  = [...new Set(data.map((r: any) => r.model_id))];
+      const reporterIds = [...new Set(data.map((r: any) => r.reporter_id))];
+
+      const [{ data: models }, { data: reporters }] = await Promise.all([
+        supabase.from("models").select("id, title").in("id", modelIds),
+        supabase.from("profiles").select("id, nickname").in("id", reporterIds),
+      ]);
+
+      const modelMap: Record<string, string> = {};
+      (models || []).forEach((m: any) => { modelMap[m.id] = m.title; });
+      const reporterMap: Record<string, string> = {};
+      (reporters || []).forEach((p: any) => { reporterMap[p.id] = p.nickname || p.id.slice(0, 8); });
+
+      setModelReports(data.map((r: any) => ({
+        ...r,
+        model_title: modelMap[r.model_id] || r.model_id.slice(0, 8),
+        reporter_nickname: reporterMap[r.reporter_id] || r.reporter_id.slice(0, 8),
+      })));
+    } catch (e) {
+      console.error("[admin/modelReports] 조회 실패:", e);
+      showError("모델 신고 목록 불러오기 실패");
+    } finally {
+      setModelReportsLoading(false);
+    }
+  };
+
+  const handleReportStatus = async (id: string, status: "reviewed" | "dismissed") => {
+    const { error } = await supabase.from("model_reports").update({ status }).eq("id", id);
+    if (error) { showError("상태 변경 실패"); return; }
+    setModelReports((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
+    showSuccess(status === "reviewed" ? "검토 완료 처리했습니다." : "기각 처리했습니다.");
+  };
+
+  const handleDeleteReportedModel = async (modelId: string) => {
+    if (!confirm("해당 모델을 삭제할까요? 이 작업은 되돌릴 수 없습니다.")) return;
+    const { error } = await supabase.from("models").delete().eq("id", modelId);
+    if (error) { showError("모델 삭제 실패"); return; }
+    setModelReports((prev) => prev.filter((r) => r.model_id !== modelId));
+    showSuccess("모델이 삭제되었습니다.");
   };
 
   const fetchNotices = async () => {
@@ -1305,6 +1366,71 @@ export default function AdminPage() {
                       </button>
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              모델 신고 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "modelReports" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>모델 신고</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                    신고된 모델 목록 — 검토 완료/기각 처리 및 모델 삭제
+                  </p>
+                </div>
+                <button type="button" onClick={fetchModelReports} style={btnStyle("outline")}>새로고침</button>
+              </div>
+
+              {modelReportsLoading ? <LoadingSpinner /> : modelReports.length === 0 ? (
+                <Empty text="신고된 모델이 없습니다." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {modelReports.map((r) => {
+                    const statusColor = r.status === "reviewed" ? "#16a34a" : r.status === "dismissed" ? "#9ca3af" : "#d97706";
+                    const statusLabel = r.status === "reviewed" ? "검토완료" : r.status === "dismissed" ? "기각" : "대기중";
+                    return (
+                      <div key={r.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                              <Link href={`/models/${r.model_id}`} target="_blank"
+                                style={{ fontSize: 15, fontWeight: 800, color: "#111827", textDecoration: "none" }}>
+                                {r.model_title}
+                              </Link>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}40` }}>
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 13, color: "#374151", marginBottom: 4 }}>
+                              <strong>사유:</strong> {r.reason}
+                            </div>
+                            {r.detail && (
+                              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 4 }}>
+                                <strong>상세:</strong> {r.detail}
+                              </div>
+                            )}
+                            <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                              신고자: {r.reporter_nickname} · {new Date(r.created_at).toLocaleDateString("ko-KR")}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+                            {r.status === "pending" && (
+                              <>
+                                <button type="button" onClick={() => handleReportStatus(r.id, "reviewed")} style={miniBtn("#16a34a")}>검토완료</button>
+                                <button type="button" onClick={() => handleReportStatus(r.id, "dismissed")} style={miniBtn("#6b7280")}>기각</button>
+                              </>
+                            )}
+                            <button type="button" onClick={() => handleDeleteReportedModel(r.model_id)} style={miniBtn("#dc2626")}>모델 삭제</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>
