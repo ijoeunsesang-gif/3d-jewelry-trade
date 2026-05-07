@@ -148,7 +148,7 @@ export default function Home() {
     try {
       setLoading(true);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=*&order=created_at.desc&limit=200`,
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=*,profiles!seller_id(nickname,grade)&order=created_at.desc&limit=200`,
         {
           headers: {
             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -157,7 +157,15 @@ export default function Home() {
         }
       );
       const data = await res.json();
-      setModels(Array.isArray(data) ? data : []);
+      const mapped = Array.isArray(data)
+        ? data.map((m: any) => ({
+            ...m,
+            seller_nickname: m.profiles?.nickname ?? null,
+            seller_grade: m.profiles?.grade ?? null,
+            profiles: undefined,
+          }))
+        : [];
+      setModels(mapped);
     } catch (e) {
       console.error('[fetchModels] 에러:', e);
     } finally {

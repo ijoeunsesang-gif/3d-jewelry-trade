@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import styles from "../page.module.css";
+import GradeBadge from "./GradeBadge";
+import type { Grade } from "@/lib/grades";
 
 export type ModelItem = {
   id: string;
@@ -18,6 +20,8 @@ export type ModelItem = {
   download_count?: number;
   view_count?: number;
   comment_count?: number;
+  seller_nickname?: string | null;
+  seller_grade?: Grade | null;
 };
 
 type Props = {
@@ -273,13 +277,17 @@ export default function ModelCard({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              fontSize: 12,
-              color: "#16a34a",
-              fontWeight: 800,
             }}
           >
-            <span className={styles.miniMeta}>즉시 다운로드</span>
-            <span className={styles.ctaHint} style={{ fontWeight: 700 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 500 }}>
+                {item.seller_nickname ?? "판매자"}
+              </span>
+              {item.seller_grade && (
+                <GradeBadge grade={item.seller_grade} size="sm" />
+              )}
+            </div>
+            <span className={styles.ctaHint} style={{ fontSize: 12, fontWeight: 700 }}>
               자세히 보기 ↗
             </span>
           </div>
