@@ -207,7 +207,7 @@ export default function ModelCard({
                 marginLeft: "auto",
                 paddingLeft: 8,
                 color: "rgba(255,255,255,0.9)",
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 600,
                 whiteSpace: "nowrap",
                 textShadow: "0 1px 3px rgba(0,0,0,0.7)",
