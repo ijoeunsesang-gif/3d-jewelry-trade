@@ -157,7 +157,12 @@ function CommissionNewInner() {
     e.preventDefault();
     setIsDragging(false);
     if (imageFiles.length >= MAX_IMAGES) return;
-    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    const dropped = Array.from(e.dataTransfer.files);
+    const files = dropped.filter(f => f.type.startsWith("image/"));
+    if (dropped.length > 0 && files.length === 0) {
+      showError("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
     const toAdd = files.slice(0, MAX_IMAGES - imageFiles.length);
     if (toAdd.length === 0) return;
     setImageFiles(prev => [...prev, ...toAdd]);

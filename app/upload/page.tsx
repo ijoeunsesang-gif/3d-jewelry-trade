@@ -83,28 +83,59 @@ export default function UploadPage() {
     setExtraFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const ALLOWED_MODEL_EXTS = [".stl", ".3dm", ".obj"];
+  const ALLOWED_EXTRA_EXTS = [".stl", ".3dm", ".obj", ".zip", ".pdf"];
+
   const onDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
 
   const onDropThumbnail = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
-    if (file) setThumbnailFile(file);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showError("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
+    setThumbnailFile(file);
   };
 
   const onDropDetailImages = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
-    if (e.dataTransfer.files) handleDetailImages(e.dataTransfer.files);
+    if (!e.dataTransfer.files) return;
+    const dropped = Array.from(e.dataTransfer.files);
+    const valid = dropped.filter(f => f.type.startsWith("image/"));
+    if (dropped.length > 0 && valid.length === 0) {
+      showError("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
+    setDetailImageFiles(valid.slice(0, 10));
   };
 
   const onDropModelFile = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
-    if (file) setModelFile(file);
+    if (!file) return;
+    const ext = "." + (file.name.split(".").pop()?.toLowerCase() ?? "");
+    if (!ALLOWED_MODEL_EXTS.includes(ext)) {
+      showError("STL, 3DM, OBJ 파일만 업로드 가능합니다.");
+      return;
+    }
+    setModelFile(file);
   };
 
   const onDropExtraFiles = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
-    if (e.dataTransfer.files) handleExtraFiles(e.dataTransfer.files);
+    if (!e.dataTransfer.files) return;
+    const dropped = Array.from(e.dataTransfer.files);
+    const valid = dropped.filter(f => {
+      const ext = "." + (f.name.split(".").pop()?.toLowerCase() ?? "");
+      return ALLOWED_EXTRA_EXTS.includes(ext);
+    });
+    if (dropped.length > 0 && valid.length === 0) {
+      showError("STL, 3DM, OBJ, ZIP, PDF 파일만 업로드 가능합니다.");
+      return;
+    }
+    setExtraFiles(valid.slice(0, 10));
   };
 
   const handleSubmit = async (e: FormEvent) => {

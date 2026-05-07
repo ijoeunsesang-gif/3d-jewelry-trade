@@ -53,7 +53,13 @@ export default function AskNewPage() {
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || images.length >= MAX_IMAGES) return;
-    const toUpload = Array.from(files).slice(0, MAX_IMAGES - images.length);
+    const allFiles = Array.from(files);
+    const imageFiles = allFiles.filter(f => f.type.startsWith("image/"));
+    if (allFiles.length > 0 && imageFiles.length === 0) {
+      alert("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
+    const toUpload = imageFiles.slice(0, MAX_IMAGES - images.length);
     setUploading(true);
     const urls: string[] = [];
     for (const f of toUpload) {

@@ -904,7 +904,12 @@ export default function CommissionDetailPage() {
   const handleRevisionImageDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setRevisionDragOver(false);
-    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    const dropped = Array.from(e.dataTransfer.files);
+    const files = dropped.filter((f) => f.type.startsWith("image/"));
+    if (dropped.length > 0 && files.length === 0) {
+      showError("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
     if (!files.length) return;
     setRevisionImageUploading(true);
     const urls: string[] = [];

@@ -197,7 +197,13 @@ export default function AskDetailPage() {
 
   const handleAnswerFiles = async (files: FileList | null) => {
     if (!files || answerImages.length >= MAX_IMAGES) return;
-    const toUpload = Array.from(files).slice(0, MAX_IMAGES - answerImages.length);
+    const allFiles = Array.from(files);
+    const imageFiles = allFiles.filter(f => f.type.startsWith("image/"));
+    if (allFiles.length > 0 && imageFiles.length === 0) {
+      alert("이미지 파일만 업로드 가능합니다.");
+      return;
+    }
+    const toUpload = imageFiles.slice(0, MAX_IMAGES - answerImages.length);
     setAnswerUploading(true);
     const urls: string[] = [];
     for (const f of toUpload) {
