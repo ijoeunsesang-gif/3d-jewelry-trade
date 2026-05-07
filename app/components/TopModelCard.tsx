@@ -149,11 +149,15 @@ export default function TopModelCard({
           <div
             style={{
               position: "absolute",
-              left: 8,
-              bottom: 6,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 30,
+              background: "rgba(15,23,42,0.55)",
               display: "flex",
               alignItems: "center",
-              gap: 5,
+              justifyContent: "space-between",
+              padding: "0 8px",
             }}
           >
             <button
@@ -166,7 +170,9 @@ export default function TopModelCard({
               }}
               style={{
                 width: 28,
-                height: 24,
+                height: 22,
+                lineHeight: "22px",
+                textAlign: "center",
                 borderRadius: 999,
                 border: "none",
                 background: "rgba(255,255,255,0.92)",
@@ -175,18 +181,16 @@ export default function TopModelCard({
                 fontWeight: 900,
                 cursor: "pointer",
                 flexShrink: 0,
+                padding: 0,
               }}
             >
               Q
             </button>
             <span
               style={{
-                background: "rgba(15,23,42,0.55)",
-                color: "white",
+                color: "rgba(255,255,255,0.9)",
                 fontSize: 10,
                 fontWeight: 600,
-                padding: "2px 7px",
-                borderRadius: 999,
                 whiteSpace: "nowrap",
               }}
             >
