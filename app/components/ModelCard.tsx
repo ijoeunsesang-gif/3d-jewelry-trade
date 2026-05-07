@@ -165,14 +165,16 @@ export default function ModelCard({
           <div
             style={{
               position: "absolute",
+              bottom: 0,
               left: 0,
               right: 0,
-              bottom: 0,
+              width: "100%",
               height: 36,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               padding: "0 12px",
+              boxSizing: "border-box",
             }}
           >
             <button
@@ -202,6 +204,8 @@ export default function ModelCard({
             </button>
             <span
               style={{
+                marginLeft: "auto",
+                paddingLeft: 8,
                 color: "rgba(255,255,255,0.9)",
                 fontSize: 11,
                 fontWeight: 600,
@@ -259,10 +263,6 @@ export default function ModelCard({
             >
               {highlightText(item.title, search)}
             </p>
-          </div>
-
-          <div style={{ marginTop: 5, fontSize: 12, color: "#9ca3af", fontWeight: 600 }}>
-            👁 {(item.view_count || 0).toLocaleString("ko-KR")} · 💬 {item.comment_count || 0} · 다운로드 {item.download_count || 0}
           </div>
 
           <p
