@@ -953,8 +953,8 @@ function IconDropAdmin({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>;
 }
 function IconNotice({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
-  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>;
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M3 9v6h4l8 4V5L7 9H3z" /><path d="M17 9a4 4 0 0 1 0 6" /><line x1="7" y1="15" x2="7" y2="20" /></svg>;
 }
 function IconDropNotice({ active = false }: { active?: boolean }) {
-  return <svg {...dropSvg(active)}><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>;
+  return <svg {...dropSvg(active)}><path d="M3 9v6h4l8 4V5L7 9H3z" /><path d="M17 9a4 4 0 0 1 0 6" /><line x1="7" y1="15" x2="7" y2="20" /></svg>;
 }
