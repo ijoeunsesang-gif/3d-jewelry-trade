@@ -153,7 +153,6 @@ export default function TopModelCard({
               right: 0,
               bottom: 0,
               height: 30,
-              background: "rgba(15,23,42,0.55)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -192,6 +191,7 @@ export default function TopModelCard({
                 fontSize: 10,
                 fontWeight: 600,
                 whiteSpace: "nowrap",
+                textShadow: "0 1px 3px rgba(0,0,0,0.7)",
               }}
             >
               👁 {item.view_count || 0} · 💬 {item.comment_count || 0} · ↓ {item.download_count || 0}
