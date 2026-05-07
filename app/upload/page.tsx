@@ -367,6 +367,26 @@ export default function UploadPage() {
         썸네일 1장과 추가 이미지 최대 10장까지 업로드할 수 있습니다.
       </p>
 
+      <div style={{
+        marginTop: 16,
+        padding: "14px 18px",
+        borderRadius: 14,
+        background: "#fffbeb",
+        border: "1.5px solid #f59e0b",
+        display: "grid",
+        gap: 6,
+      }}>
+        <p style={{ margin: 0, fontWeight: 800, fontSize: 14, color: "#92400e" }}>
+          ⚠️ 주의사항
+        </p>
+        <p style={{ margin: 0, fontSize: 13, color: "#78350f", lineHeight: 1.7 }}>
+          타인의 저작권, 상표권, 디자인권을 침해하는 파일은 업로드할 수 없습니다.<br />
+          카피 제품, 유명 브랜드 모방 디자인 등을 업로드할 경우<br />
+          즉시 삭제 및 계정 정지 조치가 취해질 수 있으며,<br />
+          <strong>법적 책임은 판매자 본인에게 있습니다.</strong>
+        </p>
+      </div>
+
       <form
         onSubmit={handleSubmit}
         className="upload-form"
