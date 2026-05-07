@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -14,7 +14,9 @@ export default function UploadPage() {
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("RING");
-  const [price, setPrice] = useState("");
+  const [price, setPrice] = useState<number | null>(null);
+  const [priceInput, setPriceInput] = useState("");
+  const priceInputRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState("");
 
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -84,6 +86,31 @@ export default function UploadPage() {
     gap: 6,
     fontSize: 13,
     color: "#111827",
+  };
+
+  useEffect(() => {
+    const el = priceInputRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 1000 : -1000;
+      setPrice(prev => {
+        const newVal = Math.max(5000, (prev || 0) + delta);
+        setPriceInput(newVal.toLocaleString('ko-KR'));
+        return newVal;
+      });
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/,/g, '');
+    if (raw === '' || (!isNaN(Number(raw)) && Number(raw) >= 0)) {
+      const num = raw === '' ? null : Number(raw);
+      setPrice(num);
+      setPriceInput(num !== null ? num.toLocaleString('ko-KR') : '');
+    }
   };
 
   const handleDetailImages = (files: FileList | null) => {
@@ -160,7 +187,7 @@ export default function UploadPage() {
 
     try {
       if (!title.trim()) { showInfo("모델명을 입력하세요."); return; }
-      if (!price.trim()) { showInfo("가격을 입력하세요."); return; }
+      if (price === null) { showInfo("가격을 입력하세요."); return; }
 
       // 서버 최신 금지어 재확인 (클라이언트 우회 방지)
       try {
@@ -183,7 +210,7 @@ export default function UploadPage() {
           return;
         }
       }
-      if (Number(price) < 5000) { showInfo("최소 판매가는 5,000원입니다."); return; }
+      if (price < 5000) { showInfo("최소 판매가는 5,000원입니다."); return; }
       if (!thumbnailFile) { showError("썸네일 이미지를 선택하세요."); return; }
       if (!modelFile) { showError("출력(대표)파일을 선택하세요."); return; }
 
@@ -222,7 +249,7 @@ export default function UploadPage() {
         .insert({
           title,
           category,
-          price: Number(price),
+          price: price,
           description,
           thumbnail: thumbnailUrl,
           thumbnail_path: thumbPath,
@@ -424,11 +451,12 @@ export default function UploadPage() {
 
         <Field label="가격">
           <input
-            type="number"
-            min={5000}
-            value={price}
-            onChange={(e) => setPrice(e.target.value.replace(/[^0-9]/g, ""))}
-            onBlur={() => { if (price && Number(price) < 5000) showInfo("최소 판매가는 5,000원입니다."); }}
+            ref={priceInputRef}
+            type="text"
+            inputMode="numeric"
+            value={priceInput}
+            onChange={handlePriceChange}
+            onBlur={() => { if (price !== null && price < 5000) showInfo("최소 판매가는 5,000원입니다."); }}
             placeholder="최소 5,000원"
             style={inputStyle}
           />
