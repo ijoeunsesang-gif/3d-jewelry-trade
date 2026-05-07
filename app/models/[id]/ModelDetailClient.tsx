@@ -75,6 +75,10 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   }, []);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     supabase.rpc("increment_model_view", { mid: model.id });
     setViewCount((model.view_count || 0) + 1);
   }, [model.id]);
