@@ -22,6 +22,7 @@ type Props = {
   modelId: string;
   currentUserId: string | null;
   isAdmin: boolean;
+  onCountChange?: (count: number) => void;
 };
 
 function timeAgo(iso: string) {
@@ -36,7 +37,7 @@ function timeAgo(iso: string) {
   return new Date(iso).toLocaleDateString("ko-KR");
 }
 
-export default function ModelComments({ modelId, currentUserId, isAdmin }: Props) {
+export default function ModelComments({ modelId, currentUserId, isAdmin, onCountChange }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [myLikedIds, setMyLikedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,10 @@ export default function ModelComments({ modelId, currentUserId, isAdmin }: Props
   useEffect(() => {
     loadComments();
   }, [modelId]);
+
+  useEffect(() => {
+    onCountChange?.(comments.length);
+  }, [comments.length]);
 
   useEffect(() => {
     if (replyingToId && replyRef.current) replyRef.current.focus();

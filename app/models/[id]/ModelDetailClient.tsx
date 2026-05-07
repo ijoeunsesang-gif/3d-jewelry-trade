@@ -29,6 +29,7 @@ type ModelItem = {
   category: string;
   created_at: string;
   view_count?: number;
+  download_count?: number;
 };
 
 export default function ModelDetailClient({ model }: { model: ModelItem }) {
@@ -53,6 +54,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [viewCount, setViewCount] = useState(model.view_count || 0);
+  const [commentCount, setCommentCount] = useState(0);
+  const downloadCount = model.download_count || 0;
 
   useEffect(() => {
     const token = getAccessToken();
@@ -758,8 +761,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
             {model.title}
           </h1>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, fontSize: 13, color: "#9ca3af", fontWeight: 700 }}>
-            <span>👁 {viewCount.toLocaleString("ko-KR")} 조회</span>
+          <div style={{ marginBottom: 14, fontSize: 13, color: "#9ca3af", fontWeight: 700 }}>
+            👁 {viewCount.toLocaleString("ko-KR")} · 💬 {commentCount} · 다운로드 {downloadCount}
           </div>
 
           {seller && (
@@ -1064,6 +1067,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
         modelId={model.id}
         currentUserId={currentUserId}
         isAdmin={isAdmin}
+        onCountChange={setCommentCount}
       />
 
       <section style={{ marginTop: 56 }}>

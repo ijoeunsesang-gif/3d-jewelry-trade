@@ -17,6 +17,7 @@ export type ModelItem = {
   created_at: string;
   download_count?: number;
   view_count?: number;
+  comment_count?: number;
 };
 
 type Props = {
@@ -206,40 +207,6 @@ export default function ModelCard({
             </div>
           )}
 
-          <div
-            style={{
-              position: "absolute",
-              right: 10,
-              bottom: 10,
-              display: "flex",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                background: "rgba(15,23,42,0.8)",
-                color: "white",
-                fontSize: 12,
-                fontWeight: 700,
-                padding: "6px 10px",
-                borderRadius: 999,
-              }}
-            >
-              👁 {(item.view_count || 0).toLocaleString("ko-KR")}
-            </div>
-            <div
-              style={{
-                background: "rgba(15,23,42,0.8)",
-                color: "white",
-                fontSize: 12,
-                fontWeight: 700,
-                padding: "6px 10px",
-                borderRadius: 999,
-              }}
-            >
-              ↓ {item.download_count || 0}
-            </div>
-          </div>
         </div>
 
         <div
@@ -263,6 +230,10 @@ export default function ModelCard({
             >
               {highlightText(item.title, search)}
             </p>
+          </div>
+
+          <div style={{ marginTop: 5, fontSize: 12, color: "#9ca3af", fontWeight: 600 }}>
+            👁 {(item.view_count || 0).toLocaleString("ko-KR")} · 💬 {item.comment_count || 0} · 다운로드 {item.download_count || 0}
           </div>
 
           <p
