@@ -62,7 +62,8 @@ function CommissionNewInner() {
   const [selectedSeller, setSelectedSeller] = useState<SellerProfile | null>(null);
   const [allSellerSearch, setAllSellerSearch] = useState("");
   const [followedSellerSearch, setFollowedSellerSearch] = useState("");
-  const [desiredPrice, setDesiredPrice] = useState("");
+  const [desiredPrice, setDesiredPrice] = useState<number | null>(null);
+  const [priceInput, setPriceInput] = useState("");
   const [desiredDays, setDesiredDays] = useState("");
   const [commissionType, setCommissionType] = useState<"지목" | "공개모집">("지목");
 
@@ -148,6 +149,15 @@ function CommissionNewInner() {
     if (isPrivate && sellerTab === "all") loadAllSellers();
   }, [isPrivate]);
 
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/,/g, '');
+    if (raw === '' || (!isNaN(Number(raw)) && Number(raw) >= 0)) {
+      const num = raw === '' ? null : Number(raw);
+      setDesiredPrice(num);
+      setPriceInput(num !== null ? num.toLocaleString('ko-KR') : '');
+    }
+  };
+
   const handleSelectSeller = (s: SellerProfile) => {
     setSelectedSellerId(s.id);
     setSelectedSeller(s);
@@ -217,7 +227,7 @@ function CommissionNewInner() {
       };
       if (isPrivate) {
         insertPayload.commission_type = commissionType;
-        insertPayload.desired_price = desiredPrice ? parseInt(desiredPrice) : null;
+        insertPayload.desired_price = desiredPrice ?? null;
         insertPayload.desired_days = desiredDays ? parseInt(desiredDays) : null;
         insertPayload.negotiation_count = 0;
         if (commissionType === "지목") {
@@ -547,11 +557,18 @@ function CommissionNewInner() {
                   희망 비용 (원)
                 </label>
                 <input
-                  type="number"
-                  value={desiredPrice}
-                  onChange={(e) => setDesiredPrice(e.target.value)}
-                  placeholder="예: 50000"
-                  min={0}
+                  type="text"
+                  inputMode="numeric"
+                  value={priceInput}
+                  onChange={handlePriceChange}
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 1000 : -1000;
+                    const newVal = Math.max(5000, (desiredPrice || 0) + delta);
+                    setDesiredPrice(newVal);
+                    setPriceInput(newVal.toLocaleString('ko-KR'));
+                  }}
+                  placeholder="최소 5,000원"
                   style={inputStyle}
                 />
               </div>
