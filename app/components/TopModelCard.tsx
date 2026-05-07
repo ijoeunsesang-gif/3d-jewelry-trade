@@ -152,11 +152,13 @@ export default function TopModelCard({
               left: 0,
               right: 0,
               bottom: 0,
+              width: "100%",
               height: 30,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               padding: "0 8px",
+              boxSizing: "border-box",
             }}
           >
             <button
@@ -187,6 +189,8 @@ export default function TopModelCard({
             </button>
             <span
               style={{
+                marginLeft: "auto",
+                paddingLeft: 6,
                 color: "rgba(255,255,255,0.9)",
                 fontSize: 10,
                 fontWeight: 600,
