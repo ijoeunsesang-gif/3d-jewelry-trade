@@ -11,7 +11,7 @@ const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices";
 
 interface UserProfile {
   id: string;
@@ -122,6 +122,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "commissions",   label: "의뢰 관리",   icon: "📋" },
   { key: "bannedWords",    label: "금지어 관리",  icon: "🚫" },
   { key: "deletedMembers", label: "탈퇴 회원",    icon: "👤" },
+  { key: "notices",        label: "공지사항",     icon: "📢" },
 ];
 
 export default function AdminPage() {
@@ -164,6 +165,13 @@ export default function AdminPage() {
   }[]>([]);
   const [deletedMembersLoading, setDeletedMembersLoading] = useState(false);
   const [deletedMemberSearch, setDeletedMemberSearch] = useState("");
+
+  /* ── Notices ── */
+  const [notices, setNotices] = useState<{ id: string; title: string; content: string; is_pinned: boolean; created_at: string }[]>([]);
+  const [noticesLoading, setNoticesLoading] = useState(false);
+  const [noticeForm, setNoticeForm] = useState({ title: "", content: "", is_pinned: false });
+  const [noticeSaving, setNoticeSaving] = useState(false);
+  const [noticeEditId, setNoticeEditId] = useState<string | null>(null);
 
   /* ── Banned Words ── */
   const [bannedWords, setBannedWords] = useState<{ id: string; word: string; created_at: string }[]>([]);
@@ -226,6 +234,7 @@ export default function AdminPage() {
     if (tab === "commissions"   && commissions.length === 0) fetchCommissions();
     if (tab === "bannedWords"    && bannedWords.length === 0)    fetchBannedWords();
     if (tab === "deletedMembers" && deletedMembers.length === 0) fetchDeletedMembers();
+    if (tab === "notices"        && notices.length === 0)        fetchNotices();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -315,6 +324,64 @@ export default function AdminPage() {
       setDeletedMembers(data || []);
     } catch { showError("탈퇴 회원 목록 불러오기 실패"); }
     finally { setDeletedMembersLoading(false); }
+  };
+
+  const fetchNotices = async () => {
+    setNoticesLoading(true);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices?select=*&order=is_pinned.desc,created_at.desc`,
+        { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${getAccessToken()}` } }
+      );
+      const data = await res.json();
+      setNotices(Array.isArray(data) ? data : []);
+    } catch { showError("공지사항 불러오기 실패"); }
+    finally { setNoticesLoading(false); }
+  };
+
+  const saveNotice = async () => {
+    if (!noticeForm.title.trim() || !noticeForm.content.trim()) {
+      showError("제목과 내용을 입력하세요."); return;
+    }
+    setNoticeSaving(true);
+    try {
+      const token = getAccessToken();
+      const headers = {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      };
+      if (noticeEditId) {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices?id=eq.${noticeEditId}`,
+          { method: "PATCH", headers, body: JSON.stringify({ title: noticeForm.title, content: noticeForm.content, is_pinned: noticeForm.is_pinned }) }
+        );
+        showSuccess("공지사항이 수정되었습니다.");
+      } else {
+        await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices`,
+          { method: "POST", headers, body: JSON.stringify({ title: noticeForm.title, content: noticeForm.content, is_pinned: noticeForm.is_pinned }) }
+        );
+        showSuccess("공지사항이 등록되었습니다.");
+      }
+      setNoticeForm({ title: "", content: "", is_pinned: false });
+      setNoticeEditId(null);
+      await fetchNotices();
+    } catch { showError("저장 실패"); }
+    finally { setNoticeSaving(false); }
+  };
+
+  const deleteNotice = async (id: string) => {
+    if (!confirm("공지사항을 삭제할까요?")) return;
+    try {
+      await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices?id=eq.${id}`,
+        { method: "DELETE", headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${getAccessToken()}` } }
+      );
+      showSuccess("삭제되었습니다.");
+      setNotices((prev) => prev.filter((n) => n.id !== id));
+    } catch { showError("삭제 실패"); }
   };
 
   const fetchBannedWords = async () => {
@@ -1220,6 +1287,118 @@ export default function AdminPage() {
                       >
                         삭제
                       </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              공지사항 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "notices" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>공지사항 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                    공지사항 등록·수정·삭제 및 중요 공지 핀 설정
+                  </p>
+                </div>
+                <button type="button" onClick={fetchNotices} style={btnStyle("outline")}>새로고침</button>
+              </div>
+
+              {/* 작성/수정 폼 */}
+              <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20, marginBottom: 28 }}>
+                <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                  {noticeEditId ? "공지사항 수정" : "새 공지사항 등록"}
+                </h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      type="text"
+                      placeholder="제목"
+                      value={noticeForm.title}
+                      onChange={(e) => setNoticeForm((f) => ({ ...f, title: e.target.value }))}
+                      style={{ flex: 1, height: 38, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 12px", fontSize: 14 }}
+                    />
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer", whiteSpace: "nowrap" }}>
+                      <input
+                        type="checkbox"
+                        checked={noticeForm.is_pinned}
+                        onChange={(e) => setNoticeForm((f) => ({ ...f, is_pinned: e.target.checked }))}
+                      />
+                      📌 중요 공지
+                    </label>
+                  </div>
+                  <textarea
+                    placeholder="내용"
+                    value={noticeForm.content}
+                    onChange={(e) => setNoticeForm((f) => ({ ...f, content: e.target.value }))}
+                    rows={5}
+                    style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "10px 12px", fontSize: 14, resize: "vertical", lineHeight: 1.7 }}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={saveNotice}
+                      disabled={noticeSaving}
+                      style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: GOLD, color: "white", fontWeight: 700, fontSize: 13, cursor: noticeSaving ? "not-allowed" : "pointer", opacity: noticeSaving ? 0.6 : 1 }}
+                    >
+                      {noticeSaving ? "저장 중..." : noticeEditId ? "수정 저장" : "등록"}
+                    </button>
+                    {noticeEditId && (
+                      <button
+                        type="button"
+                        onClick={() => { setNoticeEditId(null); setNoticeForm({ title: "", content: "", is_pinned: false }); }}
+                        style={btnStyle("outline")}
+                      >
+                        취소
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 목록 */}
+              {noticesLoading ? <LoadingSpinner /> : notices.length === 0 ? (
+                <Empty text="등록된 공지사항이 없습니다." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {notices.map((n) => (
+                    <div
+                      key={n.id}
+                      style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          {n.is_pinned && <span style={{ fontSize: 13 }}>📌</span>}
+                          <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{n.title}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: 13, color: "#6b7280", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>
+                          {n.content}
+                        </p>
+                        <span style={{ fontSize: 12, color: "#9ca3af", marginTop: 4, display: "block" }}>
+                          {new Date(n.created_at).toLocaleDateString("ko-KR")}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNoticeEditId(n.id);
+                            setNoticeForm({ title: n.title, content: n.content, is_pinned: n.is_pinned });
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }}
+                          style={miniBtn("#2563eb")}
+                        >
+                          수정
+                        </button>
+                        <button type="button" onClick={() => deleteNotice(n.id)} style={miniBtn("#dc2626")}>
+                          삭제
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

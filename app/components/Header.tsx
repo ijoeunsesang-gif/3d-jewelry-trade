@@ -346,6 +346,7 @@ export default function Header() {
         {/* 섹션 4: 문의함 / 고객센터 / 도움말 */}
         <MyMenuLink href="/messages"         icon={<IconDropMail       active={pathname.startsWith("/messages")}         />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>문의함</MyMenuLink>
         <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>고객센터</MyMenuLink>
+        <MyMenuLink href="/notice"           icon={<IconDropNotice     active={pathname.startsWith("/notice")}           />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/notice")}>공지사항</MyMenuLink>
         <MyMenuLink href="/help"             icon={<IconDropHelp       active={pathname.startsWith("/help")}             />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>도움말</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
@@ -487,6 +488,7 @@ export default function Header() {
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
               <NavItem href="/help" label="도움말" icon={<IconHelp />} active={pathname === "/help"} />
+              <NavItem href="/notice" label="공지사항" icon={<IconNotice />} active={pathname.startsWith("/notice")} />
               <div
                 ref={notifWrapRef}
                 style={{ position: "relative" }}
@@ -949,4 +951,10 @@ function IconDropJobs({ active = false }: { active?: boolean }) {
 }
 function IconDropAdmin({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>;
+}
+function IconNotice({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
+  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>;
+}
+function IconDropNotice({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>;
 }
