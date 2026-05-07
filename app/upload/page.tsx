@@ -7,6 +7,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import DescriptionTemplateSelector from "../components/DescriptionTemplateSelector";
 import { uploadToR2 } from "@/lib/uploadToR2";
+import { DEFAULT_BANNED_WORDS, detectBannedWords } from "@/lib/banned-words";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -24,6 +25,10 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [sellerCheck, setSellerCheck] = useState<"loading" | "ok" | "blocked">("loading");
 
+  // 금지어 필터
+  const [bannedWordsList, setBannedWordsList] = useState<string[]>(DEFAULT_BANNED_WORDS);
+  const detectedWords = detectBannedWords(`${title} ${description}`, bannedWordsList);
+
   useEffect(() => {
     const check = async () => {
       const token = getAccessToken();
@@ -33,6 +38,18 @@ export default function UploadPage() {
       setSellerCheck(data?.role === "seller" || data?.role === "admin" ? "ok" : "blocked");
     };
     check();
+  }, []);
+
+  // 서버에서 최신 금지어 목록 로드 (기본값 위에 덮어씀)
+  useEffect(() => {
+    fetch("/api/admin/banned-words")
+      .then((r) => r.json())
+      .then(({ words }) => {
+        if (Array.isArray(words) && words.length > 0) {
+          setBannedWordsList(words.map((w: { word: string }) => w.word));
+        }
+      })
+      .catch(() => { /* 실패 시 DEFAULT_BANNED_WORDS 유지 */ });
   }, []);
 
   // 드롭존 밖에서 드래그 시 새탭 열림 방지
@@ -144,6 +161,28 @@ export default function UploadPage() {
     try {
       if (!title.trim()) { showInfo("모델명을 입력하세요."); return; }
       if (!price.trim()) { showInfo("가격을 입력하세요."); return; }
+
+      // 서버 최신 금지어 재확인 (클라이언트 우회 방지)
+      try {
+        const bwRes = await fetch("/api/admin/banned-words");
+        const { words: latestWords } = await bwRes.json();
+        if (Array.isArray(latestWords)) {
+          const serverDetected = detectBannedWords(
+            `${title} ${description}`,
+            latestWords.map((w: { word: string }) => w.word)
+          );
+          if (serverDetected.length > 0) {
+            showError(`해당 단어는 저작권 문제로 사용할 수 없습니다: ${serverDetected.join(", ")}`);
+            return;
+          }
+        }
+      } catch {
+        // 금지어 API 실패 시 클라이언트 목록으로 재확인
+        if (detectedWords.length > 0) {
+          showError(`해당 단어는 저작권 문제로 사용할 수 없습니다: ${detectedWords.join(", ")}`);
+          return;
+        }
+      }
       if (Number(price) < 5000) { showInfo("최소 판매가는 5,000원입니다."); return; }
       if (!thumbnailFile) { showError("썸네일 이미지를 선택하세요."); return; }
       if (!modelFile) { showError("출력(대표)파일을 선택하세요."); return; }
@@ -487,13 +526,29 @@ export default function UploadPage() {
           </div>
         </Field>
 
+        {detectedWords.length > 0 && (
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fca5a5",
+            borderRadius: 12, padding: "14px 16px",
+            display: "grid", gap: 4,
+          }}>
+            <p style={{ margin: 0, fontWeight: 800, color: "#dc2626", fontSize: 14 }}>
+              해당 단어는 저작권 문제로 사용할 수 없습니다.
+            </p>
+            <p style={{ margin: 0, color: "#ef4444", fontSize: 13 }}>
+              감지된 단어: {detectedWords.join(", ")}
+            </p>
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={uploading}
+          disabled={uploading || detectedWords.length > 0}
           style={{
             width: "100%", height: 54, borderRadius: 16, border: "none",
-            background: "#111827", color: "white",
-            fontWeight: 900, fontSize: 17, cursor: "pointer",
+            background: detectedWords.length > 0 ? "#9ca3af" : "#111827",
+            color: "white", fontWeight: 900, fontSize: 17,
+            cursor: detectedWords.length > 0 ? "not-allowed" : "pointer",
           }}
         >
           {uploading ? "업로드 중..." : "업로드"}

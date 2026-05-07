@@ -11,7 +11,7 @@ const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords";
 
 interface UserProfile {
   id: string;
@@ -120,6 +120,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "reports",       label: "신고 관리",   icon: "🚩" },
   { key: "stats",         label: "판매 통계",   icon: "📊" },
   { key: "commissions",   label: "의뢰 관리",   icon: "📋" },
+  { key: "bannedWords",   label: "금지어 관리",  icon: "🚫" },
 ];
 
 export default function AdminPage() {
@@ -153,6 +154,13 @@ export default function AdminPage() {
   const [allUsers, setAllUsers] = useState<{ id: string; created_at: string }[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsPeriod, setStatsPeriod] = useState<"today" | "week" | "month" | "all">("month");
+
+  /* ── Banned Words ── */
+  const [bannedWords, setBannedWords] = useState<{ id: string; word: string; created_at: string }[]>([]);
+  const [bannedWordsLoading, setBannedWordsLoading] = useState(false);
+  const [newBannedWord, setNewBannedWord] = useState("");
+  const [addingBannedWord, setAddingBannedWord] = useState(false);
+  const [removingBannedWordId, setRemovingBannedWordId] = useState<string | null>(null);
 
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -206,6 +214,7 @@ export default function AdminPage() {
     if (tab === "reports"       && reports.length === 0)     fetchReports();
     if (tab === "stats"         && purchases.length === 0)   fetchStats();
     if (tab === "commissions"   && commissions.length === 0) fetchCommissions();
+    if (tab === "bannedWords"   && bannedWords.length === 0) fetchBannedWords();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -285,6 +294,50 @@ export default function AdminPage() {
       setCommissions(data || []);
     } catch { showError("의뢰 목록 불러오기 실패"); }
     finally { setCommLoading(false); }
+  };
+
+  const fetchBannedWords = async () => {
+    setBannedWordsLoading(true);
+    try {
+      const res = await fetch("/api/admin/banned-words", { headers: await authHeader() });
+      const { words } = await res.json();
+      setBannedWords(words || []);
+    } catch { showError("금지어 목록 불러오기 실패"); }
+    finally { setBannedWordsLoading(false); }
+  };
+
+  const handleAddBannedWord = async () => {
+    const trimmed = newBannedWord.trim().toLowerCase();
+    if (!trimmed) return;
+    setAddingBannedWord(true);
+    try {
+      const res = await fetch("/api/admin/banned-words", {
+        method: "POST",
+        headers: await authHeader(),
+        body: JSON.stringify({ word: trimmed }),
+      });
+      const json = await res.json();
+      if (!res.ok) { showError(json.error || "추가 실패"); return; }
+      setBannedWords(prev => [...prev, json.word].sort((a, b) => a.word.localeCompare(b.word)));
+      setNewBannedWord("");
+      showSuccess(`"${trimmed}" 금지어 추가 완료`);
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setAddingBannedWord(false); }
+  };
+
+  const handleRemoveBannedWord = async (id: string, word: string) => {
+    setRemovingBannedWordId(id);
+    try {
+      const res = await fetch("/api/admin/banned-words", {
+        method: "DELETE",
+        headers: await authHeader(),
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) { showError("삭제 실패"); return; }
+      setBannedWords(prev => prev.filter(w => w.id !== id));
+      showSuccess(`"${word}" 금지어 삭제 완료`);
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setRemovingBannedWordId(null); }
   };
 
   const handleDeleteCommission = async (id: string) => {
@@ -976,6 +1029,101 @@ export default function AdminPage() {
                           {commDeleting === c.id ? "삭제 중..." : "삭제"}
                         </button>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              6. 금지어 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "bannedWords" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>금지어 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                    업로드 시 제목·설명에서 자동 감지되는 단어 목록 ({bannedWords.length}개)
+                  </p>
+                </div>
+                <button type="button" onClick={fetchBannedWords} style={btnStyle("outline")}>새로고침</button>
+              </div>
+
+              {/* 추가 입력 */}
+              <div style={{
+                display: "flex", gap: 10, marginBottom: 20,
+                background: "white", border: "1px solid #e5e7eb",
+                borderRadius: 14, padding: "14px 16px",
+              }}>
+                <input
+                  value={newBannedWord}
+                  onChange={e => setNewBannedWord(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleAddBannedWord()}
+                  placeholder="추가할 금지어 입력 (소문자 자동 변환)"
+                  style={{
+                    flex: 1, height: 42, padding: "0 14px",
+                    borderRadius: 10, border: "1px solid #d1d5db",
+                    fontSize: 14, outline: "none", boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddBannedWord}
+                  disabled={addingBannedWord || !newBannedWord.trim()}
+                  style={{
+                    height: 42, padding: "0 20px", borderRadius: 10,
+                    border: "none", background: GOLD, color: "white",
+                    fontWeight: 700, fontSize: 14,
+                    cursor: addingBannedWord || !newBannedWord.trim() ? "not-allowed" : "pointer",
+                    opacity: addingBannedWord || !newBannedWord.trim() ? 0.6 : 1,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {addingBannedWord ? "추가 중..." : "추가"}
+                </button>
+              </div>
+
+              {/* 안내 */}
+              <div style={{
+                background: "#fef3c7", border: "1px solid #fde68a",
+                borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#92400e",
+              }}>
+                모델 업로드 시 제목·설명에 아래 단어가 포함되면 자동으로 업로드가 차단됩니다.
+              </div>
+
+              {/* 목록 */}
+              {bannedWordsLoading ? <LoadingSpinner /> : bannedWords.length === 0 ? (
+                <Empty text="등록된 금지어가 없습니다." />
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
+                  {bannedWords.map(bw => (
+                    <div
+                      key={bw.id}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        background: "white", border: "1px solid #e5e7eb",
+                        borderRadius: 10, padding: "10px 14px", gap: 8,
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "#111827", wordBreak: "break-all" }}>
+                        {bw.word}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBannedWord(bw.id, bw.word)}
+                        disabled={removingBannedWordId === bw.id}
+                        style={{
+                          flexShrink: 0, height: 26, padding: "0 10px", borderRadius: 7,
+                          border: "1px solid #fca5a5", background: "white",
+                          color: "#dc2626", fontSize: 12, fontWeight: 700,
+                          cursor: removingBannedWordId === bw.id ? "not-allowed" : "pointer",
+                          opacity: removingBannedWordId === bw.id ? 0.5 : 1,
+                        }}
+                      >
+                        삭제
+                      </button>
                     </div>
                   ))}
                 </div>
