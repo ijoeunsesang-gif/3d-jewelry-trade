@@ -38,6 +38,16 @@ export default function Header() {
     setMyOpen(false);
   }, [pathname]);
 
+  // MY 드롭다운 열릴 때 body 스크롤 잠금
+  useEffect(() => {
+    if (myOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [myOpen]);
+
   useEffect(() => {
     updateCartCount();
     fetchFavoriteCount();
@@ -295,26 +305,19 @@ export default function Header() {
 
   /* ── MY 드롭다운 (데스크탑·모바일 공용) ──────────────────── */
   const MyDropdown = () => (
-    <>
-      {/* 모바일 배경 스크롤 차단 오버레이 */}
-      <div
-        onTouchMove={(e) => e.preventDefault()}
-        style={{ position: "fixed", inset: 0, zIndex: 40 }}
-      />
-      <div style={{
-        position: "absolute", right: 0, top: "100%",
-        paddingTop: 8, zIndex: 200,
-      }}>
+    <div style={{
+      position: "absolute", right: 0, top: "100%",
+      paddingTop: 8, zIndex: 200,
+    }}>
       <div
         style={{
           width: 228, borderRadius: 16, background: "white",
           border: "1px solid #f0ead8",
           boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
-          overflow: "hidden",
           overflowY: "auto",
+          maxHeight: "80vh",
           WebkitOverflowScrolling: "touch",
         }}
-        onTouchMove={(e) => e.stopPropagation()}
       >
         {/* 프로필 헤더 */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0ead8", display: "flex", alignItems: "center", gap: 10 }}>
@@ -391,7 +394,6 @@ export default function Header() {
         </button>
       </div>
     </div>
-    </>
   );
 
   /* ── MY 버튼 내용 (아바타 + MY 텍스트) ───────────────────── */
