@@ -522,11 +522,11 @@ export default function UploadPage() {
           <div data-dropzone style={uploadBoxStyle} onDragOver={onDragOver} onDrop={onDropExtraFiles}>
             <div style={helperTextStyle}>
               출력(대표)파일 외에 보조 파일을 추가로 업로드할 수 있습니다.
-              예: STL, OBJ, 3DM, ZIP, PDF
+              예: STL, OBJ, 3DM
             </div>
             <input
               type="file"
-              accept=".stl,.obj,.3dm,.zip,.pdf"
+              accept=".stl,.obj,.3dm"
               multiple
               onChange={(e) => handleExtraFiles(e.target.files)}
             />
