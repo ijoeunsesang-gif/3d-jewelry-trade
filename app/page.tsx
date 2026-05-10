@@ -612,7 +612,7 @@ export default function Home() {
         </section>
 
         {/* 모델 목록 */}
-        <section className={styles.section}>
+        <section id="recent-models" className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2 className={styles.sectionTitle}>최근 업데이트 모델링</h2>
             <span className={styles.sectionBadge}>필터/정렬 이후 추가 목록</span>
@@ -642,7 +642,7 @@ export default function Home() {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
               <button
                 type="button"
-                onClick={() => { setPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                onClick={() => { setPage((p) => Math.max(1, p - 1)); document.getElementById("recent-models")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
                 disabled={page === 1}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === 1 ? 0.4 : 1 }}
               >
@@ -652,7 +652,7 @@ export default function Home() {
                 <button
                   key={p}
                   type="button"
-                  onClick={() => { setPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  onClick={() => { setPage(p); document.getElementById("recent-models")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
                   style={{ height: 38, minWidth: 38, borderRadius: 10, border: page === p ? "none" : "1px solid #d1d5db", background: page === p ? "#111827" : "white", color: page === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
                 >
                   {p}
@@ -660,7 +660,7 @@ export default function Home() {
               ))}
               <button
                 type="button"
-                onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); document.getElementById("recent-models")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
                 disabled={page === totalPages}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === totalPages ? 0.4 : 1 }}
               >
