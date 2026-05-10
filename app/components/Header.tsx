@@ -38,24 +38,6 @@ export default function Header() {
     setMyOpen(false);
   }, [pathname]);
 
-  // 모바일에서 MY 드롭다운 열릴 때 body 스크롤 잠금
-  useEffect(() => {
-    if (myOpen) {
-      const scrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = "100%";
-      document.body.style.overflowY = "scroll";
-      return () => {
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.width = "";
-        document.body.style.overflowY = "";
-        window.scrollTo(0, scrollY);
-      };
-    }
-  }, [myOpen]);
-
   useEffect(() => {
     updateCartCount();
     fetchFavoriteCount();
@@ -313,16 +295,27 @@ export default function Header() {
 
   /* ── MY 드롭다운 (데스크탑·모바일 공용) ──────────────────── */
   const MyDropdown = () => (
-    <div style={{
-      position: "absolute", right: 0, top: "100%",
-      paddingTop: 8, zIndex: 200,
-    }}>
+    <>
+      {/* 모바일 배경 스크롤 차단 오버레이 */}
+      <div
+        onTouchMove={(e) => e.preventDefault()}
+        style={{ position: "fixed", inset: 0, zIndex: 40 }}
+      />
       <div style={{
-        width: 228, borderRadius: 16, background: "white",
-        border: "1px solid #f0ead8",
-        boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
-        overflow: "hidden",
+        position: "absolute", right: 0, top: "100%",
+        paddingTop: 8, zIndex: 200,
       }}>
+      <div
+        style={{
+          width: 228, borderRadius: 16, background: "white",
+          border: "1px solid #f0ead8",
+          boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
+          overflow: "hidden",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+        }}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         {/* 프로필 헤더 */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0ead8", display: "flex", alignItems: "center", gap: 10 }}>
           <img
@@ -398,6 +391,7 @@ export default function Header() {
         </button>
       </div>
     </div>
+    </>
   );
 
   /* ── MY 버튼 내용 (아바타 + MY 텍스트) ───────────────────── */
