@@ -307,6 +307,14 @@ body { overflow-x: hidden; }
   }
 }
 
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── 모바일 하단 탭 네비게이션 ── */
 .mobile-bottom-tab-bar {
   display: none;

@@ -38,12 +38,15 @@ export default function Header() {
     setMyOpen(false);
   }, [pathname]);
 
-  // MY 드롭다운 열릴 때 body 스크롤 잠금
+  // MY 드롭다운 열릴 때 body 스크롤 잠금 (스크롤바 너비 보정으로 레이아웃 밀림 방지)
   useEffect(() => {
     if (myOpen) {
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = scrollBarWidth + "px";
       return () => {
         document.body.style.overflow = "";
+        document.body.style.paddingRight = "";
       };
     }
   }, [myOpen]);
@@ -310,6 +313,7 @@ export default function Header() {
       paddingTop: 8, zIndex: 200,
     }}>
       <div
+        className="scrollbar-hide"
         style={{
           width: 228, borderRadius: 16, background: "white",
           border: "1px solid #f0ead8",
