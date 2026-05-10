@@ -248,7 +248,7 @@ export default function FavoritesPage() {
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
             <button
               type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               disabled={currentPage === 1}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}
             >
@@ -258,7 +258,7 @@ export default function FavoritesPage() {
               <button
                 key={p}
                 type="button"
-                onClick={() => setCurrentPage(p)}
+                onClick={() => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === p ? "none" : "1px solid #d1d5db", background: currentPage === p ? "#111827" : "white", color: currentPage === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
               >
                 {p}
@@ -266,7 +266,7 @@ export default function FavoritesPage() {
             ))}
             <button
               type="button"
-              onClick={() => setCurrentPage((p) => Math.min(Math.ceil(filteredModels.length / ITEMS_PER_PAGE), p + 1))}
+              onClick={() => { setCurrentPage((p) => Math.min(Math.ceil(filteredModels.length / ITEMS_PER_PAGE), p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               disabled={currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE)}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE) ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE) ? 0.4 : 1 }}
             >
