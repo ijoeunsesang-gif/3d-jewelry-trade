@@ -315,7 +315,7 @@ export default function Header() {
           border: "1px solid #f0ead8",
           boxShadow: "0 8px 40px rgba(15,23,42,0.10)",
           overflowY: "auto",
-          maxHeight: "80vh",
+          maxHeight: "calc(100vh - 68px - 72px - 16px)",
           WebkitOverflowScrolling: "touch",
         }}
       >
