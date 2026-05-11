@@ -12,6 +12,8 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   );
+} else {
+  console.warn("[webpush] VAPID_PUBLIC_KEY 또는 VAPID_PRIVATE_KEY 환경변수가 설정되지 않았습니다. 푸시 알림이 작동하지 않습니다.");
 }
 
 export type PushCategory = "inquiry" | "chat" | "payment" | "wishlist" | "notice";

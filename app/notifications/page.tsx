@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle, CreditCard, CheckCircle, AlertTriangle, UserPlus, Bell } from "lucide-react";
+import Link from "next/link";
+import { MessageCircle, CreditCard, CheckCircle, AlertTriangle, UserPlus, Bell, Settings } from "lucide-react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import type { ProfileItem } from "../lib/getProfile";
@@ -168,29 +169,49 @@ export default function NotificationsPage() {
             팔로우와 대화 업데이트를 확인할 수 있습니다.
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={markAllAsRead}
-            disabled={markingAll}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, marginTop: 6 }}>
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              onClick={markAllAsRead}
+              disabled={markingAll}
+              style={{
+                height: 38,
+                padding: "0 16px",
+                borderRadius: 10,
+                border: "1px solid #d1d5db",
+                background: "white",
+                color: "#374151",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: markingAll ? "not-allowed" : "pointer",
+                opacity: markingAll ? 0.6 : 1,
+              }}
+            >
+              {markingAll ? "처리 중..." : `전체 읽음 처리 (${unreadCount})`}
+            </button>
+          )}
+          <Link
+            href="/my/settings"
             style={{
-              flexShrink: 0,
-              marginTop: 6,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
               height: 38,
-              padding: "0 16px",
+              padding: "0 14px",
               borderRadius: 10,
               border: "1px solid #d1d5db",
               background: "white",
               color: "#374151",
               fontSize: 13,
               fontWeight: 700,
-              cursor: markingAll ? "not-allowed" : "pointer",
-              opacity: markingAll ? 0.6 : 1,
+              textDecoration: "none",
             }}
           >
-            {markingAll ? "처리 중..." : `전체 읽음 처리 (${unreadCount})`}
-          </button>
-        )}
+            <Settings size={15} />
+            알림 설정
+          </Link>
+        </div>
       </div>
 
       {loading ? (
