@@ -180,10 +180,32 @@ export default function Home() {
         }
       }
 
+      // 모델별 댓글 수 일괄 조회
+      const modelIds = data.map((m: any) => m.id).filter(Boolean);
+      let commentCountMap: Record<string, number> = {};
+      if (modelIds.length > 0) {
+        const cRes = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/model_comments?select=model_id&model_id=in.(${modelIds.join(",")})`,
+          {
+            headers: {
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+            }
+          }
+        );
+        const comments = await cRes.json();
+        if (Array.isArray(comments)) {
+          for (const c of comments) {
+            commentCountMap[c.model_id] = (commentCountMap[c.model_id] || 0) + 1;
+          }
+        }
+      }
+
       const mapped = data.map((m: any) => ({
         ...m,
         seller_nickname: profileMap[m.seller_id]?.nickname ?? null,
         seller_grade: profileMap[m.seller_id]?.grade ?? null,
+        comment_count: commentCountMap[m.id] || 0,
       }));
       setModels(mapped);
     } catch (e) {
