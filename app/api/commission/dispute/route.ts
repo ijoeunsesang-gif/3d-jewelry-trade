@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminUser } from "@/lib/isAdminCheck";
 
 const serviceSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -74,8 +75,7 @@ export async function GET(req: NextRequest) {
   const { data: { user }, error: authErr } = await serviceSupabase.auth.getUser(token);
   if (authErr || !user) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
 
-  const adminEmail = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || "").trim().toLowerCase();
-  const isAdmin = adminEmail !== "" && (user.email || "").toLowerCase() === adminEmail;
+  const isAdmin = await isAdminUser(serviceSupabase, user.id);
 
   const commission_id = req.nextUrl.searchParams.get("commission_id");
   if (!commission_id) return NextResponse.json({ error: "commission_id가 필요합니다." }, { status: 400 });

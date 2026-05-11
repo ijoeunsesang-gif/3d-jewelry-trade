@@ -30,14 +30,32 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data });
 }
 
+// 관리자가 수정 가능한 필드만 허용 (role 변경 등 민감 필드 차단)
+const ALLOWED_UPDATE_FIELDS = new Set([
+  "is_point_blocked",
+  "warning_count",
+  "is_seller_banned",
+  "points",
+  "nickname",
+]);
+
 export async function PATCH(req: NextRequest) {
   if (!(await verifyAdmin(req))) {
     return NextResponse.json({ error: "권한 없음" }, { status: 403 });
   }
 
   const { userId, updates } = await req.json();
-  if (!userId || !updates) {
+  if (!userId || !updates || typeof updates !== "object") {
     return NextResponse.json({ error: "userId, updates 필요" }, { status: 400 });
+  }
+
+  // 허용되지 않은 필드 차단
+  const invalidFields = Object.keys(updates).filter((k) => !ALLOWED_UPDATE_FIELDS.has(k));
+  if (invalidFields.length > 0) {
+    return NextResponse.json(
+      { error: `수정 불가 필드: ${invalidFields.join(", ")}` },
+      { status: 400 }
+    );
   }
 
   const { error } = await adminSupabase

@@ -1,15 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminUser } from "@/lib/isAdminCheck";
+
+const adminSupabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json({ error: "서버 설정 오류" }, { status: 500 });
+  // 인증 확인
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  if (!token) {
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
-  const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
+  const { data: { user }, error: authErr } = await adminSupabase.auth.getUser(token);
+  if (authErr || !user) {
+    return NextResponse.json({ error: "인증 실패" }, { status: 401 });
+  }
+
+  // 관리자 권한 확인
+  if (!(await isAdminUser(adminSupabase, user.id))) {
+    return NextResponse.json({ error: "관리자만 접근 가능합니다." }, { status: 403 });
+  }
 
   try {
     const body = await req.json();
@@ -17,6 +30,10 @@ export async function POST(req: NextRequest) {
 
     if (!user_id || amount === undefined || !reason) {
       return NextResponse.json({ error: "user_id, amount, reason이 필요합니다." }, { status: 400 });
+    }
+
+    if (typeof amount !== "number") {
+      return NextResponse.json({ error: "amount는 숫자여야 합니다." }, { status: 400 });
     }
 
     // points 테이블에 기록
