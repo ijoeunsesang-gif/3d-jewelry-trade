@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const { data: model, error: modelError } = await adminSupabase
       .from("models")
-      .select("model_file_path, download_count, seller_id")
+      .select("model_file_path, seller_id")
       .eq("id", modelId)
       .single();
 
@@ -106,10 +106,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "signed URL 생성 실패" }, { status: 500 });
     }
 
-    await adminSupabase
-      .from("models")
-      .update({ download_count: (model.download_count || 0) + 1 })
-      .eq("id", modelId);
+    // increment_model_download RPC로 원자적 증가 (SECURITY DEFINER)
+    const { error: rpcError } = await adminSupabase.rpc("increment_model_download", { mid: modelId });
+    if (rpcError) {
+      console.error("[download_count] increment_model_download RPC 실패:", rpcError.message);
+    }
 
     return NextResponse.json({ signedUrl });
         
