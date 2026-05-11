@@ -4,8 +4,9 @@ import { NextRequest, NextResponse } from 'next/server'
 const MAINTENANCE_MODE = false
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
   if (MAINTENANCE_MODE) {
-    const { pathname } = request.nextUrl
     if (!pathname.startsWith('/maintenance') && !pathname.startsWith('/_next/') && !pathname.startsWith('/favicon')) {
       return NextResponse.redirect(new URL('/maintenance', request.url))
     }
@@ -35,7 +36,25 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // /admin/* 경로: 미인증 또는 비관리자 → 홈 리다이렉트
+  if (pathname.startsWith('/admin')) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
+  }
+
   return supabaseResponse
 }
 
