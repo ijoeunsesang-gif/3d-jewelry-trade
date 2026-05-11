@@ -208,37 +208,49 @@ export default function NotificationSettingsPage() {
                 : "알림을 허용하면 실시간으로 알림을 받을 수 있습니다."}
             </div>
           </div>
-          {permission !== "unsupported" && permission !== "denied" && (
-            <button
-              onClick={subscribed ? handleDisablePush : handleEnablePush}
+          <button
+            onClick={subscribed ? handleDisablePush : handleEnablePush}
+            disabled={permission === "unsupported" || permission === "denied"}
+            aria-label={subscribed ? "알림 끄기" : "알림 켜기"}
+            style={{
+              width: 48,
+              height: 28,
+              borderRadius: 999,
+              border: "none",
+              background: subscribed ? "#c9a84c" : "#e5e7eb",
+              cursor: (permission === "unsupported" || permission === "denied") ? "not-allowed" : "pointer",
+              position: "relative",
+              transition: "background 0.2s",
+              flexShrink: 0,
+              opacity: (permission === "unsupported" || permission === "denied") ? 0.35 : 1,
+            }}
+          >
+            <span
               style={{
-                padding: "8px 16px",
-                borderRadius: 999,
-                border: "none",
-                background: subscribed ? "#f3f4f6" : "#c9a84c",
-                color: subscribed ? "#6b7280" : "white",
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
+                position: "absolute",
+                top: 3,
+                left: subscribed ? 23 : 3,
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: "white",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                transition: "left 0.2s",
               }}
-            >
-              {subscribed ? "알림 끄기" : "알림 켜기"}
-            </button>
-          )}
+            />
+          </button>
         </div>
       </div>
 
       {/* 카테고리별 토글 */}
-      {subscribed && (
-        <div
-          style={{
-            border: "1px solid #e5e7eb",
-            borderRadius: 16,
-            background: "white",
-            overflow: "hidden",
-          }}
-        >
+      <div
+        style={{
+          border: "1px solid #e5e7eb",
+          borderRadius: 16,
+          background: "white",
+          overflow: "hidden",
+        }}
+      >
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6" }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>알림 종류 설정</div>
           </div>
@@ -298,7 +310,6 @@ export default function NotificationSettingsPage() {
             );
           })}
         </div>
-      )}
     </main>
   );
 }
