@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { scrollToSection } from "@/lib/scroll";
 import { Noto_Sans_KR } from "next/font/google";
 
 const notoSansKR = Noto_Sans_KR({ subsets: ["latin"], weight: ["700"] });
@@ -657,7 +658,7 @@ export default function Home() {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
               <button
                 type="button"
-                onClick={() => { setPage((p) => Math.max(1, p - 1)); document.getElementById("recent-models")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                onClick={() => { setPage((p) => Math.max(1, p - 1)); scrollToSection("recent-models"); }}
                 disabled={page === 1}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === 1 ? 0.4 : 1 }}
               >
@@ -667,7 +668,7 @@ export default function Home() {
                 <button
                   key={p}
                   type="button"
-                  onClick={() => { setPage(p); document.getElementById("recent-models")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                  onClick={() => { setPage(p); scrollToSection("recent-models"); }}
                   style={{ height: 38, minWidth: 38, borderRadius: 10, border: page === p ? "none" : "1px solid #d1d5db", background: page === p ? "#111827" : "white", color: page === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
                 >
                   {p}
@@ -675,7 +676,7 @@ export default function Home() {
               ))}
               <button
                 type="button"
-                onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); document.getElementById("recent-models")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); scrollToSection("recent-models"); }}
                 disabled={page === totalPages}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === totalPages ? 0.4 : 1 }}
               >

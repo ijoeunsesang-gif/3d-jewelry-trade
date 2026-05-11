@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { scrollToTop } from "@/lib/scroll";
 import { showError, showSuccess } from "../lib/toast";
 
 const GOLD = "#c9a84c";
@@ -1531,7 +1532,7 @@ export default function AdminPage() {
                           onClick={() => {
                             setNoticeEditId(n.id);
                             setNoticeForm({ title: n.title, content: n.content, is_pinned: n.is_pinned });
-                            window.scrollTo({ top: 0, behavior: "smooth" });
+                            scrollToTop();
                           }}
                           style={miniBtn("#2563eb")}
                         >
