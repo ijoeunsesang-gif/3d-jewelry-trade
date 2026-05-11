@@ -202,19 +202,6 @@ export default function ModelCard({
             >
               Quick View
             </button>
-            <span
-              style={{
-                marginLeft: "auto",
-                paddingLeft: 8,
-                color: "rgba(255,255,255,0.9)",
-                fontSize: 13,
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                textShadow: "0 1px 3px rgba(0,0,0,0.7)",
-              }}
-            >
-              👁 {item.view_count || 0} · 💬 {item.comment_count || 0} · 다운로드 {item.download_count || 0}
-            </span>
           </div>
 
           {isPopular && (
@@ -263,6 +250,22 @@ export default function ModelCard({
             >
               {highlightText(item.title, search)}
             </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 4,
+              fontSize: 12,
+              color: "#9ca3af",
+            }}
+          >
+            <span>👁 조회 {item.view_count || 0}</span>
+            <span>💬 {item.comment_count || 0}</span>
+            <span>⬇ 다운 {item.download_count || 0}</span>
           </div>
 
           <p

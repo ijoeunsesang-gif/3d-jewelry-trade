@@ -186,19 +186,6 @@ export default function TopModelCard({
             >
               Quick
             </button>
-            <span
-              style={{
-                marginLeft: "auto",
-                paddingLeft: 6,
-                color: "rgba(255,255,255,0.9)",
-                fontSize: 13,
-                fontWeight: 600,
-                whiteSpace: "nowrap",
-                textShadow: "0 1px 3px rgba(0,0,0,0.7)",
-              }}
-            >
-              👁 {item.view_count || 0} · 💬 {item.comment_count || 0} · ↓ {item.download_count || 0}
-            </span>
           </div>
         </div>
 
@@ -221,6 +208,21 @@ export default function TopModelCard({
             }}
           >
             {item.title}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 11,
+              color: "#9ca3af",
+            }}
+          >
+            <span>👁 조회 {item.view_count || 0}</span>
+            <span>💬 {item.comment_count || 0}</span>
+            <span>⬇ 다운 {item.download_count || 0}</span>
           </div>
 
           <div
