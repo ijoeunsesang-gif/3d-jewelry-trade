@@ -263,9 +263,9 @@ export default function ModelCard({
               color: "#9ca3af",
             }}
           >
-            <span>👁 조회 {item.view_count || 0}</span>
+            <span>조회 {item.view_count || 0}</span>
             <span>💬 {item.comment_count || 0}</span>
-            <span>⬇ 다운 {item.download_count || 0}</span>
+            <span>다운 {item.download_count || 0}</span>
           </div>
 
           <p

@@ -145,16 +145,15 @@ export default function Home() {
   }, [quickModel]);
 
   const fetchModels = async () => {
+    const headers = {
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+    };
     try {
       setLoading(true);
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=*&order=created_at.desc&limit=200`,
-        {
-          headers: {
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-          }
-        }
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=id,title,description,price,thumbnail,thumbnail_path,file_url,model_file_path,seller_id,category,created_at,view_count,download_count&order=created_at.desc&limit=200`,
+        { headers, cache: "no-store" }
       );
       const data = await res.json();
       if (!Array.isArray(data)) { setModels([]); return; }
@@ -165,12 +164,7 @@ export default function Home() {
       if (sellerIds.length > 0) {
         const pRes = await fetch(
           `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=id,nickname,grade&id=in.(${sellerIds.join(",")})`,
-          {
-            headers: {
-              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-            }
-          }
+          { headers }
         );
         const profiles = await pRes.json();
         if (Array.isArray(profiles)) {
@@ -180,24 +174,23 @@ export default function Home() {
         }
       }
 
-      // 모델별 댓글 수 일괄 조회
+      // 모델별 댓글 수 일괄 조회 (model_comments 테이블, comment_count 컬럼 없으므로 별도 fetch)
       const modelIds = data.map((m: any) => m.id).filter(Boolean);
       let commentCountMap: Record<string, number> = {};
       if (modelIds.length > 0) {
-        const cRes = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/model_comments?select=model_id&model_id=in.(${modelIds.join(",")})`,
-          {
-            headers: {
-              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        try {
+          const cRes = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/model_comments?select=model_id&model_id=in.(${modelIds.join(",")})&limit=10000`,
+            { headers }
+          );
+          const comments = await cRes.json();
+          if (Array.isArray(comments)) {
+            for (const c of comments) {
+              commentCountMap[c.model_id] = (commentCountMap[c.model_id] || 0) + 1;
             }
           }
-        );
-        const comments = await cRes.json();
-        if (Array.isArray(comments)) {
-          for (const c of comments) {
-            commentCountMap[c.model_id] = (commentCountMap[c.model_id] || 0) + 1;
-          }
+        } catch {
+          // 댓글 수 fetch 실패 시 0으로 유지
         }
       }
 
