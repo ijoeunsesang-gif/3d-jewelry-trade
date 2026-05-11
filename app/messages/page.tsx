@@ -19,6 +19,8 @@ type ConversationItem = {
   model_thumbnail?: string | null;
   created_at: string;
   updated_at: string;
+  deleted_by_user1?: boolean;
+  deleted_by_user2?: boolean;
 };
 
 type MessageItem = {
@@ -99,9 +101,11 @@ function MessagesContent() {
       const myId = (decodeJwt(token) as any)?.sub as string;
       setCurrentUserId(myId);
 
+      // 중첩 and/or PostgREST 문법 대신 단순 or 쿼리로 교체 후 JS에서 소프트삭제 필터링
+      // (seller 대화 model_id=null 포함 모든 대화 조회)
       const { data: convRows, error: convError } = await sbAuthFetch(
         "conversations",
-        `?or=(and(user1_id.eq.${myId},deleted_by_user1.eq.false),and(user2_id.eq.${myId},deleted_by_user2.eq.false))&order=updated_at.desc`
+        `?or=(user1_id.eq.${myId},user2_id.eq.${myId})&order=updated_at.desc`
       );
 
       if (convError) {
@@ -110,7 +114,11 @@ function MessagesContent() {
         return;
       }
 
-      const list = (convRows || []) as ConversationItem[];
+      const list = ((convRows || []) as ConversationItem[]).filter((conv) => {
+        if (conv.user1_id === myId && conv.deleted_by_user1) return false;
+        if (conv.user2_id === myId && conv.deleted_by_user2) return false;
+        return true;
+      });
       setConversations(list);
 
       if (!selectedConversationId && list.length > 0) {
