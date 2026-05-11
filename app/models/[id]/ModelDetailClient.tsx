@@ -79,8 +79,14 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   }, []);
 
   useEffect(() => {
-    supabase.rpc("increment_model_view", { mid: model.id });
-    setViewCount((model.view_count || 0) + 1);
+    const incrementView = async () => {
+      const { error } = await supabase.rpc("increment_model_view", { mid: model.id });
+      if (error) {
+        console.error("[view_count] increment_model_view RPC 실패:", error.message);
+      }
+      setViewCount((model.view_count || 0) + 1);
+    };
+    incrementView();
   }, [model.id]);
 
   const isOwnModel = !!currentUserId && currentUserId === model.seller_id;
