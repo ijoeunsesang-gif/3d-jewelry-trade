@@ -257,18 +257,53 @@ body { overflow-x: hidden; }
 
 /* ── 문의함 레이아웃 ── */
 .messages-layout > * { min-width: 0; }
+.messages-back-btn { display: none !important; }
+
 @media (max-width: 768px) {
   .messages-main {
     padding-left: 12px !important;
     padding-right: 12px !important;
+    padding-top: 20px !important;
     padding-bottom: 100px !important;
   }
   .messages-layout {
     grid-template-columns: 1fr !important;
     min-height: unset !important;
+    gap: 0 !important;
   }
   .messages-input-row {
     padding: 10px 12px !important;
+  }
+
+  /* 기본(목록 모드): 목록만 표시, 채팅 패널 숨김 */
+  .messages-list-panel  { display: block !important; }
+  .messages-chat-panel  { display: none !important; }
+
+  /* 채팅 모드: 채팅 패널만 표시, 목록 숨김 */
+  .messages-mode-chat .messages-list-panel { display: none !important; }
+  .messages-mode-chat .messages-chat-panel {
+    display: grid !important;
+    height: calc(100vh - 200px);
+    height: calc(100dvh - 200px);
+    min-height: 400px;
+  }
+
+  /* 뒤로가기 버튼 (모바일 채팅 모드에서만 표시) */
+  .messages-back-btn {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
 }
 

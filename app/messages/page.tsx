@@ -44,6 +44,7 @@ function MessagesContent() {
   const [sending, setSending] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
 
   useEffect(() => {
     initMessages();
@@ -52,6 +53,7 @@ function MessagesContent() {
   useEffect(() => {
     if (queryConversationId) {
       setSelectedConversationId(queryConversationId);
+      setMobileView("chat");
     }
   }, [queryConversationId]);
 
@@ -315,7 +317,7 @@ function MessagesContent() {
       </div>
 
       <section
-        className="messages-layout"
+        className={`messages-layout${mobileView === "chat" ? " messages-mode-chat" : ""}`}
         style={{
           display: "grid",
           gridTemplateColumns: "320px 1fr",
@@ -324,6 +326,7 @@ function MessagesContent() {
         }}
       >
         <aside
+          className="messages-list-panel"
           style={{
             border: "1px solid #e5e7eb",
             borderRadius: 24,
@@ -361,6 +364,7 @@ function MessagesContent() {
                     type="button"
                     onClick={async () => {
                       setSelectedConversationId(conv.id);
+                      setMobileView("chat");
                       if (currentUserId) {
                         await markConversationAsRead(conv.id, currentUserId);
                       }
@@ -438,6 +442,7 @@ function MessagesContent() {
         </aside>
 
         <section
+          className="messages-chat-panel"
           style={{
             border: "1px solid #e5e7eb",
             borderRadius: 24,
@@ -463,6 +468,13 @@ function MessagesContent() {
                     gap: 12,
                   }}
                 >
+                  <button
+                    type="button"
+                    className="messages-back-btn"
+                    onClick={() => setMobileView("list")}
+                  >
+                    ← 목록
+                  </button>
                   <img
                     src={targetProfile.avatar_url || "/default-avatar.png"}
                     alt="target"
@@ -564,8 +576,17 @@ function MessagesContent() {
                 )}
               </>
             ) : (
-              <div style={{ fontWeight: 800, color: "#6b7280" }}>
-                대화를 선택하세요
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  type="button"
+                  className="messages-back-btn"
+                  onClick={() => setMobileView("list")}
+                >
+                  ← 목록
+                </button>
+                <span style={{ fontWeight: 800, color: "#6b7280" }}>
+                  대화를 선택하세요
+                </span>
               </div>
             )}
           </div>
