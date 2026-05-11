@@ -18,7 +18,7 @@ export default function NoticePage() {
     const fetchNotices = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices?select=*&order=is_pinned.desc,created_at.desc`,
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/notices?select=id,title,is_pinned,created_at&order=is_pinned.desc,created_at.desc`,
           {
             headers: {
               apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

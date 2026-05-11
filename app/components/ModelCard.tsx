@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import styles from "../page.module.css";
 import GradeBadge from "./GradeBadge";
@@ -94,23 +95,16 @@ export default function ModelCard({
             position: "relative",
           }}
         >
-          <div className={styles.thumbPlaceholder}>
-            {thumbUrl ? (
-              <img
-                src={thumbUrl}
-                alt={item.title}
-                className={styles.thumbImg}
-                loading="lazy"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                  transition: "transform 0.25s ease",
-                }}
-              />
-            ) : null}
-          </div>
+          {thumbUrl && (
+            <Image
+              fill
+              src={thumbUrl}
+              alt={item.title}
+              className={styles.thumbImg}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              style={{ objectFit: "cover", transition: "transform 0.25s ease" }}
+            />
+          )}
 
           <span
             className={styles.typeBadge}

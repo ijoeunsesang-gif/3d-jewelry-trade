@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -477,7 +478,7 @@ export default function Header() {
 
             {/* 로고 */}
             <Link href="/" style={{ display: "inline-flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
-              <img src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" style={{ height: 56, width: "auto", objectFit: "contain" }} />
+              <Image src="/logo/logo.png" alt="3D Jewelry Trade" className="header-logo" width={200} height={56} style={{ height: 56, width: "auto", objectFit: "contain" }} priority />
             </Link>
 
             {/* 의뢰 안내 배너 (데스크탑 전용) */}

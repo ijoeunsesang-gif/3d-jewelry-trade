@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import styles from "../page.module.css";
 import type { ModelItem } from "./ModelCard";
@@ -63,21 +64,16 @@ export default function TopModelCard({
             overflow: "hidden",
           }}
         >
-          {thumbUrl ? (
-            <img
+          {thumbUrl && (
+            <Image
+              fill
               src={thumbUrl}
               alt={item.title}
               className={styles.thumbImg}
-              loading="lazy"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                display: "block",
-                transition: "transform 0.25s ease",
-              }}
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 25vw, 20vw"
+              style={{ objectFit: "cover", transition: "transform 0.25s ease" }}
             />
-          ) : null}
+          )}
 
           <span
             style={{
