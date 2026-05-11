@@ -256,6 +256,23 @@ function MessagesContent() {
       await fetchMessages(selectedConversationId);
       await initMessages(true);
       window.dispatchEvent(new Event("messages-updated"));
+
+      // 상대방에게 푸시 알림 (fire-and-forget)
+      if (targetUserId) {
+        const pushToken = getAccessToken();
+        if (pushToken) {
+          const senderName = profilesMap[currentUserId]?.nickname || "누군가";
+          fetch("/api/push/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${pushToken}` },
+            body: JSON.stringify({
+              user_id: targetUserId,
+              category: "chat",
+              payload: { title: `${senderName}의 새 메시지`, body: content.slice(0, 100), url: "/messages" },
+            }),
+          }).catch(() => {});
+        }
+      }
     } catch (error) {
       console.error("메시지 전송 오류:", error);
       showError("메시지 전송 중 오류가 발생했습니다.");

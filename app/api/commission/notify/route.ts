@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendPushToUser } from "@/lib/webpush";
 
 export async function POST(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -33,6 +34,13 @@ export async function POST(req: NextRequest) {
       console.error("[notify] insert 실패:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // 푸시 알림 발송 (fire-and-forget)
+    sendPushToUser(user_id, "inquiry", {
+      title,
+      body: title,
+      url: link || "/notifications",
+    }).catch((e) => console.error("[notify] push error:", e));
 
     return NextResponse.json({ success: true });
   } catch (e) {

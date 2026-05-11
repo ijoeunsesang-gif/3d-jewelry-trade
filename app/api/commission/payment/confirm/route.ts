@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendPushToUser } from "@/lib/webpush";
 
 const serviceSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -102,6 +103,21 @@ export async function POST(req: NextRequest) {
   if (notifErr) {
     console.error("[commission/payment/confirm] 알림 발송 실패:", notifErr);
   }
+
+  // 푸시 알림 (fire-and-forget)
+  const pushLink = `/commission/${commissionId}`;
+  if (commission.target_seller_id) {
+    sendPushToUser(commission.target_seller_id, "payment", {
+      title: `[개인의뢰] ${commission.title}`,
+      body: "결제가 완료되었습니다.",
+      url: pushLink,
+    }).catch((e) => console.error("[payment/confirm] push error:", e));
+  }
+  sendPushToUser(commission.user_id, "payment", {
+    title: `[개인의뢰] ${commission.title}`,
+    body: "작업이 시작되었습니다.",
+    url: pushLink,
+  }).catch((e) => console.error("[payment/confirm] push error:", e));
 
   return NextResponse.json({ success: true });
 }
