@@ -37,9 +37,18 @@ export async function POST(req: NextRequest) {
     if (subscription.status !== "active") return NextResponse.json({ error: "활성 구독만 멘토를 변경할 수 있습니다." }, { status: 400 });
     if (subscription.mentor_id === new_mentor_id) return NextResponse.json({ error: "현재와 동일한 멘토입니다." }, { status: 400 });
 
-    // 교체 횟수 확인
+    // 현재 멘토 정지 여부 확인
+    const { data: currentMentor } = await adminSupabase
+      .from("cad_mentors")
+      .select("is_suspended")
+      .eq("id", subscription.mentor_id)
+      .single();
+
+    const currentMentorSuspended = currentMentor?.is_suspended ?? false;
+
+    // 교체 횟수 확인 (현재 멘토가 정지 상태면 무제한 교체 허용)
     const limit = MENTOR_CHANGE_LIMITS[subscription.plan_type] ?? 1;
-    if (subscription.mentor_change_count >= limit) {
+    if (!currentMentorSuspended && subscription.mentor_change_count >= limit) {
       return NextResponse.json({ error: "이번 달 멘토 교체 횟수를 모두 사용했습니다." }, { status: 400 });
     }
 
@@ -60,12 +69,12 @@ export async function POST(req: NextRequest) {
       .eq("id", subscription.mentor_id)
       .single();
 
-    // 구독 업데이트
+    // 구독 업데이트 (정지된 멘토 교체 시 횟수 차감 없음)
     await adminSupabase
       .from("cad_subscriptions")
       .update({
         mentor_id: new_mentor_id,
-        mentor_change_count: subscription.mentor_change_count + 1,
+        mentor_change_count: currentMentorSuspended ? subscription.mentor_change_count : subscription.mentor_change_count + 1,
         updated_at: new Date().toISOString(),
       })
       .eq("id", subscription_id);
@@ -111,7 +120,8 @@ export async function POST(req: NextRequest) {
 
     await adminSupabase.from("notifications").insert(notifRows);
 
-    return NextResponse.json({ ok: true, remaining: limit - (subscription.mentor_change_count + 1) });
+    const newCount = currentMentorSuspended ? subscription.mentor_change_count : subscription.mentor_change_count + 1;
+    return NextResponse.json({ ok: true, remaining: limit - newCount });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "오류 발생" }, { status: 500 });
   }

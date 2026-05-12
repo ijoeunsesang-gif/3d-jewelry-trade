@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { showError, showSuccess } from "../../lib/toast";
 
 const GOLD = "#c9a84c";
-type MyTab = "posts" | "sessions" | "packages";
+const GOLD_LIGHT = "#fdf6e3";
+
+type MyTab = "posts" | "sessions" | "subscriptions";
 
 type Post = { id: string; title: string; status: string; created_at: string; comment_count?: number };
 type Session = {
@@ -15,11 +18,27 @@ type Session = {
   role: "mentor" | "mentee";
   other_name: string;
 };
-type Package = {
-  id: string; package_type: string; status: string; remaining_count: number; total_count: number;
-  expires_at: string | null; price: number; created_at: string;
-  role: "mentor" | "mentee";
+type Subscription = {
+  id: string;
+  plan_type: string;
+  status: string;
+  expires_at: string;
+  price: number;
+  mentor_change_count: number;
+  checklist_count: number;
+  review_count: number;
+  stl_upload_count: number;
+  role: "mentor" | "subscriber";
   other_name: string;
+  mentor_id: string;
+  is_mentor_suspended: boolean;
+};
+
+const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
+const PLAN_LIMITS: Record<string, { stl: number; checklist: number; review: number; mentorChanges: number }> = {
+  basic:  { stl: 3,    checklist: 2,  review: 2,  mentorChanges: 1 },
+  pro:    { stl: 10,   checklist: 5,  review: 5,  mentorChanges: 2 },
+  master: { stl: 9999, checklist: 10, review: 10, mentorChanges: 3 },
 };
 
 export default function MyActivityPage() {
@@ -29,7 +48,8 @@ export default function MyActivityPage() {
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [packages, setPackages] = useState<Package[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -43,7 +63,7 @@ export default function MyActivityPage() {
 
   const loadAll = async (uid: string) => {
     setLoading(true);
-    await Promise.all([loadPosts(uid), loadSessions(uid), loadPackages(uid)]);
+    await Promise.all([loadPosts(uid), loadSessions(uid), loadSubscriptions(uid)]);
     setLoading(false);
   };
 
@@ -95,41 +115,73 @@ export default function MyActivityPage() {
     setSessions([...mentor, ...mentee].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
   };
 
-  const loadPackages = async (uid: string) => {
+  const loadSubscriptions = async (uid: string) => {
     const { data: myMentor } = await supabase.from("cad_mentors").select("id").eq("user_id", uid).maybeSingle();
     const mentorId = myMentor?.id;
 
-    const { data: asMentee } = await supabase
-      .from("cad_packages")
-      .select("id, package_type, status, remaining_count, total_count, expires_at, price, created_at, mentor:cad_mentors(profiles(nickname))")
-      .eq("mentee_id", uid)
+    const { data: asSubscriber } = await supabase
+      .from("cad_subscriptions")
+      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, stl_upload_count, mentor_id, mentor:cad_mentors(user_id, is_suspended, profiles(nickname))")
+      .eq("subscriber_id", uid)
       .order("created_at", { ascending: false });
 
-    const mentee: Package[] = (asMentee ?? []).map((p: unknown) => {
-      const pkg = p as { id: string; package_type: string; status: string; remaining_count: number; total_count: number; expires_at: string | null; price: number; created_at: string; mentor: { profiles: { nickname: string } | null } | null };
-      return { ...pkg, role: "mentee", other_name: pkg.mentor?.profiles?.nickname ?? "멘토" };
+    const subscriber: Subscription[] = (asSubscriber ?? []).map((s: unknown) => {
+      const sub = s as {
+        id: string; plan_type: string; status: string; expires_at: string; price: number;
+        mentor_change_count: number; checklist_count: number; review_count: number; stl_upload_count: number; mentor_id: string;
+        mentor: { user_id: string; is_suspended: boolean; profiles: { nickname: string } | null } | null;
+      };
+      return {
+        id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
+        mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, stl_upload_count: sub.stl_upload_count, mentor_id: sub.mentor_id,
+        role: "subscriber", other_name: sub.mentor?.profiles?.nickname ?? "멘토", is_mentor_suspended: sub.mentor?.is_suspended ?? false,
+      };
     });
 
-    let mentor: Package[] = [];
+    let mentorSubs: Subscription[] = [];
     if (mentorId) {
       const { data: asMentor } = await supabase
-        .from("cad_packages")
-        .select("id, package_type, status, remaining_count, total_count, expires_at, price, created_at, mentee_profile:profiles!cad_packages_mentee_id_fkey(nickname)")
+        .from("cad_subscriptions")
+        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, stl_upload_count, mentor_id, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
         .eq("mentor_id", mentorId)
         .order("created_at", { ascending: false });
-      mentor = (asMentor ?? []).map((p: unknown) => {
-        const pkg = p as { id: string; package_type: string; status: string; remaining_count: number; total_count: number; expires_at: string | null; price: number; created_at: string; mentee_profile: { nickname: string } | null };
-        return { ...pkg, role: "mentor", other_name: pkg.mentee_profile?.nickname ?? "멘티" };
+      mentorSubs = (asMentor ?? []).map((s: unknown) => {
+        const sub = s as {
+          id: string; plan_type: string; status: string; expires_at: string; price: number;
+          mentor_change_count: number; checklist_count: number; review_count: number; stl_upload_count: number; mentor_id: string;
+          subscriber_profile: { nickname: string } | null;
+        };
+        return {
+          id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
+          mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, stl_upload_count: sub.stl_upload_count, mentor_id: sub.mentor_id,
+          role: "mentor", other_name: sub.subscriber_profile?.nickname ?? "구독자", is_mentor_suspended: false,
+        };
       });
     }
 
-    setPackages([...mentor, ...mentee].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    setSubscriptions([...subscriber, ...mentorSubs].sort((a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime()));
+  };
+
+  const handleCancel = async (subId: string) => {
+    if (!confirm("구독을 해지하시겠습니까? 만료일까지는 계속 이용 가능합니다.")) return;
+    setCancelling(subId);
+    const token = getAccessToken();
+    if (!token) { showError("로그인이 필요합니다."); setCancelling(null); return; }
+    const res = await fetch("/api/cad-school/subscribe/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ subscription_id: subId }),
+    });
+    const d = await res.json();
+    if (!res.ok) showError(d.error ?? "해지 실패");
+    else { showSuccess("구독이 해지되었습니다. 만료일까지 이용 가능합니다."); myUserId && loadSubscriptions(myUserId); }
+    setCancelling(null);
   };
 
   const TABS: { key: MyTab; label: string; count: number }[] = [
     { key: "posts", label: "내 질문", count: posts.length },
     { key: "sessions", label: "건별 세션", count: sessions.length },
-    { key: "packages", label: "패키지", count: packages.length },
+    { key: "subscriptions", label: "구독", count: subscriptions.length },
   ];
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
@@ -142,7 +194,6 @@ export default function MyActivityPage() {
         <span style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>내 활동</span>
       </div>
 
-      {/* 탭 */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb" }}>
         {TABS.map((t) => (
           <button key={t.key} type="button" onClick={() => setTab(t.key)} style={{
@@ -208,44 +259,91 @@ export default function MyActivityPage() {
         </div>
       )}
 
-      {tab === "packages" && (
+      {tab === "subscriptions" && (
         <div>
-          {packages.length === 0 ? (
-            <EmptyState icon="📦" title="구매한 패키지가 없습니다" action={{ href: "/cad-school", label: "패키지 둘러보기" }} />
+          {subscriptions.length === 0 ? (
+            <EmptyState icon="📋" title="구독 내역이 없습니다" action={{ href: "/cad-school", label: "구독 플랜 보기" }} />
           ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {packages.map((p) => (
-                <Link key={p.id} href={`/cad-school/package/${p.id}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                          <PackageStatusBadge status={p.status} />
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", background: "#dbeafe", padding: "2px 6px", borderRadius: 4 }}>
-                            {p.role === "mentor" ? "멘토" : "멘티"}
+            <div style={{ display: "grid", gap: 16 }}>
+              {subscriptions.map((sub) => {
+                const limits = PLAN_LIMITS[sub.plan_type] ?? PLAN_LIMITS.basic;
+                const isActive = sub.status === "active";
+                const isSubscriber = sub.role === "subscriber";
+                return (
+                  <div key={sub.id} style={{ background: "white", border: `1px solid ${isActive ? "#e5e7eb" : "#f3f4f6"}`, borderRadius: 18, padding: "20px 22px", opacity: isActive ? 1 : 0.7 }}>
+                    {/* Header */}
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <SubStatusBadge status={sub.status} />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: sub.role === "mentor" ? "#2563eb" : "#7c3aed", background: sub.role === "mentor" ? "#dbeafe" : "#ede9fe", padding: "2px 6px", borderRadius: 4 }}>
+                            {sub.role === "mentor" ? "멘토" : "구독자"}
                           </span>
-                          <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{p.package_type} 패키지</span>
+                          <span style={{ fontSize: 14, fontWeight: 900, color: GOLD, background: GOLD_LIGHT, padding: "2px 8px", borderRadius: 6 }}>
+                            {PLAN_LABELS[sub.plan_type] ?? sub.plan_type}
+                          </span>
+                          {isSubscriber && sub.is_mentor_suspended && (
+                            <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", background: "#fee2e2", padding: "2px 6px", borderRadius: 4 }}>멘토 정지됨</span>
+                          )}
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                          <span style={{ fontSize: 12, color: "#6b7280" }}>{p.other_name}</span>
-                          <span style={{ fontSize: 12, color: "#111827", fontWeight: 700 }}>남은 횟수: {p.remaining_count}/{p.total_count}</span>
-                          {p.expires_at && <span style={{ fontSize: 12, color: "#9ca3af" }}>만료: {new Date(p.expires_at).toLocaleDateString("ko-KR")}</span>}
+                        <div style={{ fontSize: 13, color: "#374151", fontWeight: 700 }}>
+                          {isSubscriber ? `멘토: ${sub.other_name}` : `구독자: ${sub.other_name}`}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                          만료일: {new Date(sub.expires_at).toLocaleDateString("ko-KR")} · {sub.price.toLocaleString("ko-KR")}원/월
                         </div>
                       </div>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: "#111827", whiteSpace: "nowrap" }}>{p.price.toLocaleString("ko-KR")}원</div>
+
+                      <Link href={`/cad-school/subscription/${sub.id}`} style={{ fontSize: 13, fontWeight: 800, color: "white", background: "#111827", padding: "8px 16px", borderRadius: 10, textDecoration: "none", whiteSpace: "nowrap" }}>
+                        채팅방 →
+                      </Link>
                     </div>
-                    {/* 진행 바 */}
-                    <div style={{ marginTop: 10, background: "#f3f4f6", borderRadius: 99, height: 4 }}>
-                      <div style={{ height: "100%", background: GOLD, width: `${((p.total_count - p.remaining_count) / p.total_count) * 100}%`, borderRadius: 99 }} />
-                    </div>
+
+                    {/* 쿼터 바 (구독자 전용) */}
+                    {isSubscriber && isActive && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
+                        <MiniQuotaBar label="첨삭" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
+                        <MiniQuotaBar label="검수" used={sub.review_count} total={limits.review} color="#b45309" />
+                        {limits.stl < 9999
+                          ? <MiniQuotaBar label="STL" used={sub.stl_upload_count} total={limits.stl} color="#0369a1" />
+                          : <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 700, padding: "4px 0" }}>STL 무제한</div>}
+                      </div>
+                    )}
+
+                    {/* 액션 버튼 */}
+                    {isSubscriber && isActive && (
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => handleCancel(sub.id)}
+                          disabled={cancelling === sub.id}
+                          style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}>
+                          {cancelling === sub.id ? "처리 중..." : "구독 해지"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       )}
     </main>
+  );
+}
+
+function MiniQuotaBar({ label, used, total, color }: { label: string; used: number; total: number; color: string }) {
+  const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>{label}</span>
+        <span style={{ fontSize: 10, color: used >= total ? "#dc2626" : "#374151", fontWeight: 700 }}>{used}/{total}</span>
+      </div>
+      <div style={{ background: "#e5e7eb", borderRadius: 99, height: 4 }}>
+        <div style={{ height: "100%", background: pct >= 100 ? "#dc2626" : color, width: `${pct}%`, borderRadius: 99 }} />
+      </div>
+    </div>
   );
 }
 
@@ -266,11 +364,11 @@ function SessionStatusBadge({ status }: { status: string }) {
   return <span style={{ fontSize: 11, fontWeight: 800, color: info.color, background: info.bg, padding: "2px 7px", borderRadius: 5 }}>{info.label}</span>;
 }
 
-function PackageStatusBadge({ status }: { status: string }) {
+function SubStatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; color: string; bg: string }> = {
-    active:    { label: "진행중", color: "#1d4ed8", bg: "#dbeafe" },
-    exhausted: { label: "소진됨", color: "#dc2626", bg: "#fee2e2" },
-    expired:   { label: "만료됨", color: "#6b7280", bg: "#f3f4f6" },
+    active:    { label: "이용중", color: "#1d4ed8", bg: "#dbeafe" },
+    cancelled: { label: "해지됨", color: "#6b7280", bg: "#f3f4f6" },
+    expired:   { label: "만료됨", color: "#9ca3af", bg: "#f3f4f6" },
   };
   const info = map[status] ?? { label: status, color: "#6b7280", bg: "#f3f4f6" };
   return <span style={{ fontSize: 11, fontWeight: 800, color: info.color, background: info.bg, padding: "2px 7px", borderRadius: 5 }}>{info.label}</span>;
