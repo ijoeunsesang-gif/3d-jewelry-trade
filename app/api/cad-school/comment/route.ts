@@ -7,6 +7,23 @@ const adminSupabase = createClient(
 );
 
 const COMMENT_REWARD = 5;
+const MONTHLY_CAP = 1000;
+
+async function getMonthlyEarned(userId: string): Promise<number> {
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const { data } = await adminSupabase
+    .from("points")
+    .select("amount")
+    .eq("user_id", userId)
+    .gt("amount", 0)
+    .ilike("reason", "캐드스쿨%")
+    .gte("created_at", monthStart.toISOString());
+
+  return (data ?? []).reduce((sum: number, r: { amount: number }) => sum + r.amount, 0);
+}
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -21,7 +38,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "게시글 ID와 내용을 입력해주세요." }, { status: 400 });
     }
 
-    // 게시글이 open 상태인지 확인
     const { data: post } = await adminSupabase
       .from("cad_posts")
       .select("id, status, user_id")
@@ -31,7 +47,6 @@ export async function POST(req: NextRequest) {
     if (!post) return NextResponse.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
     if (post.status !== "open") return NextResponse.json({ error: "마감된 질문에는 답변할 수 없습니다." }, { status: 400 });
 
-    // 답변 등록
     const { data: comment, error: commentErr } = await adminSupabase
       .from("cad_post_comments")
       .insert({ post_id, user_id: user.id, content: content.trim(), files: files ?? [], point_reward: COMMENT_REWARD })
@@ -40,16 +55,21 @@ export async function POST(req: NextRequest) {
 
     if (commentErr) return NextResponse.json({ error: commentErr.message }, { status: 500 });
 
-    // 답변자에게 5P 지급
-    await adminSupabase.from("points").insert({
-      user_id: user.id,
-      amount: COMMENT_REWARD,
-      reason: "캐드스쿨 답변 등록",
-      reference_id: comment.id,
-    });
-    await adminSupabase.rpc("increment_profile_points", { uid: user.id, delta: COMMENT_REWARD });
+    // 월 1000P 상한 확인
+    const monthlyEarned = await getMonthlyEarned(user.id);
+    const actualReward = Math.max(0, Math.min(COMMENT_REWARD, MONTHLY_CAP - monthlyEarned));
 
-    return NextResponse.json({ id: comment.id });
+    if (actualReward > 0) {
+      await adminSupabase.from("points").insert({
+        user_id: user.id,
+        amount: actualReward,
+        reason: "캐드스쿨 답변 등록",
+        reference_id: comment.id,
+      });
+      await adminSupabase.rpc("increment_profile_points", { uid: user.id, delta: actualReward });
+    }
+
+    return NextResponse.json({ id: comment.id, pointAwarded: actualReward });
   } catch (e: unknown) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "오류 발생" }, { status: 500 });
   }

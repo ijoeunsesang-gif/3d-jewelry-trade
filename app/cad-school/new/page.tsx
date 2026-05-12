@@ -72,7 +72,7 @@ export default function NewCadPostPage() {
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "등록 실패"); return; }
-      showSuccess("질문이 등록되었습니다! (100P 차감)");
+      showSuccess("질문이 등록되었습니다!");
       router.push(`/cad-school/${data.id}`);
     } finally {
       setSubmitting(false);
@@ -89,7 +89,7 @@ export default function NewCadPostPage() {
 
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "28px 28px 32px", marginBottom: 16 }}>
         <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900, color: "#111827" }}>CAD 질문 등록</h1>
-        <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6b7280" }}>질문 등록 시 <strong style={{ color: GOLD }}>100P</strong>가 차감됩니다. 채택 시 답변자에게 +20P가 지급됩니다.</p>
+        <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6b7280" }}>질문 등록은 <strong style={{ color: "#111827" }}>무료</strong>입니다. 채택 시 답변자에게 <strong style={{ color: GOLD }}>+20P</strong>가 지급됩니다.</p>
 
         <label style={labelStyle}>제목</label>
         <input
@@ -137,7 +137,7 @@ export default function NewCadPostPage() {
             color: "white", fontSize: 15, fontWeight: 900, cursor: submitting || uploading ? "not-allowed" : "pointer",
           }}
         >
-          {submitting ? "등록 중..." : "질문 등록 (100P 차감)"}
+          {submitting ? "등록 중..." : "질문 등록 (무료)"}
         </button>
       </div>
     </main>

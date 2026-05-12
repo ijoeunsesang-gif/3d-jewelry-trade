@@ -220,27 +220,50 @@ export default function CadSchoolPage() {
 }
 
 function FeedbackTab({ posts, loading }: { posts: Post[]; loading: boolean }) {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111827" }}>자유 피드백 게시판</h2>
-        <Link
-          href="/cad-school/new"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "10px 20px",
-            borderRadius: 12,
-            background: GOLD,
-            color: "white",
-            fontWeight: 800,
-            fontSize: 13,
-            textDecoration: "none",
-          }}
-        >
-          ✏️ 질문하기
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "8px 14px",
+              borderRadius: 10,
+              border: `1px solid ${GOLD}88`,
+              background: GOLD_LIGHT,
+              color: "#92681a",
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            💡 포인트 상세설명
+          </button>
+          <Link
+            href="/cad-school/new"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "10px 20px",
+              borderRadius: 12,
+              background: GOLD,
+              color: "white",
+              fontWeight: 800,
+              fontSize: 13,
+              textDecoration: "none",
+            }}
+          >
+            ✏️ 질문하기
+          </Link>
+        </div>
       </div>
 
       <div
@@ -255,9 +278,10 @@ function FeedbackTab({ posts, loading }: { posts: Post[]; loading: boolean }) {
           lineHeight: 1.8,
         }}
       >
-        💡 질문 등록 시 <strong style={{ color: "#111827" }}>100P 차감</strong> ·
+        💡 질문 등록 무료 ·
         답변 등록 시 <strong style={{ color: "#111827" }}>+5P</strong> ·
-        채택 시 <strong style={{ color: GOLD }}>+20P</strong>
+        채택 시 <strong style={{ color: GOLD }}>+20P</strong> ·
+        월 최대 <strong style={{ color: "#111827" }}>1,000P</strong>
       </div>
 
       {loading ? (
@@ -271,8 +295,108 @@ function FeedbackTab({ posts, loading }: { posts: Post[]; loading: boolean }) {
           ))}
         </div>
       )}
+
+      {showModal && <PointInfoModal onClose={() => setShowModal(false)} />}
     </div>
   );
+}
+
+function PointInfoModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 1000,
+        background: "rgba(0,0,0,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "white",
+          borderRadius: 24,
+          padding: "28px 28px 24px",
+          maxWidth: 420,
+          width: "100%",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>캐드스쿨 포인트 안내</div>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af", lineHeight: 1 }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          style={{
+            background: "#fdf8ec",
+            border: "1px solid #f0d88a",
+            borderRadius: 16,
+            padding: "16px 18px",
+            fontSize: 13,
+            color: "#78350f",
+            lineHeight: 2,
+          }}
+        >
+          <Section title="적립 방법">
+            <Row icon="✅">답변 등록: 답변 1건당 <Gold>5P</Gold> 적립</Row>
+            <Row icon="⭐">베스트 답변 채택: 채택 1건당 <Gold>20P</Gold> 적립</Row>
+            <Row icon="📌">월 최대 적립 한도: <Gold>1,000P</Gold></Row>
+          </Section>
+
+          <Section title="사용 방법">
+            <Row icon="🛍️">모델 구매 시 포인트 사용 가능</Row>
+            <Row icon="💳">1P = 1원</Row>
+          </Section>
+
+          <Section title="유의사항" last>
+            <Row icon="❗">질문 등록은 무료입니다</Row>
+            <Row icon="❗">포인트는 캐드스쿨 답변 활동을 통해서만 적립됩니다</Row>
+            <Row icon="❗">월 1,000P 한도 초과 시 추가 적립되지 않습니다</Row>
+          </Section>
+        </div>
+
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: 18, width: "100%", padding: "12px", borderRadius: 14,
+            border: "none", background: "#111827", color: "white",
+            fontWeight: 800, fontSize: 14, cursor: "pointer",
+          }}
+        >
+          확인
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children, last }: { title: string; children: React.ReactNode; last?: boolean }) {
+  return (
+    <div style={{ marginBottom: last ? 0 : 12 }}>
+      <strong style={{ display: "block", marginBottom: 2, color: "#92400e" }}>{title}</strong>
+      {children}
+    </div>
+  );
+}
+
+function Row({ icon, children }: { icon: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 6 }}>
+      <span>{icon}</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+function Gold({ children }: { children: React.ReactNode }) {
+  return <strong style={{ color: GOLD }}>{children}</strong>;
 }
 
 function PostCard({ post }: { post: Post }) {
