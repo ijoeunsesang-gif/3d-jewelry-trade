@@ -6,7 +6,7 @@ export const maxDuration = 60;
 
 const ALLOWED_BUCKETS = ["thumbnails", "models-private"];
 
-const ALLOWED_IMAGE_EXTS = ["jpg", "jpeg", "png", "webp"];
+const ALLOWED_IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif"];
 const ALLOWED_MODEL_EXTS = ["stl", "obj", "3dm"];
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;   // 10MB

@@ -27,7 +27,8 @@ type MessageItem = {
   id: string;
   conversation_id: string;
   sender_id: string;
-  content: string;
+  content: string | null;
+  image_url?: string | null;
   created_at: string;
   is_read?: boolean;
 };
@@ -47,8 +48,12 @@ function MessagesContent() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     initMessages();
@@ -57,6 +62,17 @@ function MessagesContent() {
   useEffect(() => {
     chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
+
+  // 채팅창 밖으로 파일 드롭 시 브라우저가 파일 여는 것 방지
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   useEffect(() => {
     if (queryConversationId) {
@@ -227,6 +243,77 @@ function MessagesContent() {
     : "";
 
   const targetProfile = targetUserId ? profilesMap[targetUserId] : null;
+
+  const uploadChatImage = async (file: File) => {
+    if (!selectedConversationId || !currentUserId) return;
+    if (!file.type.startsWith("image/")) {
+      showError("이미지 파일만 첨부 가능합니다.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const token = getAccessToken();
+      if (!token) { showError("로그인이 필요합니다."); return; }
+      const path = `chat-images/${currentUserId}/${Date.now()}_${file.name}`;
+      const form = new FormData();
+      form.append("file", file);
+      form.append("bucket", "thumbnails");
+      form.append("path", path);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "업로드 실패");
+      }
+      const { url } = await res.json();
+      const { error: msgError } = await supabase.from("messages").insert({
+        conversation_id: selectedConversationId,
+        sender_id: currentUserId,
+        content: null,
+        image_url: url,
+        is_read: false,
+      });
+      if (msgError) throw new Error(msgError.message);
+      await fetchMessages(selectedConversationId);
+      await initMessages(true);
+      window.dispatchEvent(new Event("messages-updated"));
+      setTimeout(() => {
+        chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+      }, 100);
+    } catch (err: any) {
+      showError(err.message || "이미지 전송 실패");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await uploadChatImage(file);
+    e.target.value = "";
+  };
+
+  const handleChatDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  };
+
+  const handleChatDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleChatDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) await uploadChatImage(file);
+  };
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
@@ -610,6 +697,9 @@ function MessagesContent() {
 
           <div
             ref={chatContainerRef}
+            onDragOver={handleChatDragOver}
+            onDragLeave={handleChatDragLeave}
+            onDrop={handleChatDrop}
             style={{
               padding: 20,
               overflowY: "auto",
@@ -617,8 +707,30 @@ function MessagesContent() {
               display: "flex",
               flexDirection: "column",
               gap: 12,
+              position: "relative",
             }}
           >
+            {dragOver && (
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(17,24,39,0.07)",
+                border: "2px dashed #111827",
+                borderRadius: 16,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+                pointerEvents: "none",
+              }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>이미지를 여기에 놓으세요</span>
+              </div>
+            )}
+            {uploading && (
+              <div style={{ display: "flex", justifyContent: "center", padding: "8px 0", color: "#6b7280", fontSize: 13 }}>
+                이미지 업로드 중...
+              </div>
+            )}
             {!selectedConversationId ? (
               <div style={{ color: "#6b7280" }}>왼쪽에서 대화를 선택하세요.</div>
             ) : messages.length === 0 ? (
@@ -626,6 +738,7 @@ function MessagesContent() {
             ) : (
               messages.map((msg) => {
                 const mine = msg.sender_id === currentUserId;
+                const isImage = !!msg.image_url;
 
                 return (
                   <div
@@ -635,32 +748,54 @@ function MessagesContent() {
                       justifyContent: mine ? "flex-end" : "flex-start",
                     }}
                   >
-                    <div
-                      style={{
-                        maxWidth: "72%",
-                        padding: "12px 14px",
-                        borderRadius: 18,
-                        background: mine ? "#111827" : "white",
-                        color: mine ? "white" : "#111827",
-                        border: mine ? "none" : "1px solid #e5e7eb",
-                        boxShadow: mine
-                          ? "none"
-                          : "0 4px 14px rgba(15,23,42,0.04)",
-                        lineHeight: 1.7,
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      <div style={{ fontSize: 14 }}>{msg.content}</div>
+                    {isImage ? (
+                      <div style={{ maxWidth: "72%" }}>
+                        <img
+                          src={msg.image_url!}
+                          alt="첨부 이미지"
+                          onClick={() => setLightboxUrl(msg.image_url!)}
+                          style={{
+                            maxWidth: 220,
+                            maxHeight: 220,
+                            borderRadius: 14,
+                            objectFit: "cover",
+                            border: "1px solid #e5e7eb",
+                            cursor: "pointer",
+                            display: "block",
+                          }}
+                        />
+                        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.72, textAlign: mine ? "right" : "left" }}>
+                          {new Date(msg.created_at).toLocaleString("ko-KR")}
+                        </div>
+                      </div>
+                    ) : (
                       <div
                         style={{
-                          marginTop: 6,
-                          fontSize: 11,
-                          opacity: 0.72,
+                          maxWidth: "72%",
+                          padding: "12px 14px",
+                          borderRadius: 18,
+                          background: mine ? "#111827" : "white",
+                          color: mine ? "white" : "#111827",
+                          border: mine ? "none" : "1px solid #e5e7eb",
+                          boxShadow: mine
+                            ? "none"
+                            : "0 4px 14px rgba(15,23,42,0.04)",
+                          lineHeight: 1.7,
+                          whiteSpace: "pre-wrap",
                         }}
                       >
-                        {new Date(msg.created_at).toLocaleString("ko-KR")}
+                        <div style={{ fontSize: 14 }}>{msg.content}</div>
+                        <div
+                          style={{
+                            marginTop: 6,
+                            fontSize: 11,
+                            opacity: 0.72,
+                          }}
+                        >
+                          {new Date(msg.created_at).toLocaleString("ko-KR")}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })
@@ -681,6 +816,37 @@ function MessagesContent() {
               overflow: "hidden",
             }}
           >
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={uploading || !selectedConversationId}
+              title="이미지 첨부"
+              style={{
+                flexShrink: 0,
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                border: "1px solid #d1d5db",
+                background: "white",
+                cursor: uploading || !selectedConversationId ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+                fontWeight: 400,
+                color: "#374151",
+                opacity: uploading || !selectedConversationId ? 0.45 : 1,
+              }}
+            >
+              +
+            </button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.gif"
+              style={{ display: "none" }}
+              onChange={handleImageSelect}
+            />
             <input
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
@@ -700,7 +866,7 @@ function MessagesContent() {
 
             <button
               type="submit"
-              disabled={sending || !selectedConversationId}
+              disabled={sending || uploading || !selectedConversationId}
               style={{
                 flexShrink: 0,
                 width: 90,
@@ -711,10 +877,11 @@ function MessagesContent() {
                 color: "white",
                 fontWeight: 900,
                 fontSize: 14,
-                cursor: "pointer",
+                cursor: sending || uploading || !selectedConversationId ? "not-allowed" : "pointer",
+                opacity: sending || uploading || !selectedConversationId ? 0.6 : 1,
               }}
             >
-              {sending ? "전송" : "보내기"}
+              {sending ? "전송 중" : "보내기"}
             </button>
           </form>
         </section>
@@ -767,6 +934,67 @@ function MessagesContent() {
                 {deletingId === deleteTargetId ? "삭제 중..." : "삭제"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.88)",
+            zIndex: 10000,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 16,
+          }}
+        >
+          <img
+            src={lightboxUrl}
+            alt="첨부 이미지"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "90vw",
+              maxHeight: "80vh",
+              borderRadius: 16,
+              objectFit: "contain",
+            }}
+          />
+          <div style={{ display: "flex", gap: 12 }} onClick={(e) => e.stopPropagation()}>
+            <a
+              href={lightboxUrl}
+              download
+              style={{
+                padding: "10px 22px",
+                borderRadius: 10,
+                background: "white",
+                color: "#111827",
+                fontWeight: 700,
+                fontSize: 14,
+                textDecoration: "none",
+              }}
+            >
+              다운로드
+            </a>
+            <button
+              type="button"
+              onClick={() => setLightboxUrl(null)}
+              style={{
+                padding: "10px 22px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.18)",
+                color: "white",
+                fontWeight: 700,
+                fontSize: 14,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              닫기
+            </button>
           </div>
         </div>
       )}
