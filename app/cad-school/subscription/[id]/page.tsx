@@ -16,10 +16,10 @@ type FileItem = { name: string; url: string; ext: string };
 type MsgType = "question" | "answer" | "checklist" | "review";
 
 const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
-const PLAN_LIMITS: Record<string, { stl: number; checklist: number; review: number; mentorChanges: number; hours: number }> = {
-  basic:  { stl: 3,    checklist: 2,  review: 2,  mentorChanges: 1, hours: 48 },
-  pro:    { stl: 10,   checklist: 5,  review: 5,  mentorChanges: 2, hours: 36 },
-  master: { stl: 9999, checklist: 10, review: 10, mentorChanges: 3, hours: 24 },
+const PLAN_LIMITS: Record<string, { checklist: number; review: number; mentorChanges: number; hours: number }> = {
+  basic:  { checklist: 2,  review: 2,  mentorChanges: 1, hours: 48 },
+  pro:    { checklist: 5,  review: 5,  mentorChanges: 2, hours: 36 },
+  master: { checklist: 10, review: 10, mentorChanges: 3, hours: 24 },
 };
 
 type Subscription = {
@@ -31,7 +31,6 @@ type Subscription = {
   mentor_change_count: number;
   checklist_count: number;
   review_count: number;
-  stl_upload_count: number;
   expires_at: string;
   mentor: {
     id: string;
@@ -70,7 +69,7 @@ type AvailableMentor = {
 const MSG_TYPE_LABELS: Record<MsgType, { label: string; color: string; bg: string }> = {
   question:  { label: "질문",   color: "#1d4ed8", bg: "#dbeafe" },
   answer:    { label: "답변",   color: "#166534", bg: "#dcfce7" },
-  checklist: { label: "첨삭",   color: "#7c3aed", bg: "#ede9fe" },
+  checklist: { label: "CAD수정", color: "#7c3aed", bg: "#ede9fe" },
   review:    { label: "검수",   color: "#b45309", bg: "#fef3c7" },
 };
 
@@ -105,7 +104,7 @@ export default function SubscriptionChatPage() {
   const loadData = useCallback(async () => {
     const { data: subData } = await supabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, stl_upload_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, grade, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, grade, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
       .eq("id", id)
       .single();
 
@@ -275,7 +274,7 @@ export default function SubscriptionChatPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
         <Link href="/cad-school/my" style={{ color: "#6b7280", textDecoration: "none", fontSize: 13 }}>← 내 활동</Link>
         <span style={{ color: "#d1d5db" }}>/</span>
-        <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>구독 채팅방</span>
+        <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>수강 채팅방</span>
       </div>
 
       {/* 상단 정보 카드 */}
@@ -311,17 +310,14 @@ export default function SubscriptionChatPage() {
 
         {/* 쿼터 진행 바 */}
         {isSubscriber && (
-          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-            <QuotaBar label="첨삭" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+            <QuotaBar label="CAD수정" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
             <QuotaBar label="검수" used={sub.review_count} total={limits.review} color="#b45309" />
-            {limits.stl < 9999
-              ? <QuotaBar label="STL" used={sub.stl_upload_count} total={limits.stl} color="#0369a1" />
-              : <div style={{ background: "#f3f4f6", borderRadius: 10, padding: "8px 10px", fontSize: 11 }}><div style={{ fontWeight: 700, color: "#374151", marginBottom: 4 }}>STL</div><div style={{ color: "#16a34a", fontWeight: 700 }}>무제한</div></div>}
           </div>
         )}
         {isMentor && (
           <div style={{ marginTop: 12, fontSize: 12, color: "#6b7280" }}>
-            구독자: <strong>{sub.subscriber_profile?.nickname ?? "구독자"}</strong> · 플랜: <strong>{PLAN_LABELS[sub.plan_type]}</strong> · 답변 제한: <strong>{limits.hours}시간</strong>
+            수강생: <strong>{sub.subscriber_profile?.nickname ?? "수강생"}</strong> · 패키지: <strong>{PLAN_LABELS[sub.plan_type]}</strong> · 답변 제한: <strong>{limits.hours}시간</strong>
           </div>
         )}
       </div>
@@ -402,7 +398,7 @@ export default function SubscriptionChatPage() {
                     background: msgType === t ? "#111827" : "#f3f4f6",
                     color: msgType === t ? "white" : "#6b7280",
                   }}>
-                    {t === "question" ? "질문" : t === "checklist" ? "첨삭" : "검수"}
+                    {t === "question" ? "질문" : t === "checklist" ? "CAD수정" : "검수"}
                   </button>
                 ))}
               </div>
@@ -444,7 +440,7 @@ export default function SubscriptionChatPage() {
 
       {!isActive && (
         <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 20px", textAlign: "center", color: "#6b7280", fontSize: 13, fontWeight: 700 }}>
-          구독이 종료되었습니다.
+          수강이 종료되었습니다.
         </div>
       )}
 

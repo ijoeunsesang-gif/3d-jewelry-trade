@@ -6,10 +6,10 @@ const adminSupabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PLAN_LIMITS: Record<string, { stl: number; checklist: number; review: number }> = {
-  basic:  { stl: 3,    checklist: 2,  review: 2  },
-  pro:    { stl: 10,   checklist: 5,  review: 5  },
-  master: { stl: 9999, checklist: 10, review: 10 },
+const PLAN_LIMITS: Record<string, { checklist: number; review: number }> = {
+  basic:  { checklist: 2,  review: 2  },
+  pro:    { checklist: 5,  review: 5  },
+  master: { checklist: 10, review: 10 },
 };
 
 export async function POST(req: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { data: sub } = await adminSupabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, checklist_count, review_count, stl_upload_count, mentor:cad_mentors(user_id)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, checklist_count, review_count, mentor:cad_mentors(user_id)")
       .eq("id", subscription_id)
       .single();
 
@@ -44,11 +44,9 @@ export async function POST(req: NextRequest) {
 
     // 쿼터 검증 및 차감 (구독자가 보내는 경우만)
     if (isSubscriber) {
-      const hasSTL = sentFiles.some((f) => ["stl", "obj", "3dm"].includes(f.ext.toLowerCase()));
-
       if (message_type === "checklist") {
         if (sub.checklist_count >= limits.checklist) {
-          return NextResponse.json({ error: "이번 달 첨삭 횟수를 모두 사용했습니다." }, { status: 400 });
+          return NextResponse.json({ error: "이번 달 CAD수정 횟수를 모두 사용했습니다." }, { status: 400 });
         }
         await adminSupabase.from("cad_subscriptions").update({ checklist_count: sub.checklist_count + 1, updated_at: new Date().toISOString() }).eq("id", subscription_id);
       } else if (message_type === "review") {
@@ -56,11 +54,6 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: "이번 달 검수 횟수를 모두 사용했습니다." }, { status: 400 });
         }
         await adminSupabase.from("cad_subscriptions").update({ review_count: sub.review_count + 1, updated_at: new Date().toISOString() }).eq("id", subscription_id);
-      } else if (hasSTL) {
-        if (sub.stl_upload_count >= limits.stl) {
-          return NextResponse.json({ error: "이번 달 STL 업로드 횟수를 모두 사용했습니다." }, { status: 400 });
-        }
-        await adminSupabase.from("cad_subscriptions").update({ stl_upload_count: sub.stl_upload_count + 1, updated_at: new Date().toISOString() }).eq("id", subscription_id);
       }
     }
 

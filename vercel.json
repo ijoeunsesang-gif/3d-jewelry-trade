@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cad-school/check-expiry",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

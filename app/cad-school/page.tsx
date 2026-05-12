@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import GradeBadge from "../components/GradeBadge";
+import ReputationBadge from "../components/ReputationBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
@@ -16,7 +17,7 @@ type Tab = "feedback" | "session" | "subscription";
 const TABS: { key: Tab; label: string; desc: string }[] = [
   { key: "feedback",     label: "자유 피드백",  desc: "포인트로 CAD 질문 · 전문가 답변" },
   { key: "session",      label: "건별 멘토링",  desc: "1:1 맞춤 멘토링 단건 의뢰" },
-  { key: "subscription", label: "구독 플랜",    desc: "월정액으로 멘토와 집중 학습" },
+  { key: "subscription", label: "수강 패키지",  desc: "수강 패키지로 멘토와 집중 학습" },
 ];
 
 type Post = {
@@ -39,7 +40,7 @@ type Mentor = {
   avg_rating: number;
   total_ratings: number;
   response_rate: number;
-  profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
+  profiles: { nickname: string | null; avatar_url: string | null; grade: string | null; reputation_scores?: { score: number }[] | null } | null;
 };
 
 export default function CadSchoolPage() {
@@ -139,7 +140,7 @@ export default function CadSchoolPage() {
   );
 }
 
-// ─ 구독 플랜 탭 ────────────────────────────────────────────
+// ─ 수강 패키지 탭 ────────────────────────────────────────────
 const PLANS = [
   {
     key: "basic",
@@ -149,8 +150,8 @@ const PLANS = [
     features: [
       "멘토 1명 지정 (월 1회 교체 가능)",
       "질문 무제한",
-      "STL 업로드 월 3개",
-      "첨삭 월 2회",
+      "파일 첨부 무제한",
+      "CAD수정 월 2회",
       "실무 검수 월 2회",
       "답변 48시간 내 (주말·연휴 제외)",
     ],
@@ -164,8 +165,8 @@ const PLANS = [
     features: [
       "멘토 1명 지정 (월 2회 교체 가능)",
       "질문 무제한",
-      "STL 업로드 월 10개",
-      "첨삭 월 5회",
+      "파일 첨부 무제한",
+      "CAD수정 월 5회",
       "실무 검수 월 5회",
       "답변 36시간 내 (주말·연휴 제외)",
     ],
@@ -179,8 +180,8 @@ const PLANS = [
     features: [
       "멘토 1명 지정 (월 3회 교체 가능)",
       "질문 무제한",
-      "STL 업로드 무제한",
-      "첨삭 월 10회",
+      "파일 첨부 무제한",
+      "CAD수정 월 10회",
       "실무 검수 월 10회",
       "답변 24시간 내 (주말·연휴 제외)",
     ],
@@ -192,14 +193,14 @@ function SubscriptionTab() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111827" }}>구독 플랜</h2>
+        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111827" }}>수강 패키지</h2>
         <Link href="/cad-school/mentor/register" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 12, background: "#111827", color: "white", fontWeight: 800, fontSize: 13, textDecoration: "none" }}>
           🎓 멘토 등록
         </Link>
       </div>
 
       <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 18px", marginBottom: 24, fontSize: 12, color: "#6b7280", lineHeight: 1.8 }}>
-        💡 월정액으로 멘토를 지정하고 집중적으로 학습하세요.
+        💡 수강 패키지로 멘토를 지정하고 집중적으로 학습하세요.
         멘토 수익의 80%가 멘토에게 지급됩니다.
       </div>
 
@@ -223,7 +224,7 @@ function SubscriptionTab() {
               <div style={{ fontSize: 28, fontWeight: 900, color: plan.style.titleColor, marginBottom: 4 }}>
                 {plan.price.toLocaleString("ko-KR")}원
               </div>
-              <div style={{ fontSize: 12, color: featureColor, marginBottom: 18 }}>/ 월</div>
+              <div style={{ fontSize: 12, color: featureColor, marginBottom: 18 }}>30일 수강</div>
               <div style={{ borderTop: `1px solid ${dividerColor}`, marginBottom: 16 }} />
               <ul style={{ margin: "0 0 20px", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 9, flex: 1 }}>
                 {plan.features.map((f, i) => (
@@ -242,14 +243,14 @@ function SubscriptionTab() {
                   color: "white", fontWeight: 900, fontSize: 14, textDecoration: "none",
                 }}
               >
-                구독하기
+                수강하기
               </Link>
             </div>
           );
         })}
       </div>
       <p style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 8 }}>
-        * 구독 취소 시 만료일까지 서비스가 유지됩니다. 멘토 수익의 80%가 멘토에게 지급됩니다.
+        * 1회성 결제이며, 만료일까지 서비스가 유지됩니다. 멘토 수익의 80%가 멘토에게 지급됩니다.
       </p>
     </div>
   );
@@ -374,6 +375,7 @@ function MentorCard({ mentor }: { mentor: Mentor }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>{mentor.profiles?.nickname ?? "멘토"}</span>
               {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="sm" />}
+              {(() => { const repScore = mentor.profiles?.reputation_scores?.[0]?.score ?? 0; return repScore > 0 ? <ReputationBadge score={repScore} size="sm" /> : null; })()}
               {careerYears !== null && (
                 <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", borderRadius: 6, padding: "2px 7px" }}>경력 {careerYears}년</span>
               )}

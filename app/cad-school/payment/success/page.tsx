@@ -130,11 +130,11 @@ function CadPaymentSuccessContent() {
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 24, padding: 36, textAlign: "center" }}>
         <div style={{ width: 72, height: 72, borderRadius: 999, background: "#dcfce7", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, margin: "0 auto 18px" }}>✓</div>
         <h1 style={{ fontSize: 26, fontWeight: 900, color: "#111827", marginBottom: 10 }}>
-          {isSubscription ? "구독이 시작되었습니다!" : "멘토링 의뢰 완료!"}
+          {isSubscription ? "수강이 시작되었습니다!" : "멘토링 의뢰 완료!"}
         </h1>
         <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 28, lineHeight: 1.6 }}>
           {isSubscription
-            ? "멘토에게 알림이 전송되었습니다. 내 활동에서 구독 현황을 확인하세요."
+            ? "멘토에게 알림이 전송되었습니다. 내 활동에서 수강 현황을 확인하세요."
             : "멘토가 수락하면 알림이 전송됩니다."}
         </p>
         <div style={{ display: "grid", gap: 12 }}>
@@ -142,7 +142,7 @@ function CadPaymentSuccessContent() {
             href="/cad-school/my"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 52, borderRadius: 16, background: "#111827", color: "white", textDecoration: "none", fontWeight: 900, fontSize: 15 }}
           >
-            {isSubscription ? "내 구독 확인하기" : "내 활동 보기"}
+            {isSubscription ? "내 수강 확인하기" : "내 활동 보기"}
           </Link>
           {isSession && result && (
             <Link

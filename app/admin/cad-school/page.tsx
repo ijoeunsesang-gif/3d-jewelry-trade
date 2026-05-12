@@ -169,7 +169,7 @@ export default function AdminCadSchoolPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
-                  {["닉네임", "등급", "구독자", "평점", "답변률", "경고", "상태", "액션"].map((h) => (
+                  {["닉네임", "등급", "수강생", "평점", "답변률", "경고", "상태", "액션"].map((h) => (
                     <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontWeight: 700, color: "#374151", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>

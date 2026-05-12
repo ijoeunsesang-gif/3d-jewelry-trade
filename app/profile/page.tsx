@@ -1197,10 +1197,10 @@ export default function ProfilePage() {
 const GRADE_KEYS: Grade[] = ["sprout", "skilled", "pro", "master"];
 
 const GRADE_STYLE: Record<Grade, { color: string; bg: string; border: string; label: string }> = {
-  sprout:  { color: "#374151", bg: "#f9fafb", border: "#d1d5db", label: "입문" },
-  skilled: { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe", label: "숙련" },
-  pro:     { color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe", label: "프로" },
-  master:  { color: "#b45309", bg: "#fffbeb", border: "#fde68a", label: "마스터" },
+  sprout:  { color: "#374151", bg: "#f9fafb", border: "#d1d5db", label: "셀러" },
+  skilled: { color: "#1d4ed8", bg: "#eff6ff", border: "#bfdbfe", label: "인증셀러" },
+  pro:     { color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe", label: "프로셀러" },
+  master:  { color: "#b45309", bg: "#fffbeb", border: "#fde68a", label: "파트너" },
 };
 
 function GradeTab({
@@ -1716,8 +1716,8 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
 
       {/* 설명 섹션 */}
       <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.9 }}>
-        멘토는 캐드스쿨에서 입문자들의 질문에 답변하고 멘토링을 제공하는 전문가입니다.
-        <strong> 첨삭</strong>은 입문자의 파일을 멘토가 직접 수정 후 반환하는 방식이며,
+        멘토는 캐드스쿨에서 수강생들의 질문에 답변하고 멘토링을 제공하는 전문가입니다.
+        <strong> CAD수정</strong>은 수강생의 파일을 멘토가 직접 수정 후 반환하는 방식이며,
         <strong> 실무 검수</strong>는 판매/출력 가능 여부를 컨펌해주는 방식입니다.
         멘토 활동을 통해 구독료의 <strong>80%</strong>를 수익으로 받을 수 있습니다.
       </div>
@@ -1814,7 +1814,7 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
                         </span>
                       </div>
                       <div style={{ fontSize: 12, color: "#6b7280" }}>
-                        만료: {new Date(s.expires_at).toLocaleDateString("ko-KR")} · 첨삭 {s.checklist_count}회 · 검수 {s.review_count}회
+                        만료: {new Date(s.expires_at).toLocaleDateString("ko-KR")} · CAD수정 {s.checklist_count}회 · 검수 {s.review_count}회
                       </div>
                     </div>
                     <a href={`/cad-school/subscription/${s.id}`} style={{ fontSize: 13, fontWeight: 800, color: "white", background: "#111827", padding: "8px 14px", borderRadius: 9, textDecoration: "none", whiteSpace: "nowrap" }}>

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import GradeBadge from "../../../components/GradeBadge";
+import ReputationBadge from "../../../components/ReputationBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
@@ -30,7 +31,7 @@ type Mentor = {
   avg_rating: number;
   total_ratings: number;
   response_rate: number;
-  profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
+  profiles: { nickname: string | null; avatar_url: string | null; grade: string | null; reputation_scores?: { score: number }[] | null } | null;
 };
 
 export default function SubscribePlanPage() {
@@ -74,7 +75,7 @@ export default function SubscribePlanPage() {
   const handleSubscribe = async (mentor: Mentor) => {
     const token = getAccessToken();
     if (!token) { showInfo("로그인이 필요합니다."); router.push("/auth"); return; }
-    if (myUserId === mentor.user_id) { showError("본인 멘토를 구독할 수 없습니다."); return; }
+    if (myUserId === mentor.user_id) { showError("본인 멘토를 수강할 수 없습니다."); return; }
 
     const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
     if (!clientKey) { showError("결제 설정이 올바르지 않습니다."); return; }
@@ -100,7 +101,7 @@ export default function SubscribePlanPage() {
         method: "CARD",
         amount: { currency: "KRW", value: planInfo.price },
         orderId,
-        orderName: `[캐드스쿨] ${planInfo.label} 구독 - ${mentor.profiles?.nickname ?? "멘토"}`,
+        orderName: `[캐드스쿨] ${planInfo.label} 수강 패키지 - ${mentor.profiles?.nickname ?? "멘토"}`,
         successUrl: `${window.location.origin}/cad-school/payment/success`,
         failUrl: `${window.location.origin}/cad-school/payment/fail`,
         ...(payload?.email ? { customerEmail: payload.email } : {}),
@@ -130,14 +131,14 @@ export default function SubscribePlanPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <Link href="/cad-school" style={{ color: "#6b7280", textDecoration: "none", fontSize: 14 }}>← 캐드스쿨</Link>
         <span style={{ color: "#d1d5db" }}>/</span>
-        <span style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>구독 플랜 · 멘토 선택</span>
+        <span style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>수강 패키지 · 멘토 선택</span>
       </div>
 
       {/* 플랜 요약 카드 */}
       <div style={{ background: planBg, border: `1.5px solid ${planBorder}`, borderRadius: 20, padding: "22px 24px", marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 800, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af", letterSpacing: 2, marginBottom: 4 }}>선택한 플랜</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af", letterSpacing: 2, marginBottom: 4 }}>선택한 패키지</div>
             <div style={{ fontSize: 24, fontWeight: 900, color: planTextColor }}>{planInfo.label}</div>
             <div style={{ fontSize: 14, color: planKey === "master" ? "rgba(255,255,255,0.6)" : "#6b7280", marginTop: 4 }}>
               답변 {planInfo.responseTime} 내 · 월 {planInfo.mentorChanges}회 멘토 교체
@@ -147,7 +148,7 @@ export default function SubscribePlanPage() {
             <div style={{ fontSize: 28, fontWeight: 900, color: planKey === "pro" ? "#92400e" : planTextColor }}>
               {planInfo.price.toLocaleString("ko-KR")}원
             </div>
-            <div style={{ fontSize: 12, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>/ 월</div>
+            <div style={{ fontSize: 12, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>30일 수강</div>
           </div>
         </div>
       </div>
@@ -159,7 +160,7 @@ export default function SubscribePlanPage() {
       </div>
 
       <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: 12, color: "#6b7280", lineHeight: 1.8 }}>
-        💡 구독 후 멘토 교체는 월 {planInfo.mentorChanges}회까지 가능합니다. 멘토 수익의 80%가 멘토에게 지급됩니다.
+        💡 수강 시작 후 멘토 교체는 {planInfo.mentorChanges}회까지 가능합니다. 멘토 수익의 80%가 멘토에게 지급됩니다.
       </div>
 
       {loading ? (
@@ -187,6 +188,7 @@ export default function SubscribePlanPage() {
                         {mentor.profiles?.nickname ?? "멘토"}
                       </span>
                       {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="sm" />}
+                      {(() => { const s = mentor.profiles?.reputation_scores?.[0]?.score ?? 0; return s > 0 ? <ReputationBadge score={s} size="sm" /> : null; })()}
                       {careerYears !== null && (
                         <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", borderRadius: 6, padding: "2px 7px" }}>경력 {careerYears}년</span>
                       )}
@@ -225,7 +227,7 @@ export default function SubscribePlanPage() {
                           cursor: isMe || isPaying || paying !== null ? "not-allowed" : "pointer",
                         }}
                       >
-                        {isMe ? "본인 멘토" : isPaying ? "결제 중..." : "이 멘토로 구독하기"}
+                        {isMe ? "본인 멘토" : isPaying ? "결제 중..." : "이 멘토로 수강하기"}
                       </button>
                       <Link
                         href={`/cad-school/mentor/${mentor.id}`}

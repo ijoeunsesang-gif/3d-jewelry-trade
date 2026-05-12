@@ -1,10 +1,10 @@
 export type Grade = "sprout" | "skilled" | "pro" | "master";
 
 export const GRADE_CONFIG = {
-  sprout:  { label: "입문",   emoji: "🌱", commission: 0.30, minSales: 0,   minAmount: 0,          color: "#16a34a", bg: "#dcfce7" },
-  skilled: { label: "숙련",   emoji: "⭐", commission: 0.20, minSales: 20,  minAmount: 1_000_000,  color: "#2563eb", bg: "#dbeafe" },
-  pro:     { label: "프로",   emoji: "💎", commission: 0.15, minSales: 100, minAmount: 5_000_000,  color: "#7c3aed", bg: "#ede9fe" },
-  master:  { label: "마스터", emoji: "👑", commission: 0.10, minSales: 200, minAmount: 10_000_000, color: "#d97706", bg: "#fef3c7" },
+  sprout:  { label: "셀러",     emoji: "🌱", commission: 0.30, minSales: 0,   minAmount: 0,          color: "#16a34a", bg: "#dcfce7" },
+  skilled: { label: "인증셀러", emoji: "⭐", commission: 0.20, minSales: 20,  minAmount: 1_000_000,  color: "#2563eb", bg: "#dbeafe" },
+  pro:     { label: "프로셀러", emoji: "💎", commission: 0.15, minSales: 100, minAmount: 5_000_000,  color: "#7c3aed", bg: "#ede9fe" },
+  master:  { label: "파트너",   emoji: "👑", commission: 0.10, minSales: 200, minAmount: 10_000_000, color: "#d97706", bg: "#fef3c7" },
 } as const;
 
 export function calcGrade(salesCount: number, salesAmount: number): Grade {

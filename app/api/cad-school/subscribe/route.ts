@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json({ error: "이미 활성 구독이 있습니다. 기존 구독을 취소 후 다시 시도해주세요." }, { status: 400 });
+      return NextResponse.json({ error: "이미 활성 수강 패키지가 있습니다. 기존 수강을 해지 후 다시 시도해주세요." }, { status: 400 });
     }
 
     // 멘토 확인
@@ -65,14 +65,14 @@ export async function POST(req: NextRequest) {
       {
         user_id: user.id,
         type: "cad_subscription",
-        title: `${mentorName} 멘토와 구독이 시작되었습니다`,
+        title: `${mentorName} 멘토와 수강이 시작되었습니다`,
         link: "/cad-school/my",
         is_read: false,
       },
       {
         user_id: mentor.user_id,
         type: "cad_subscription",
-        title: `${subscriberName}님이 구독을 시작했습니다`,
+        title: `${subscriberName}님이 수강을 시작했습니다`,
         link: "/cad-school/my",
         is_read: false,
       },

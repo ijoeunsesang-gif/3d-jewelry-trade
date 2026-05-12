@@ -27,7 +27,6 @@ type Subscription = {
   mentor_change_count: number;
   checklist_count: number;
   review_count: number;
-  stl_upload_count: number;
   role: "mentor" | "subscriber";
   other_name: string;
   mentor_id: string;
@@ -35,10 +34,10 @@ type Subscription = {
 };
 
 const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
-const PLAN_LIMITS: Record<string, { stl: number; checklist: number; review: number; mentorChanges: number }> = {
-  basic:  { stl: 3,    checklist: 2,  review: 2,  mentorChanges: 1 },
-  pro:    { stl: 10,   checklist: 5,  review: 5,  mentorChanges: 2 },
-  master: { stl: 9999, checklist: 10, review: 10, mentorChanges: 3 },
+const PLAN_LIMITS: Record<string, { checklist: number; review: number; mentorChanges: number }> = {
+  basic:  { checklist: 2,  review: 2,  mentorChanges: 1 },
+  pro:    { checklist: 5,  review: 5,  mentorChanges: 2 },
+  master: { checklist: 10, review: 10, mentorChanges: 3 },
 };
 
 export default function MyActivityPage() {
@@ -121,19 +120,19 @@ export default function MyActivityPage() {
 
     const { data: asSubscriber } = await supabase
       .from("cad_subscriptions")
-      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, stl_upload_count, mentor_id, mentor:cad_mentors(user_id, is_suspended, profiles(nickname))")
+      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, mentor_id, mentor:cad_mentors(user_id, is_suspended, profiles(nickname))")
       .eq("subscriber_id", uid)
       .order("created_at", { ascending: false });
 
     const subscriber: Subscription[] = (asSubscriber ?? []).map((s: unknown) => {
       const sub = s as {
         id: string; plan_type: string; status: string; expires_at: string; price: number;
-        mentor_change_count: number; checklist_count: number; review_count: number; stl_upload_count: number; mentor_id: string;
+        mentor_change_count: number; checklist_count: number; review_count: number; mentor_id: string;
         mentor: { user_id: string; is_suspended: boolean; profiles: { nickname: string } | null } | null;
       };
       return {
         id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
-        mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, stl_upload_count: sub.stl_upload_count, mentor_id: sub.mentor_id,
+        mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, mentor_id: sub.mentor_id,
         role: "subscriber", other_name: sub.mentor?.profiles?.nickname ?? "멘토", is_mentor_suspended: sub.mentor?.is_suspended ?? false,
       };
     });
@@ -142,19 +141,19 @@ export default function MyActivityPage() {
     if (mentorId) {
       const { data: asMentor } = await supabase
         .from("cad_subscriptions")
-        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, stl_upload_count, mentor_id, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
+        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, mentor_id, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
         .eq("mentor_id", mentorId)
         .order("created_at", { ascending: false });
       mentorSubs = (asMentor ?? []).map((s: unknown) => {
         const sub = s as {
           id: string; plan_type: string; status: string; expires_at: string; price: number;
-          mentor_change_count: number; checklist_count: number; review_count: number; stl_upload_count: number; mentor_id: string;
+          mentor_change_count: number; checklist_count: number; review_count: number; mentor_id: string;
           subscriber_profile: { nickname: string } | null;
         };
         return {
           id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
-          mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, stl_upload_count: sub.stl_upload_count, mentor_id: sub.mentor_id,
-          role: "mentor", other_name: sub.subscriber_profile?.nickname ?? "구독자", is_mentor_suspended: false,
+          mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, mentor_id: sub.mentor_id,
+          role: "mentor", other_name: sub.subscriber_profile?.nickname ?? "수강생", is_mentor_suspended: false,
         };
       });
     }
@@ -163,7 +162,7 @@ export default function MyActivityPage() {
   };
 
   const handleCancel = async (subId: string) => {
-    if (!confirm("구독을 해지하시겠습니까? 만료일까지는 계속 이용 가능합니다.")) return;
+    if (!confirm("수강을 해지하시겠습니까? 만료일까지는 계속 이용 가능합니다.")) return;
     setCancelling(subId);
     const token = getAccessToken();
     if (!token) { showError("로그인이 필요합니다."); setCancelling(null); return; }
@@ -174,14 +173,14 @@ export default function MyActivityPage() {
     });
     const d = await res.json();
     if (!res.ok) showError(d.error ?? "해지 실패");
-    else { showSuccess("구독이 해지되었습니다. 만료일까지 이용 가능합니다."); myUserId && loadSubscriptions(myUserId); }
+    else { showSuccess("수강이 해지되었습니다. 만료일까지 이용 가능합니다."); myUserId && loadSubscriptions(myUserId); }
     setCancelling(null);
   };
 
   const TABS: { key: MyTab; label: string; count: number }[] = [
     { key: "posts", label: "내 질문", count: posts.length },
     { key: "sessions", label: "건별 세션", count: sessions.length },
-    { key: "subscriptions", label: "구독", count: subscriptions.length },
+    { key: "subscriptions", label: "수강 패키지", count: subscriptions.length },
   ];
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
@@ -262,7 +261,7 @@ export default function MyActivityPage() {
       {tab === "subscriptions" && (
         <div>
           {subscriptions.length === 0 ? (
-            <EmptyState icon="📋" title="구독 내역이 없습니다" action={{ href: "/cad-school", label: "구독 플랜 보기" }} />
+            <EmptyState icon="📋" title="수강 내역이 없습니다" action={{ href: "/cad-school", label: "수강 패키지 보기" }} />
           ) : (
             <div style={{ display: "grid", gap: 16 }}>
               {subscriptions.map((sub) => {
@@ -277,7 +276,7 @@ export default function MyActivityPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                           <SubStatusBadge status={sub.status} />
                           <span style={{ fontSize: 11, fontWeight: 700, color: sub.role === "mentor" ? "#2563eb" : "#7c3aed", background: sub.role === "mentor" ? "#dbeafe" : "#ede9fe", padding: "2px 6px", borderRadius: 4 }}>
-                            {sub.role === "mentor" ? "멘토" : "구독자"}
+                            {sub.role === "mentor" ? "멘토" : "수강생"}
                           </span>
                           <span style={{ fontSize: 14, fontWeight: 900, color: GOLD, background: GOLD_LIGHT, padding: "2px 8px", borderRadius: 6 }}>
                             {PLAN_LABELS[sub.plan_type] ?? sub.plan_type}
@@ -290,7 +289,7 @@ export default function MyActivityPage() {
                           {isSubscriber ? `멘토: ${sub.other_name}` : `구독자: ${sub.other_name}`}
                         </div>
                         <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                          만료일: {new Date(sub.expires_at).toLocaleDateString("ko-KR")} · {sub.price.toLocaleString("ko-KR")}원/월
+                          만료일: {new Date(sub.expires_at).toLocaleDateString("ko-KR")} · {sub.price.toLocaleString("ko-KR")}원
                         </div>
                       </div>
 
@@ -301,12 +300,9 @@ export default function MyActivityPage() {
 
                     {/* 쿼터 바 (구독자 전용) */}
                     {isSubscriber && isActive && (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
-                        <MiniQuotaBar label="첨삭" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 14 }}>
+                        <MiniQuotaBar label="CAD수정" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
                         <MiniQuotaBar label="검수" used={sub.review_count} total={limits.review} color="#b45309" />
-                        {limits.stl < 9999
-                          ? <MiniQuotaBar label="STL" used={sub.stl_upload_count} total={limits.stl} color="#0369a1" />
-                          : <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 700, padding: "4px 0" }}>STL 무제한</div>}
                       </div>
                     )}
 
@@ -317,7 +313,7 @@ export default function MyActivityPage() {
                           onClick={() => handleCancel(sub.id)}
                           disabled={cancelling === sub.id}
                           style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}>
-                          {cancelling === sub.id ? "처리 중..." : "구독 해지"}
+                          {cancelling === sub.id ? "처리 중..." : "수강 해지"}
                         </button>
                       </div>
                     )}
