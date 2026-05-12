@@ -279,9 +279,9 @@ function FeedbackTab({ posts, loading }: { posts: Post[]; loading: boolean }) {
         }}
       >
         💡 질문 등록 무료 ·
-        답변 등록 시 <strong style={{ color: "#111827" }}>+5P</strong> ·
-        채택 시 <strong style={{ color: GOLD }}>+20P</strong> ·
-        월 최대 <strong style={{ color: "#111827" }}>1,000P</strong>
+        답변 등록 시 <strong style={{ color: "#111827" }}>+50P</strong> ·
+        채택 시 <strong style={{ color: GOLD }}>+300P</strong> ·
+        일 최대 <strong style={{ color: "#111827" }}>1,000P</strong> / 월 최대 <strong style={{ color: "#111827" }}>10,000P</strong>
       </div>
 
       {loading ? (
@@ -345,9 +345,10 @@ function PointInfoModal({ onClose }: { onClose: () => void }) {
           }}
         >
           <Section title="적립 방법">
-            <Row icon="✅">답변 등록: 답변 1건당 <Gold>5P</Gold> 적립</Row>
-            <Row icon="⭐">베스트 답변 채택: 채택 1건당 <Gold>20P</Gold> 적립</Row>
-            <Row icon="📌">월 최대 적립 한도: <Gold>1,000P</Gold></Row>
+            <Row icon="✅">답변 등록: 답변 1건당 <Gold>50P</Gold> 적립</Row>
+            <Row icon="⭐">베스트 답변 채택: 채택 1건당 <Gold>300P</Gold> 적립</Row>
+            <Row icon="📅">일일 최대 적립 한도: <Gold>1,000P</Gold></Row>
+            <Row icon="📌">월 최대 적립 한도: <Gold>10,000P</Gold></Row>
           </Section>
 
           <Section title="사용 방법">
@@ -358,7 +359,7 @@ function PointInfoModal({ onClose }: { onClose: () => void }) {
           <Section title="유의사항" last>
             <Row icon="❗">질문 등록은 무료입니다</Row>
             <Row icon="❗">포인트는 캐드스쿨 답변 활동을 통해서만 적립됩니다</Row>
-            <Row icon="❗">월 1,000P 한도 초과 시 추가 적립되지 않습니다</Row>
+            <Row icon="❗">일 1,000P / 월 10,000P 한도 초과 시 추가 적립되지 않습니다</Row>
           </Section>
         </div>
 

@@ -6,23 +6,38 @@ const adminSupabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const BEST_ANSWER_REWARD = 20;
-const MONTHLY_CAP = 1000;
+const BEST_ANSWER_REWARD = 300;
+const DAILY_CAP = 1000;
+const MONTHLY_CAP = 10000;
 
-async function getMonthlyEarned(userId: string): Promise<number> {
-  const monthStart = new Date();
+async function getCadEarned(userId: string): Promise<{ daily: number; monthly: number }> {
+  const now = new Date();
+
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+
+  const monthStart = new Date(now);
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
   const { data } = await adminSupabase
     .from("points")
-    .select("amount")
+    .select("amount, created_at")
     .eq("user_id", userId)
     .gt("amount", 0)
     .ilike("reason", "캐드스쿨%")
     .gte("created_at", monthStart.toISOString());
 
-  return (data ?? []).reduce((sum: number, r: { amount: number }) => sum + r.amount, 0);
+  const rows = (data ?? []) as { amount: number; created_at: string }[];
+  const dayStartTs = dayStart.getTime();
+
+  let daily = 0;
+  let monthly = 0;
+  for (const r of rows) {
+    monthly += r.amount;
+    if (new Date(r.created_at).getTime() >= dayStartTs) daily += r.amount;
+  }
+  return { daily, monthly };
 }
 
 export async function POST(req: NextRequest) {
@@ -65,9 +80,11 @@ export async function POST(req: NextRequest) {
       .update({ status: "closed" })
       .eq("id", post.id);
 
-    // 월 1000P 상한 확인 (답변 작성자 기준)
-    const monthlyEarned = await getMonthlyEarned(comment.user_id);
-    const actualReward = Math.max(0, Math.min(BEST_ANSWER_REWARD, MONTHLY_CAP - monthlyEarned));
+    // 일일·월 한도 확인 (답변 작성자 기준)
+    const { daily, monthly } = await getCadEarned(comment.user_id);
+    const remainingDaily = Math.max(0, DAILY_CAP - daily);
+    const remainingMonthly = Math.max(0, MONTHLY_CAP - monthly);
+    const actualReward = Math.min(BEST_ANSWER_REWARD, remainingDaily, remainingMonthly);
 
     if (actualReward > 0) {
       await adminSupabase.from("points").insert({
