@@ -13,13 +13,13 @@ const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 
 type FileItem = { name: string; url: string; ext: string };
-type MsgType = "question" | "answer" | "checklist" | "review";
+type MsgType = "question" | "answer" | "checklist" | "review" | "post_review_cad";
 
 const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
-const PLAN_LIMITS: Record<string, { checklist: number; review: number; mentorChanges: number; hours: number }> = {
-  basic:  { checklist: 2,  review: 2,  mentorChanges: 1, hours: 48 },
-  pro:    { checklist: 5,  review: 5,  mentorChanges: 2, hours: 36 },
-  master: { checklist: 10, review: 10, mentorChanges: 3, hours: 24 },
+const PLAN_LIMITS: Record<string, { checklist: number; review: number; post_review_cad: number; mentorChanges: number; hours: number }> = {
+  basic:  { checklist: 2,  review: 2,  post_review_cad: 1, mentorChanges: 1, hours: 48 },
+  pro:    { checklist: 5,  review: 5,  post_review_cad: 3, mentorChanges: 2, hours: 36 },
+  master: { checklist: 10, review: 10, post_review_cad: 5, mentorChanges: 3, hours: 24 },
 };
 
 type Subscription = {
@@ -31,6 +31,7 @@ type Subscription = {
   mentor_change_count: number;
   checklist_count: number;
   review_count: number;
+  post_review_cad_count: number;
   expires_at: string;
   mentor: {
     id: string;
@@ -67,10 +68,11 @@ type AvailableMentor = {
 };
 
 const MSG_TYPE_LABELS: Record<MsgType, { label: string; color: string; bg: string }> = {
-  question:  { label: "질문",   color: "#1d4ed8", bg: "#dbeafe" },
-  answer:    { label: "답변",   color: "#166534", bg: "#dcfce7" },
-  checklist: { label: "CAD수정", color: "#7c3aed", bg: "#ede9fe" },
-  review:    { label: "검수",   color: "#b45309", bg: "#fef3c7" },
+  question:        { label: "질문",        color: "#1d4ed8", bg: "#dbeafe" },
+  answer:          { label: "답변",        color: "#166534", bg: "#dcfce7" },
+  checklist:       { label: "CAD수정",     color: "#7c3aed", bg: "#ede9fe" },
+  review:          { label: "검수",        color: "#b45309", bg: "#fef3c7" },
+  post_review_cad: { label: "검수+CAD수정", color: "#0891b2", bg: "#cffafe" },
 };
 
 export default function SubscriptionChatPage() {
@@ -84,7 +86,9 @@ export default function SubscriptionChatPage() {
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [content, setContent] = useState("");
-  const [msgType, setMsgType] = useState<"question" | "checklist" | "review">("question");
+  const [msgType, setMsgType] = useState<"question" | "checklist" | "review" | "post_review_cad">("question");
+  const [showAddonModal, setShowAddonModal] = useState(false);
+  const [addonBlockedType, setAddonBlockedType] = useState<"checklist" | "review" | "post_review_cad" | null>(null);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -104,7 +108,7 @@ export default function SubscriptionChatPage() {
   const loadData = useCallback(async () => {
     const { data: subData } = await supabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, grade, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, grade, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
       .eq("id", id)
       .single();
 
@@ -310,9 +314,10 @@ export default function SubscriptionChatPage() {
 
         {/* 쿼터 진행 바 */}
         {isSubscriber && (
-          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
             <QuotaBar label="CAD수정" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
             <QuotaBar label="검수" used={sub.review_count} total={limits.review} color="#b45309" />
+            <QuotaBar label="검수+CAD수정" used={sub.post_review_cad_count} total={limits.post_review_cad} color="#0891b2" />
           </div>
         )}
         {isMentor && (
@@ -391,16 +396,31 @@ export default function SubscriptionChatPage() {
           <div style={{ maxWidth: 760, margin: "0 auto" }}>
             {/* 타입 선택 (구독자만) */}
             {isSubscriber && (
-              <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                {(["question", "checklist", "review"] as const).map((t) => (
-                  <button key={t} onClick={() => setMsgType(t)} style={{
-                    fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 8, border: "none", cursor: "pointer",
-                    background: msgType === t ? "#111827" : "#f3f4f6",
-                    color: msgType === t ? "white" : "#6b7280",
-                  }}>
-                    {t === "question" ? "질문" : t === "checklist" ? "CAD수정" : "검수"}
-                  </button>
-                ))}
+              <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                {(["question", "checklist", "review", "post_review_cad"] as const).map((t) => {
+                  const isExceeded =
+                    (t === "checklist"       && sub.checklist_count       >= limits.checklist) ||
+                    (t === "review"          && sub.review_count          >= limits.review) ||
+                    (t === "post_review_cad" && sub.post_review_cad_count >= limits.post_review_cad);
+                  const label = t === "question" ? "질문" : t === "checklist" ? "CAD수정" : t === "review" ? "검수" : "검수+CAD수정";
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => {
+                        if (isExceeded) { setAddonBlockedType(t as "checklist" | "review" | "post_review_cad"); setShowAddonModal(true); }
+                        else setMsgType(t);
+                      }}
+                      style={{
+                        fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 8, border: isExceeded ? "1px solid #fecaca" : "none",
+                        cursor: "pointer",
+                        background: msgType === t ? "#111827" : isExceeded ? "#fff5f5" : "#f3f4f6",
+                        color: msgType === t ? "white" : isExceeded ? "#dc2626" : "#6b7280",
+                      }}
+                    >
+                      {label}{isExceeded && " ⚠️"}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -485,6 +505,36 @@ export default function SubscriptionChatPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 횟수 초과 → 추가 구매 모달 */}
+      {showAddonModal && addonBlockedType && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 24, padding: "28px 24px", width: "100%", maxWidth: 400 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>횟수 초과</div>
+              <button onClick={() => setShowAddonModal(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#6b7280" }}>×</button>
+            </div>
+            <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#dc2626", marginBottom: 18, lineHeight: 1.7 }}>
+              {addonBlockedType === "checklist"       && "이번 수강 기간 CAD수정 횟수를 모두 사용했습니다."}
+              {addonBlockedType === "review"          && "이번 수강 기간 실무검수 횟수를 모두 사용했습니다."}
+              {addonBlockedType === "post_review_cad" && "이번 수강 기간 검수+CAD수정 횟수를 모두 사용했습니다."}
+              <br />추가 구매하시겠습니까?
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <Link
+                href={`/cad-school/addon?sub=${id}&type=${addonBlockedType}`}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 48, borderRadius: 14, background: "#111827", color: "white", fontWeight: 900, fontSize: 14, textDecoration: "none" }}
+                onClick={() => setShowAddonModal(false)}
+              >
+                이용권 추가 구매
+              </Link>
+              <button onClick={() => setShowAddonModal(false)} style={{ height: 44, borderRadius: 14, border: "1px solid #e5e7eb", background: "white", color: "#6b7280", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                닫기
+              </button>
+            </div>
           </div>
         </div>
       )}

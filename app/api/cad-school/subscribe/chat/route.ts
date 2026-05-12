@@ -6,10 +6,10 @@ const adminSupabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PLAN_LIMITS: Record<string, { checklist: number; review: number }> = {
-  basic:  { checklist: 2,  review: 2  },
-  pro:    { checklist: 5,  review: 5  },
-  master: { checklist: 10, review: 10 },
+const PLAN_LIMITS: Record<string, { checklist: number; review: number; post_review_cad: number }> = {
+  basic:  { checklist: 2,  review: 2,  post_review_cad: 1  },
+  pro:    { checklist: 5,  review: 5,  post_review_cad: 3  },
+  master: { checklist: 10, review: 10, post_review_cad: 5  },
 };
 
 export async function POST(req: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const { data: sub } = await adminSupabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, checklist_count, review_count, mentor:cad_mentors(user_id)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, checklist_count, review_count, post_review_cad_count, checklist_extra_limit, review_extra_limit, post_review_cad_extra_limit, mentor:cad_mentors(user_id)")
       .eq("id", subscription_id)
       .single();
 
@@ -45,15 +45,23 @@ export async function POST(req: NextRequest) {
     // 쿼터 검증 및 차감 (구독자가 보내는 경우만)
     if (isSubscriber) {
       if (message_type === "checklist") {
-        if (sub.checklist_count >= limits.checklist) {
+        const effectiveLimit = limits.checklist + (sub.checklist_extra_limit ?? 0);
+        if (sub.checklist_count >= effectiveLimit) {
           return NextResponse.json({ error: "이번 달 CAD수정 횟수를 모두 사용했습니다." }, { status: 400 });
         }
         await adminSupabase.from("cad_subscriptions").update({ checklist_count: sub.checklist_count + 1, updated_at: new Date().toISOString() }).eq("id", subscription_id);
       } else if (message_type === "review") {
-        if (sub.review_count >= limits.review) {
+        const effectiveLimit = limits.review + (sub.review_extra_limit ?? 0);
+        if (sub.review_count >= effectiveLimit) {
           return NextResponse.json({ error: "이번 달 검수 횟수를 모두 사용했습니다." }, { status: 400 });
         }
         await adminSupabase.from("cad_subscriptions").update({ review_count: sub.review_count + 1, updated_at: new Date().toISOString() }).eq("id", subscription_id);
+      } else if (message_type === "post_review_cad") {
+        const effectiveLimit = limits.post_review_cad + (sub.post_review_cad_extra_limit ?? 0);
+        if (sub.post_review_cad_count >= effectiveLimit) {
+          return NextResponse.json({ error: "이번 달 검수+CAD수정 횟수를 모두 사용했습니다." }, { status: 400 });
+        }
+        await adminSupabase.from("cad_subscriptions").update({ post_review_cad_count: sub.post_review_cad_count + 1, updated_at: new Date().toISOString() }).eq("id", subscription_id);
       }
     }
 

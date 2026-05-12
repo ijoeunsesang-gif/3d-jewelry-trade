@@ -151,8 +151,9 @@ const PLANS = [
       "멘토 1명 지정 (월 1회 교체 가능)",
       "질문 무제한",
       "파일 첨부 무제한",
-      "CAD수정 월 2회",
-      "실무 검수 월 2회",
+      "CAD수정 2회",
+      "실무 검수 2회",
+      "검수 후 CAD수정 1회",
       "답변 48시간 내 (주말·연휴 제외)",
     ],
     style: { bg: "white", border: "#e5e7eb", titleColor: "#111827", badgeBg: "", badgeText: "" },
@@ -166,8 +167,9 @@ const PLANS = [
       "멘토 1명 지정 (월 2회 교체 가능)",
       "질문 무제한",
       "파일 첨부 무제한",
-      "CAD수정 월 5회",
-      "실무 검수 월 5회",
+      "CAD수정 5회",
+      "실무 검수 5회",
+      "검수 후 CAD수정 3회",
       "답변 36시간 내 (주말·연휴 제외)",
     ],
     style: { bg: GOLD_LIGHT, border: GOLD, titleColor: "#92400e", badgeBg: GOLD, badgeText: "white" },
@@ -181,8 +183,9 @@ const PLANS = [
       "멘토 1명 지정 (월 3회 교체 가능)",
       "질문 무제한",
       "파일 첨부 무제한",
-      "CAD수정 월 10회",
-      "실무 검수 월 10회",
+      "CAD수정 10회",
+      "실무 검수 10회",
+      "검수 후 CAD수정 5회",
       "답변 24시간 내 (주말·연휴 제외)",
     ],
     style: { bg: "#111827", border: "#374151", titleColor: "white", badgeBg: "rgba(255,255,255,0.15)", badgeText: "rgba(255,255,255,0.9)" },
@@ -249,9 +252,11 @@ function SubscriptionTab() {
           );
         })}
       </div>
-      <p style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginTop: 8 }}>
-        * 1회성 결제이며, 만료일까지 서비스가 유지됩니다. 멘토 수익의 80%가 멘토에게 지급됩니다.
-      </p>
+      <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px", marginTop: 12, fontSize: 12, color: "#6b7280", lineHeight: 1.9 }}>
+        <div>⚠️ 범위를 초과하는 수정은 추가 비용이 발생할 수 있습니다.</div>
+        <div>⚠️ 복잡한 구조 변경은 별도 상담 후 진행됩니다.</div>
+        <div style={{ marginTop: 4 }}>* 1회성 결제이며, 만료일까지 서비스가 유지됩니다. 멘토 수익의 80%가 멘토에게 지급됩니다.</div>
+      </div>
     </div>
   );
 }
