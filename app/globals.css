@@ -259,6 +259,12 @@ body { overflow-x: hidden; }
 .messages-layout > * { min-width: 0; }
 .messages-back-btn { display: none !important; }
 
+@media (min-width: 769px) {
+  .messages-chat-panel {
+    height: calc(100vh - 230px);
+  }
+}
+
 @media (max-width: 768px) {
   .messages-main {
     padding-left: 12px !important;

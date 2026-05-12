@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -48,9 +48,15 @@ function MessagesContent() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
 
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     initMessages();
   }, []);
+
+  useEffect(() => {
+    chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     if (queryConversationId) {
@@ -265,6 +271,9 @@ function MessagesContent() {
       setMessageText("");
       await fetchMessages(selectedConversationId);
       await initMessages(true);
+      setTimeout(() => {
+        chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
+      }, 100);
       window.dispatchEvent(new Event("messages-updated"));
 
       // 상대방에게 푸시 알림 (fire-and-forget)
@@ -600,6 +609,7 @@ function MessagesContent() {
           </div>
 
           <div
+            ref={chatContainerRef}
             style={{
               padding: 20,
               overflowY: "auto",
@@ -683,7 +693,7 @@ function MessagesContent() {
                 border: "1px solid #d1d5db",
                 padding: "0 14px",
                 outline: "none",
-                fontSize: 14,
+                fontSize: 16,
                 boxSizing: "border-box",
               }}
             />
