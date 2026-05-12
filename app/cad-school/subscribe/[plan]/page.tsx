@@ -40,7 +40,7 @@ export default function SubscribePlanPage() {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
-  const [paying, setPaying] = useState<string | null>(null); // mentorId being paid
+  const [paying, setPaying] = useState<string | null>(null);
 
   useEffect(() => {
     if (!["basic", "pro", "master"].includes(plan ?? "")) {
@@ -83,7 +83,7 @@ export default function SubscribePlanPage() {
           const script = document.createElement("script");
           script.src = "https://js.tosspayments.com/v2/standard";
           script.onload = () => resolve();
-          script.onerror = () => reject(new Error("script load failed"));
+          script.onerror = () => reject(new Error("스크립트 로드 실패"));
           document.head.appendChild(script);
         });
       }
@@ -104,9 +104,10 @@ export default function SubscribePlanPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tossPayments = (window as any).TossPayments(clientKey);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const widgets = tossPayments.widgets({ customerKey: "ANONYMOUS" }) as any;
-      await widgets.setAmount({ currency: "KRW", value: planInfo.price });
-      await widgets.requestPayment({
+      const payment = tossPayments.payment({ customerKey: payload?.sub ?? "ANONYMOUS" }) as any;
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: planInfo.price },
         orderId,
         orderName: `[캐드스쿨] ${planInfo.label} 구독 - ${mentor.profiles?.nickname ?? "멘토"}`,
         successUrl: `${window.location.origin}/cad-school/payment/success`,
@@ -114,7 +115,9 @@ export default function SubscribePlanPage() {
         customerEmail: payload?.email ?? "",
         customerName: payload?.sub ?? "구독자",
       });
-    } catch (e) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      if (!msg.includes("취소")) showError("결제 중 오류가 발생했습니다.");
       console.error("결제 실패:", e);
     } finally {
       setPaying(null);
@@ -127,7 +130,6 @@ export default function SubscribePlanPage() {
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-      {/* 브레드크럼 */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <Link href="/cad-school" style={{ color: "#6b7280", textDecoration: "none", fontSize: 14 }}>← 캐드스쿨</Link>
         <span style={{ color: "#d1d5db" }}>/</span>
@@ -178,10 +180,7 @@ export default function SubscribePlanPage() {
             const isPaying = paying === mentor.id;
             const stars = Math.round(mentor.avg_rating);
             return (
-              <div
-                key={mentor.id}
-                style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "20px 22px" }}
-              >
+              <div key={mentor.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "20px 22px" }}>
                 <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
                   <Avatar url={mentor.profiles?.avatar_url} size={56} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -192,7 +191,6 @@ export default function SubscribePlanPage() {
                       {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="sm" />}
                     </div>
 
-                    {/* 평점 + 답변률 */}
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
                       {mentor.total_ratings > 0 ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -219,13 +217,10 @@ export default function SubscribePlanPage() {
                         onClick={() => handleSubscribe(mentor)}
                         disabled={isMe || isPaying || paying !== null}
                         style={{
-                          padding: "10px 22px",
-                          borderRadius: 12,
-                          border: "none",
+                          padding: "10px 22px", borderRadius: 12, border: "none",
                           background: isMe ? "#f3f4f6" : isPaying ? "#d1d5db" : "#111827",
                           color: isMe ? "#9ca3af" : "white",
-                          fontWeight: 800,
-                          fontSize: 13,
+                          fontWeight: 800, fontSize: 13,
                           cursor: isMe || isPaying || paying !== null ? "not-allowed" : "pointer",
                         }}
                       >

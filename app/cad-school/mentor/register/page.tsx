@@ -18,9 +18,6 @@ export default function MentorRegisterPage() {
   const [existing, setExisting] = useState(false);
 
   const [intro, setIntro] = useState("");
-  const [perSession, setPerSession] = useState("");
-  const [pkg5, setPkg5] = useState("");
-  const [pkg10, setPkg10] = useState("");
   const [dailyLimit, setDailyLimit] = useState("2");
 
   useEffect(() => {
@@ -45,16 +42,13 @@ export default function MentorRegisterPage() {
 
     const { data: mentorData } = await supabase
       .from("cad_mentors")
-      .select("intro, per_session_price, package_5_price, package_10_price, daily_limit")
+      .select("intro, daily_limit")
       .eq("user_id", uid)
       .maybeSingle();
 
     if (mentorData) {
       setExisting(true);
       setIntro(mentorData.intro ?? "");
-      setPerSession(String(mentorData.per_session_price ?? 0));
-      setPkg5(String(mentorData.package_5_price ?? 0));
-      setPkg10(String(mentorData.package_10_price ?? 0));
       setDailyLimit(String(mentorData.daily_limit ?? 2));
     }
     setLoading(false);
@@ -70,9 +64,6 @@ export default function MentorRegisterPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         intro: intro.trim(),
-        per_session_price: parseInt(perSession) || 0,
-        package_5_price: parseInt(pkg5) || 0,
-        package_10_price: parseInt(pkg10) || 0,
         daily_limit: parseInt(dailyLimit) || 2,
       }),
     });
@@ -150,26 +141,19 @@ export default function MentorRegisterPage() {
           />
         </Field>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-          <Field label="건별 멘토링 가격 (원)">
-            <input type="number" value={perSession} onChange={(e) => setPerSession(e.target.value)} placeholder="30000" min={0} style={inputStyle} />
-          </Field>
-          <Field label="1일 최대 수락 건수">
-            <input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} placeholder="2" min={1} max={10} style={inputStyle} />
-          </Field>
-        </div>
+        <Field label="1일 최대 수락 건수">
+          <input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} placeholder="2" min={1} max={10} style={inputStyle} />
+        </Field>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-          <Field label="5회 패키지 가격 (원)">
-            <input type="number" value={pkg5} onChange={(e) => setPkg5(e.target.value)} placeholder="120000" min={0} style={inputStyle} />
-          </Field>
-          <Field label="10회 패키지 가격 (원)">
-            <input type="number" value={pkg10} onChange={(e) => setPkg10(e.target.value)} placeholder="200000" min={0} style={inputStyle} />
-          </Field>
-        </div>
-
-        <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px", marginBottom: 24, fontSize: 12, color: "#6b7280", lineHeight: 1.8 }}>
-          💡 가격을 0으로 설정하면 해당 서비스는 목록에 표시되지 않습니다.
+        {/* 고정 가격 안내 */}
+        <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 12, padding: "14px 16px", marginBottom: 28, fontSize: 13, color: "#0c4a6e", lineHeight: 2 }}>
+          💰 <strong>건별 멘토링 가격은 플랫폼 고정가</strong>로 운영됩니다.<br />
+          <span style={{ paddingLeft: 22, display: "block" }}>
+            이미지 검토 <strong>3,000원</strong> &nbsp;·&nbsp; 파일 검토 <strong>5,000원</strong> &nbsp;·&nbsp; 파일 수정 <strong>15,000원</strong>
+          </span>
+          <span style={{ paddingLeft: 22, display: "block", fontSize: 11, color: "#0369a1", marginTop: 2 }}>
+            멘토 수익의 80%가 멘토에게 지급됩니다.
+          </span>
         </div>
 
         <button
