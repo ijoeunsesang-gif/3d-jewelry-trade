@@ -60,8 +60,13 @@ function MessagesContent() {
   }, []);
 
   useEffect(() => {
-    chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+    if (!messages || messages.length === 0) return;
+    setTimeout(() => {
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      }
+    }, 100);
+  }, [selectedConversationId, messages]);
 
   // 채팅창 밖으로 파일 드롭 시 브라우저가 파일 여는 것 방지
   useEffect(() => {
@@ -296,18 +301,22 @@ function MessagesContent() {
     e.target.value = "";
   };
 
-  const handleImageDownload = async (url: string) => {
+  const handleImageDownload = async (url: string, filename?: string) => {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error();
       const blob = await res.blob();
       const ext = url.split(".").pop()?.split("?")[0] || "jpg";
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `chat-image.${ext}`;
+      a.download = filename || `chat-image.${ext}`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(a.href);
     } catch {
-      showError("다운로드 실패");
+      // CORS 등 fetch 실패 시 새 탭으로 fallback
+      window.open(url, "_blank");
     }
   };
 
