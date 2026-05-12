@@ -301,23 +301,16 @@ function MessagesContent() {
     e.target.value = "";
   };
 
-  const handleImageDownload = async (url: string, filename?: string) => {
-    try {
-      const res = await fetch(url, { mode: "cors" });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const ext = url.split(".").pop()?.split("?")[0] || "jpg";
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename || `chat-image.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    } catch {
-      // CORS 등 fetch 실패 시 새 탭으로 fallback
-      window.open(url, "_blank");
-    }
+  const handleImageDownload = (url: string, filename?: string) => {
+    const ext = url.split(".").pop()?.split("?")[0] || "jpg";
+    const name = filename || `chat-image.${ext}`;
+    const proxyUrl = `/api/download-image?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(name)}`;
+    const a = document.createElement("a");
+    a.href = proxyUrl;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleChatDragOver = (e: React.DragEvent) => {
