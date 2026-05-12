@@ -154,13 +154,19 @@ export default function MentorDetailPage() {
         orderName,
         successUrl: `${window.location.origin}/cad-school/payment/success`,
         failUrl: `${window.location.origin}/cad-school/payment/fail`,
-        customerEmail: payload?.email ?? "",
-        customerName: payload?.sub ?? "멘티",
+        ...(payload?.email ? { customerEmail: payload.email } : {}),
+        customerName: "구매자",
       });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "";
-      if (!msg.includes("취소")) showError("결제 중 오류가 발생했습니다.");
-      console.error("결제 실패:", e);
+      // TossPayments SDK는 Error 인스턴스가 아닌 { code, message } 객체를 던짐
+      const errObj = (e !== null && typeof e === "object") ? (e as Record<string, unknown>) : {};
+      const errCode = typeof errObj.code === "string" ? errObj.code : "";
+      const errMsg = e instanceof Error ? e.message : typeof errObj.message === "string" ? errObj.message : "";
+      const isCanceled = errMsg.includes("취소") || errCode.includes("CANCELED");
+      if (!isCanceled) {
+        showError("결제 중 오류가 발생했습니다.");
+        console.error("결제 실패:", e);
+      }
     } finally {
       setPaying(false);
     }
