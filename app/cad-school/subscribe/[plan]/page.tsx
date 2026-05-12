@@ -8,7 +8,7 @@ import GradeBadge from "../../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
-import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -95,9 +95,10 @@ export default function SubscribePlanPage() {
       }));
 
       const tossPayments = await loadTossPayments(clientKey);
-      const widgets = tossPayments.widgets({ customerKey: payload?.sub ?? "ANONYMOUS" });
-      await widgets.setAmount({ currency: "KRW", value: planInfo.price });
-      await widgets.requestPayment({
+      const payment = tossPayments.payment({ customerKey: payload?.sub ?? ANONYMOUS });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: planInfo.price },
         orderId,
         orderName: `[캐드스쿨] ${planInfo.label} 구독 - ${mentor.profiles?.nickname ?? "멘토"}`,
         successUrl: `${window.location.origin}/cad-school/payment/success`,

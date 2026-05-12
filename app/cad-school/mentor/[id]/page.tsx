@@ -8,7 +8,7 @@ import GradeBadge from "../../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
-import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -149,9 +149,10 @@ export default function MentorDetailPage() {
       }));
 
       const tossPayments = await loadTossPayments(clientKey);
-      const widgets = tossPayments.widgets({ customerKey: payload?.sub ?? "ANONYMOUS" });
-      await widgets.setAmount({ currency: "KRW", value: price });
-      await widgets.requestPayment({
+      const payment = tossPayments.payment({ customerKey: payload?.sub ?? ANONYMOUS });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: price },
         orderId,
         orderName,
         successUrl: `${window.location.origin}/cad-school/payment/success`,
