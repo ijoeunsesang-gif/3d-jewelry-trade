@@ -54,3 +54,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "오류 발생" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  const token = req.headers.get("authorization")?.replace("Bearer ", "");
+  if (!token) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+
+  const { data: { user }, error: authErr } = await adminSupabase.auth.getUser(token);
+  if (authErr || !user) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
+
+  try {
+    const { is_active } = await req.json();
+    const { error } = await adminSupabase.from("cad_mentors").update({ is_active }).eq("user_id", user.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "오류 발생" }, { status: 500 });
+  }
+}

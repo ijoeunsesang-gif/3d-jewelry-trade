@@ -9,7 +9,7 @@ import GradeBadge from "../components/GradeBadge";
 import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
-type TabId = "basic" | "follow" | "seller" | "stats" | "grade" | "points";
+type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points";
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
 type PurchaseRow = { id: string; model_id: string; price: number; created_at: string };
 type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
@@ -24,7 +24,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t && ["basic","follow","seller","stats","grade"].includes(t)) {
+    if (t && ["basic","follow","seller","mentor","stats","grade"].includes(t)) {
       setActiveTab(t as TabId);
     }
   }, []);
@@ -466,6 +466,7 @@ export default function ProfilePage() {
     { id: "grade", label: "내 등급", sellerOnly: true },
     { id: "follow", label: "팔로우" },
     { id: "seller", label: "판매자 등록" },
+    { id: "mentor", label: "멘토등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
     { id: "points", label: "포인트" },
   ];
@@ -964,46 +965,12 @@ export default function ProfilePage() {
                   ) : null}
                 </div>
               )}
-              {/* ─ 멘토 등록 섹션 ─ */}
-              <div>
-                <h2 className="pf-section-title" style={sectionTitle}>멘토 등록</h2>
-                <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", marginBottom: 16, fontSize: 13, color: "#374151", lineHeight: 1.9 }}>
-                  <p style={{ margin: "0 0 8px" }}>
-                    멘토는 캐드스쿨에서 입문자들의 질문에 답변하고 멘토링을 제공하는 전문가입니다.
-                  </p>
-                  <p style={{ margin: "0 0 8px" }}>
-                    <strong>건별 멘토링</strong>은 입문자의 파일을 수정·납품하는 방식이고,<br />
-                    <strong>횟수제 멘토링</strong>은 패키지를 구매한 입문자와 채팅으로 질문을 받는 방식입니다.
-                  </p>
-                  <p style={{ margin: 0, color: "#6b7280" }}>
-                    멘토 활동을 통해 수익을 창출할 수 있으며, 플랫폼 수수료가 적용됩니다.
-                  </p>
-                </div>
-                <div style={{ background: "#fdf6e3", border: "1px solid #c9a84c66", borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#92681a", lineHeight: 1.8 }}>
-                  💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.<br />
-                  추후 멘토 등록 조건이 변경될 수 있습니다.
-                </div>
-                <a
-                  href="/cad-school/mentor/register"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    height: 48,
-                    padding: "0 24px",
-                    borderRadius: 12,
-                    background: isMentor ? "white" : "#111827",
-                    border: isMentor ? "1px solid #d1d5db" : "none",
-                    color: isMentor ? "#374151" : "white",
-                    fontWeight: 800,
-                    fontSize: 14,
-                    textDecoration: "none",
-                  }}
-                >
-                  🎓 {isMentor ? "멘토 정보 수정" : "멘토 등록하기"}
-                </a>
-              </div>
             </div>
+          )}
+
+          {/* 멘토등록 탭 */}
+          {activeTab === "mentor" && (
+            <MentorTab userId={userId} isSeller={isSeller} isMentor={isMentor} setIsMentor={setIsMentor} />
           )}
 
           {/* 내 등급 탭 (seller 전용) */}
@@ -1643,6 +1610,265 @@ function SalesStatCard({ title, value, sub }: { title: string; value: string; su
       <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 700 }}>{title}</div>
       <div style={{ marginTop: 8, fontSize: 22, lineHeight: 1.1, fontWeight: 900, color: "#111827" }}>{value}</div>
       <div style={{ marginTop: 5, color: "#9ca3af", fontSize: 11 }}>{sub}</div>
+    </div>
+  );
+}
+
+/* ── 멘토등록 탭 ── */
+const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
+
+type MentorData = {
+  id: string;
+  intro: string;
+  avg_rating: number;
+  total_ratings: number;
+  response_rate: number;
+  is_active: boolean;
+  is_suspended: boolean;
+  warning_count: number;
+};
+type MentorSub = {
+  id: string;
+  plan_type: string;
+  status: string;
+  started_at: string | null;
+  expires_at: string;
+  checklist_count: number;
+  review_count: number;
+  subscriber_profile: { nickname: string | null } | null;
+};
+type MentorWarning = {
+  id: string;
+  reason: string;
+  warning_type: string;
+  created_at: string;
+};
+
+function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string; isSeller: boolean; isMentor: boolean; setIsMentor: (v: boolean) => void }) {
+  const [mentorData, setMentorData] = useState<MentorData | null>(null);
+  const [subscriptions, setSubscriptions] = useState<MentorSub[]>([]);
+  const [warnings, setWarnings] = useState<MentorWarning[]>([]);
+  const [tabLoading, setTabLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!userId || loadedRef.current) return;
+    loadedRef.current = true;
+    loadMentorData();
+  }, [userId]);
+
+  const loadMentorData = async () => {
+    setTabLoading(true);
+    const { data: mentor } = await supabase
+      .from("cad_mentors")
+      .select("id, intro, avg_rating, total_ratings, response_rate, is_active, is_suspended, warning_count")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (mentor) {
+      setMentorData(mentor as MentorData);
+
+      const [{ data: subs }, { data: warns }] = await Promise.all([
+        supabase
+          .from("cad_subscriptions")
+          .select("id, plan_type, status, started_at, expires_at, checklist_count, review_count, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
+          .eq("mentor_id", mentor.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("cad_mentor_warnings")
+          .select("id, reason, warning_type, created_at")
+          .eq("mentor_id", mentor.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      setSubscriptions((subs ?? []) as unknown as MentorSub[]);
+      setWarnings((warns ?? []) as MentorWarning[]);
+    }
+    setTabLoading(false);
+  };
+
+  const handleToggleActive = async () => {
+    if (!mentorData) return;
+    const token = getAccessToken();
+    if (!token) { showError("로그인이 필요합니다."); return; }
+    setToggling(true);
+    const newActive = !mentorData.is_active;
+    const res = await fetch("/api/cad-school/mentor", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ is_active: newActive }),
+    });
+    const d = await res.json();
+    if (!res.ok) showError(d.error ?? "변경 실패");
+    else {
+      setMentorData((prev) => prev ? { ...prev, is_active: newActive } : prev);
+      showSuccess(newActive ? "멘토 활동이 재개되었습니다." : "멘토 활동이 일시중지되었습니다.");
+    }
+    setToggling(false);
+  };
+
+  if (tabLoading) return <div style={{ padding: "20px 0", color: "#6b7280" }}>불러오는 중...</div>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <h2 className="pf-section-title" style={sectionTitle}>멘토 등록</h2>
+
+      {/* 설명 섹션 */}
+      <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.9 }}>
+        멘토는 캐드스쿨에서 입문자들의 질문에 답변하고 멘토링을 제공하는 전문가입니다.
+        <strong> 첨삭</strong>은 입문자의 파일을 멘토가 직접 수정 후 반환하는 방식이며,
+        <strong> 실무 검수</strong>는 판매/출력 가능 여부를 컨펌해주는 방식입니다.
+        멘토 활동을 통해 구독료의 <strong>80%</strong>를 수익으로 받을 수 있습니다.
+      </div>
+
+      <div style={{ background: "#fdf6e3", border: "1px solid #c9a84c66", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#92681a", lineHeight: 1.8 }}>
+        💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.
+      </div>
+
+      <div style={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: 12, padding: "10px 16px", fontSize: 12, color: "#854d0e" }}>
+        ⚠️ 추후 멘토 등록 조건이 변경될 수 있습니다.
+      </div>
+
+      {/* 미등록 상태 */}
+      {!isMentor && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {!isSeller && (
+            <div style={{ fontSize: 13, color: "#dc2626", fontWeight: 600 }}>
+              판매자 등록 후 멘토 활동이 가능합니다.
+            </div>
+          )}
+          <a
+            href={isSeller ? "/cad-school/mentor/register" : "#"}
+            onClick={!isSeller ? (e) => e.preventDefault() : undefined}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              height: 48, padding: "0 24px", borderRadius: 12, border: "none",
+              background: isSeller ? "#111827" : "#e5e7eb",
+              color: isSeller ? "white" : "#9ca3af",
+              fontWeight: 800, fontSize: 14, textDecoration: "none",
+              cursor: isSeller ? "pointer" : "not-allowed",
+              alignSelf: "flex-start",
+            }}
+          >
+            🎓 멘토 등록하기
+          </a>
+        </div>
+      )}
+
+      {/* 등록 상태 */}
+      {isMentor && mentorData && (
+        <>
+          {/* 멘토 정보 카드 */}
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: mentorData.is_active ? "#16a34a" : "#6b7280", background: mentorData.is_active ? "#dcfce7" : "#f3f4f6", padding: "2px 10px", borderRadius: 999 }}>
+                {mentorData.is_active ? "✓ 활동중" : "일시중지"}
+              </span>
+              {mentorData.is_suspended && (
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", background: "#fee2e2", padding: "2px 10px", borderRadius: 999 }}>활동정지</span>
+              )}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+              <InfoStat label="평균 평점" value={`★ ${mentorData.avg_rating.toFixed(1)}`} />
+              <InfoStat label="평가 수" value={`${mentorData.total_ratings}건`} />
+              <InfoStat label="답변률" value={`${mentorData.response_rate?.toFixed(0) ?? 0}%`} />
+            </div>
+
+            {mentorData.intro && (
+              <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.7, background: "#f9fafb", borderRadius: 10, padding: "12px 14px" }}>
+                {mentorData.intro}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <a href="/cad-school/mentor/register" style={{ display: "inline-flex", alignItems: "center", height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                정보 수정
+              </a>
+              <button
+                onClick={handleToggleActive}
+                disabled={toggling || mentorData.is_suspended}
+                style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: mentorData.is_active ? "#fef3c7" : "#111827", color: mentorData.is_active ? "#92400e" : "white", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: (toggling || mentorData.is_suspended) ? 0.6 : 1 }}>
+                {toggling ? "변경 중..." : mentorData.is_active ? "활동 일시중지" : "활동 재개"}
+              </button>
+            </div>
+          </div>
+
+          {/* 진행 중인 구독 목록 */}
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 12 }}>진행 중인 구독</div>
+            {subscriptions.filter((s) => s.status === "active").length === 0 ? (
+              <div style={{ background: "#f9fafb", borderRadius: 12, padding: "28px 20px", textAlign: "center", fontSize: 13, color: "#9ca3af" }}>
+                아직 구독자가 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {subscriptions.filter((s) => s.status === "active").map((s) => (
+                  <div key={s.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>{s.subscriber_profile?.nickname ?? "구독자"}</span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: GOLD, background: "#fdf6e3", padding: "1px 8px", borderRadius: 5 }}>
+                          {PLAN_LABELS[s.plan_type] ?? s.plan_type}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>
+                        만료: {new Date(s.expires_at).toLocaleDateString("ko-KR")} · 첨삭 {s.checklist_count}회 · 검수 {s.review_count}회
+                      </div>
+                    </div>
+                    <a href={`/cad-school/subscription/${s.id}`} style={{ fontSize: 13, fontWeight: 800, color: "white", background: "#111827", padding: "8px 14px", borderRadius: 9, textDecoration: "none", whiteSpace: "nowrap" }}>
+                      채팅방 입장
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 경고 내역 */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>경고 내역</span>
+              <span style={{
+                fontSize: 12, fontWeight: 800, padding: "2px 10px", borderRadius: 999,
+                color: mentorData.warning_count >= 3 ? "#dc2626" : mentorData.warning_count >= 1 ? "#d97706" : "#6b7280",
+                background: mentorData.warning_count >= 3 ? "#fee2e2" : mentorData.warning_count >= 1 ? "#fef3c7" : "#f3f4f6",
+              }}>
+                총 {mentorData.warning_count}회
+              </span>
+            </div>
+            {warnings.length === 0 ? (
+              <div style={{ background: "#f9fafb", borderRadius: 12, padding: "20px", textAlign: "center", fontSize: 13, color: "#9ca3af" }}>
+                경고 내역이 없습니다.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {warnings.map((w) => (
+                  <div key={w.id} style={{ border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", background: "#fff5f5" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", background: "#fee2e2", padding: "1px 7px", borderRadius: 4 }}>
+                        {w.warning_type === "late_response" ? "답변지연" : w.warning_type}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#9ca3af" }}>{new Date(w.created_at).toLocaleDateString("ko-KR")}</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#374151" }}>{w.reason}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function InfoStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px", textAlign: "center" }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 15, fontWeight: 900, color: "#111827" }}>{value}</div>
     </div>
   );
 }
