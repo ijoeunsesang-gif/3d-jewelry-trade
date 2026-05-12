@@ -21,6 +21,7 @@ import PwaInstallPrompt from "@/app/components/PwaInstallPrompt";
 import PwaInstallButton from "@/app/components/PwaInstallButton";
 import { Toaster } from "react-hot-toast";
 import ServiceWorkerCleanup from "@/app/components/ServiceWorkerCleanup";
+import ProgressToast from "@/app/components/ProgressToast";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -60,6 +61,7 @@ export default function RootLayout({
         <Footer />
         <PwaInstallPrompt />
         <PwaInstallButton />
+        <ProgressToast />
         <Toaster
           position="top-center"
           containerStyle={{ top: 80 }}

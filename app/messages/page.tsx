@@ -296,6 +296,21 @@ function MessagesContent() {
     e.target.value = "";
   };
 
+  const handleImageDownload = async (url: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const ext = url.split(".").pop()?.split("?")[0] || "jpg";
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `chat-image.${ext}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      showError("다운로드 실패");
+    }
+  };
+
   const handleChatDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -750,20 +765,45 @@ function MessagesContent() {
                   >
                     {isImage ? (
                       <div style={{ maxWidth: "72%" }}>
-                        <img
-                          src={msg.image_url!}
-                          alt="첨부 이미지"
-                          onClick={() => setLightboxUrl(msg.image_url!)}
-                          style={{
-                            maxWidth: 220,
-                            maxHeight: 220,
-                            borderRadius: 14,
-                            objectFit: "cover",
-                            border: "1px solid #e5e7eb",
-                            cursor: "pointer",
-                            display: "block",
-                          }}
-                        />
+                        <div style={{ position: "relative", display: "inline-block" }}>
+                          <img
+                            src={msg.image_url!}
+                            alt="첨부 이미지"
+                            onClick={() => setLightboxUrl(msg.image_url!)}
+                            style={{
+                              maxWidth: 220,
+                              maxHeight: 220,
+                              borderRadius: 14,
+                              objectFit: "cover",
+                              border: "1px solid #e5e7eb",
+                              cursor: "pointer",
+                              display: "block",
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleImageDownload(msg.image_url!); }}
+                            title="다운로드"
+                            style={{
+                              position: "absolute",
+                              bottom: 6,
+                              left: 6,
+                              width: 26,
+                              height: 26,
+                              borderRadius: 7,
+                              background: "rgba(0,0,0,0.5)",
+                              border: "none",
+                              color: "white",
+                              cursor: "pointer",
+                              fontSize: 13,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            ⬇
+                          </button>
+                        </div>
                         <div style={{ marginTop: 4, fontSize: 11, opacity: 0.72, textAlign: mine ? "right" : "left" }}>
                           {new Date(msg.created_at).toLocaleString("ko-KR")}
                         </div>
@@ -964,9 +1004,9 @@ function MessagesContent() {
             }}
           />
           <div style={{ display: "flex", gap: 12 }} onClick={(e) => e.stopPropagation()}>
-            <a
-              href={lightboxUrl}
-              download
+            <button
+              type="button"
+              onClick={() => handleImageDownload(lightboxUrl)}
               style={{
                 padding: "10px 22px",
                 borderRadius: 10,
@@ -974,11 +1014,12 @@ function MessagesContent() {
                 color: "#111827",
                 fontWeight: 700,
                 fontSize: 14,
-                textDecoration: "none",
+                border: "none",
+                cursor: "pointer",
               }}
             >
               다운로드
-            </a>
+            </button>
             <button
               type="button"
               onClick={() => setLightboxUrl(null)}

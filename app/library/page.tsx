@@ -7,6 +7,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
+import { startProgress, updateProgress, completeProgress, errorProgress } from "@/app/lib/progressStore";
 
 type PurchasedModel = {
   id: string;
@@ -120,6 +121,7 @@ function LibraryPageInner() {
   };
 
   const handleDownload = async (item: PurchasedModel) => {
+    const progressId = `dl-${item.id}-${Date.now()}`;
     try {
       setDownloadingId(item.id);
       const token = getAccessToken();
@@ -131,9 +133,43 @@ function LibraryPageInner() {
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || "다운로드 링크 생성에 실패했습니다."); return; }
-      window.open(data.signedUrl, "_blank");
-    } catch (e) { console.error(e); showError("다운로드 중 오류가 발생했습니다."); }
-    finally { setDownloadingId(null); }
+
+      startProgress(progressId, item.title, "downloading");
+      const fileRes = await fetch(data.signedUrl);
+      if (!fileRes.ok) throw new Error("파일 다운로드 실패");
+
+      const contentLength = fileRes.headers.get("content-length");
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      const reader = fileRes.body!.getReader();
+      const chunks: Uint8Array<ArrayBuffer>[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) updateProgress(progressId, Math.round((received / total) * 100));
+      }
+
+      completeProgress(progressId);
+
+      const blob = new Blob(chunks);
+      const ext = item.title?.split(".").pop() || "";
+      const filename = item.title || "model";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = ext ? filename : filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      errorProgress(progressId, "다운로드 실패");
+      console.error(e);
+      showError("다운로드 중 오류가 발생했습니다.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const getThumbnailUrl = (item: PurchasedModel) => {
