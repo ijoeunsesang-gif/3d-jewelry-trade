@@ -85,6 +85,8 @@ export default function SubscribePlanPage() {
       const payload = decodeJwt(token) as { sub?: string; email?: string } | null;
       const orderId = `cad-sub-${Date.now()}`;
 
+      console.log("[결제 시작] clientKey:", clientKey?.slice(0, 12), "orderId:", orderId, "customerKey:", payload?.sub ?? "ANONYMOUS");
+
       localStorage.setItem("pendingCadPayment", JSON.stringify({
         type: "subscription",
         planType: planKey,
@@ -107,15 +109,11 @@ export default function SubscribePlanPage() {
         ...(payload?.email ? { customerEmail: payload.email } : {}),
         customerName: "구매자",
       });
-    } catch (e: unknown) {
-      // TossPayments SDK는 { code, message } 객체를 던짐
-      const errObj = (e !== null && typeof e === "object") ? (e as Record<string, unknown>) : {};
-      const errCode = typeof errObj.code === "string" ? errObj.code : "";
-      const errMsg = e instanceof Error ? e.message : typeof errObj.message === "string" ? errObj.message : "";
-      const isCanceled = errMsg.includes("취소") || errCode.includes("CANCELED");
-      if (!isCanceled) {
-        showError("결제 중 오류가 발생했습니다.");
-        console.error("결제 실패:", e);
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      console.error("결제에러:", error);
+      if (err?.code !== "USER_CANCEL") {
+        showError(`결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`);
       }
     } finally {
       setPaying(null);
