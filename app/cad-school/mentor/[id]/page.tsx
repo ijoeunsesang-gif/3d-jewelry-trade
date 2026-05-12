@@ -8,7 +8,6 @@ import GradeBadge from "../../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
-import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -149,8 +148,19 @@ export default function MentorDetailPage() {
         orderId,
       }));
 
-      const tossPayments = await loadTossPayments(clientKey);
-      const payment = tossPayments.payment({ customerKey: payload?.sub ?? ANONYMOUS });
+      // CDN 스크립트 로드 (checkout/page.tsx 동일 방식)
+      if (!(window as { TossPayments?: unknown }).TossPayments) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://js.tosspayments.com/v2/standard";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("TossPayments SDK 로드 실패"));
+          document.head.appendChild(script);
+        });
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tossPayments = (window as any).TossPayments(clientKey);
+      const payment = tossPayments.payment({ customerKey: payload?.sub ?? "ANONYMOUS" });
       await payment.requestPayment({
         method: "CARD",
         amount: { currency: "KRW", value: price },
