@@ -6,7 +6,6 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
-import { gradeOrder, Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 
@@ -14,8 +13,6 @@ export default function MentorRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [eligible, setEligible] = useState(false);
-  const [grade, setGrade] = useState<string>("");
   const [existing, setExisting] = useState(false);
 
   const [intro, setIntro] = useState("");
@@ -25,22 +22,22 @@ export default function MentorRegisterPage() {
   const [dailyLimit, setDailyLimit] = useState("2");
 
   useEffect(() => {
-    checkEligibility();
+    init();
   }, []);
 
-  const checkEligibility = async () => {
+  const init = async () => {
     const token = getAccessToken();
     if (!token) { router.push("/auth"); return; }
     const payload = decodeJwt(token) as { sub?: string } | null;
     const uid = payload?.sub;
     if (!uid) { router.push("/auth"); return; }
 
-    const { data: profile } = await supabase.from("profiles").select("grade").eq("id", uid).single();
-    const g = (profile?.grade ?? "sprout") as Grade;
-    setGrade(g);
-    setEligible(gradeOrder(g) >= gradeOrder("skilled"));
+    const { data: mentorData } = await supabase
+      .from("cad_mentors")
+      .select("intro, per_session_price, package_5_price, package_10_price, daily_limit")
+      .eq("user_id", uid)
+      .maybeSingle();
 
-    const { data: mentorData } = await supabase.from("cad_mentors").select("intro, per_session_price, package_5_price, package_10_price, daily_limit").eq("user_id", uid).maybeSingle();
     if (mentorData) {
       setExisting(true);
       setIntro(mentorData.intro ?? "");
@@ -72,35 +69,12 @@ export default function MentorRegisterPage() {
     if (!res.ok) { showError(data.error || "등록 실패"); }
     else {
       showSuccess(existing ? "멘토 정보가 수정되었습니다." : "멘토로 등록되었습니다!");
-      router.push("/cad-school?tab=session");
+      router.push("/cad-school");
     }
     setSubmitting(false);
   };
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
-
-  if (!eligible) {
-    return (
-      <main style={{ maxWidth: 600, margin: "0 auto", padding: "60px 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', textAlign: "center" }}>
-        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "40px 32px" }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: "#111827", marginBottom: 10 }}>멘토 등록 불가</h1>
-          <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 6, lineHeight: 1.6 }}>
-            멘토는 <strong style={{ color: "#2563eb" }}>숙련 등급 이상</strong>만 등록할 수 있습니다.
-          </p>
-          <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>
-            현재 등급: <strong>{grade}</strong>
-          </p>
-          <Link
-            href="/cad-school"
-            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 28px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 14 }}
-          >
-            캐드스쿨로 돌아가기
-          </Link>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>

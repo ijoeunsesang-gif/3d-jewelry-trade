@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { gradeOrder, Grade } from "@/lib/grades";
 
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,18 +14,6 @@ export async function POST(req: NextRequest) {
   if (authErr || !user) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
 
   try {
-    // 등급 확인 (숙련 이상)
-    const { data: profile } = await adminSupabase
-      .from("profiles")
-      .select("grade")
-      .eq("id", user.id)
-      .single();
-
-    const grade = (profile?.grade ?? "sprout") as Grade;
-    if (gradeOrder(grade) < gradeOrder("skilled")) {
-      return NextResponse.json({ error: "숙련 등급 이상만 멘토 등록이 가능합니다." }, { status: 403 });
-    }
-
     // 이미 등록된 멘토인지 확인
     const { data: existing } = await adminSupabase
       .from("cad_mentors")

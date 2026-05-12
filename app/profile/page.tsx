@@ -58,6 +58,9 @@ export default function ProfilePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [sellerAppliedAt, setSellerAppliedAt] = useState<string | null>(null);
 
+  // 멘토 정보
+  const [isMentor, setIsMentor] = useState(false);
+
   // 정산 정보
   const [bankName, setBankName] = useState("");
   const [accountHolder, setAccountHolder] = useState("");
@@ -192,6 +195,14 @@ export default function ProfilePage() {
         await supabase.from("profiles").insert({ id: uid, email: email_ || "", nickname: defaultNickname, bio: "", avatar_url: "" });
         setNickname(defaultNickname);
       }
+
+      // 멘토 등록 여부 확인
+      const { data: mentorRow } = await supabase
+        .from("cad_mentors")
+        .select("id")
+        .eq("user_id", uid)
+        .maybeSingle();
+      setIsMentor(!!mentorRow);
     } catch (e) {
       console.error("프로필 페이지 오류:", e);
     } finally {
@@ -953,6 +964,41 @@ export default function ProfilePage() {
                   ) : null}
                 </div>
               )}
+              {/* ─ 멘토 등록 섹션 ─ */}
+              <div>
+                <h2 className="pf-section-title" style={sectionTitle}>멘토 등록</h2>
+                <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", marginBottom: 16, fontSize: 13, color: "#374151", lineHeight: 1.9 }}>
+                  <p style={{ margin: "0 0 8px" }}>
+                    멘토는 캐드스쿨에서 입문자들의 질문에 답변하고 멘토링을 제공하는 전문가입니다.
+                  </p>
+                  <p style={{ margin: "0 0 8px" }}>
+                    <strong>건별 멘토링</strong>은 입문자의 파일을 수정·납품하는 방식이고,<br />
+                    <strong>횟수제 멘토링</strong>은 패키지를 구매한 입문자와 채팅으로 질문을 받는 방식입니다.
+                  </p>
+                  <p style={{ margin: 0, color: "#6b7280" }}>
+                    멘토 활동을 통해 수익을 창출할 수 있으며, 플랫폼 수수료가 적용됩니다.
+                  </p>
+                </div>
+                <a
+                  href="/cad-school/mentor/register"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    height: 48,
+                    padding: "0 24px",
+                    borderRadius: 12,
+                    background: isMentor ? "white" : "#111827",
+                    border: isMentor ? "1px solid #d1d5db" : "none",
+                    color: isMentor ? "#374151" : "white",
+                    fontWeight: 800,
+                    fontSize: 14,
+                    textDecoration: "none",
+                  }}
+                >
+                  🎓 {isMentor ? "멘토 정보 수정" : "멘토 등록하기"}
+                </a>
+              </div>
             </div>
           )}
 
