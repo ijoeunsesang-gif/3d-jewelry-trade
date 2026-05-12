@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase-browser";
+import { getAccessToken } from "@/lib/supabase-fetch";
 
 type Status = "loading" | "success" | "error";
 type ResultData = { type: string; redirectId: string };
@@ -24,8 +25,8 @@ function CadPaymentSuccessContent() {
   const confirmPayment = async () => {
     try {
       const paymentKey = searchParams.get("paymentKey");
-      const orderId = searchParams.get("orderId");
-      const amountStr = searchParams.get("amount");
+      const orderId    = searchParams.get("orderId");
+      const amountStr  = searchParams.get("amount");
 
       if (!paymentKey || !orderId || !amountStr) {
         setErrorMessage("결제 정보가 올바르지 않습니다."); setStatus("error"); return;
@@ -51,42 +52,42 @@ function CadPaymentSuccessContent() {
       }
 
       // DB 저장
-      const { mentorId, menteeId, type, title, description, files, packageType, totalCount } = pending;
+      const { type, mentorId, menteeId, title, description, files } = pending;
 
       if (type === "session") {
         const { data: session, error: sessionErr } = await supabase
           .from("cad_mentoring_sessions")
           .insert({
-            mentor_id: mentorId,
-            mentee_id: menteeId,
-            title: title || "건별 멘토링 의뢰",
+            mentor_id:   mentorId,
+            mentee_id:   menteeId,
+            title:       title || "건별 멘토링 의뢰",
             description: description || "",
-            files: files || [],
-            price: amount,
+            files:       files || [],
+            price:       amount,
           })
           .select("id")
           .single();
 
         if (sessionErr) throw new Error(sessionErr.message);
         setResult({ type: "session", redirectId: session.id });
-      } else {
-        const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: pkg, error: pkgErr } = await supabase
-          .from("cad_packages")
-          .insert({
-            mentor_id: mentorId,
-            mentee_id: menteeId,
-            package_type: packageType,
-            total_count: totalCount,
-            remaining_count: totalCount,
-            price: amount,
-            expires_at: expiresAt,
-          })
-          .select("id")
-          .single();
 
-        if (pkgErr) throw new Error(pkgErr.message);
-        setResult({ type: "package", redirectId: pkg.id });
+      } else if (type === "subscription") {
+        const token = getAccessToken();
+        if (!token) throw new Error("인증 정보가 없습니다.");
+
+        const subRes = await fetch("/api/cad-school/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            mentor_id: pending.mentorId,
+            plan_type: pending.planType,
+            price: amount,
+          }),
+        });
+        const subData = await subRes.json();
+        if (!subRes.ok) throw new Error(subData.error || "구독 생성 실패");
+
+        setResult({ type: "subscription", redirectId: subData.id });
       }
 
       localStorage.removeItem("pendingCadPayment");
@@ -121,32 +122,41 @@ function CadPaymentSuccessContent() {
     );
   }
 
+  const isSubscription = result?.type === "subscription";
+  const isSession = result?.type === "session";
+
   return (
     <main style={{ maxWidth: 500, margin: "80px auto", padding: "0 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 24, padding: 36, textAlign: "center" }}>
         <div style={{ width: 72, height: 72, borderRadius: 999, background: "#dcfce7", color: "#166534", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, margin: "0 auto 18px" }}>✓</div>
         <h1 style={{ fontSize: 26, fontWeight: 900, color: "#111827", marginBottom: 10 }}>
-          {result?.type === "session" ? "멘토링 의뢰 완료!" : "패키지 구매 완료!"}
+          {isSubscription ? "구독이 시작되었습니다!" : "멘토링 의뢰 완료!"}
         </h1>
         <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 28, lineHeight: 1.6 }}>
-          {result?.type === "session"
-            ? "멘토가 수락하면 알림이 전송됩니다."
-            : "패키지가 활성화되었습니다. 멘토와 대화를 시작해보세요!"}
+          {isSubscription
+            ? "멘토에게 알림이 전송되었습니다. 내 활동에서 구독 현황을 확인하세요."
+            : "멘토가 수락하면 알림이 전송됩니다."}
         </p>
         <div style={{ display: "grid", gap: 12 }}>
-          {result && (
+          <Link
+            href="/cad-school/my"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 52, borderRadius: 16, background: "#111827", color: "white", textDecoration: "none", fontWeight: 900, fontSize: 15 }}
+          >
+            {isSubscription ? "내 구독 확인하기" : "내 활동 보기"}
+          </Link>
+          {isSession && result && (
             <Link
-              href={result.type === "session" ? `/cad-school/session/${result.redirectId}` : `/cad-school/package/${result.redirectId}`}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 52, borderRadius: 16, background: "#111827", color: "white", textDecoration: "none", fontWeight: 900, fontSize: 15 }}
+              href={`/cad-school/session/${result.redirectId}`}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 50, borderRadius: 16, border: "1px solid #d1d5db", color: "#111827", textDecoration: "none", fontWeight: 800 }}
             >
-              {result.type === "session" ? "세션 확인하기" : "패키지 채팅 시작"}
+              세션 확인하기
             </Link>
           )}
           <Link
-            href="/cad-school/my"
+            href="/cad-school"
             style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 50, borderRadius: 16, border: "1px solid #d1d5db", color: "#111827", textDecoration: "none", fontWeight: 800 }}
           >
-            내 활동 보기
+            캐드스쿨로 돌아가기
           </Link>
         </div>
       </div>
