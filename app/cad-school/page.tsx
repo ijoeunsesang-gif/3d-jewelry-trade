@@ -5,6 +5,8 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import GradeBadge from "../components/GradeBadge";
 import { Grade } from "@/lib/grades";
+import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { showError, showSuccess } from "../lib/toast";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -23,6 +25,7 @@ type Post = {
   content: string;
   status: string;
   created_at: string;
+  user_id: string;
   profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
   comment_count: number;
 };
@@ -45,8 +48,14 @@ export default function CadSchoolPage() {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [loadingMentors, setLoadingMentors] = useState(true);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    const token = getAccessToken();
+    if (token) {
+      const payload = decodeJwt(token) as { sub?: string } | null;
+      setMyUserId(payload?.sub ?? null);
+    }
     loadPosts();
     loadMentors();
   }, []);
@@ -55,7 +64,7 @@ export default function CadSchoolPage() {
     setLoadingPosts(true);
     const { data } = await supabase
       .from("cad_posts")
-      .select("id, title, content, status, created_at, profiles(nickname, avatar_url, grade)")
+      .select("id, title, content, status, created_at, user_id, profiles(nickname, avatar_url, grade)")
       .order("created_at", { ascending: false })
       .limit(30);
 
@@ -123,7 +132,7 @@ export default function CadSchoolPage() {
         {TABS.find((t) => t.key === tab)?.desc}
       </div>
 
-      {tab === "feedback"     && <FeedbackTab posts={posts} loading={loadingPosts} />}
+      {tab === "feedback"     && <FeedbackTab posts={posts} loading={loadingPosts} myUserId={myUserId} onDeleted={loadPosts} />}
       {tab === "session"      && <MentorTab mentors={mentors} loading={loadingMentors} />}
       {tab === "subscription" && <SubscriptionTab />}
     </main>
@@ -247,7 +256,7 @@ function SubscriptionTab() {
 }
 
 // ─ 자유 피드백 탭 ───────────────────────────────────────────
-function FeedbackTab({ posts, loading }: { posts: Post[]; loading: boolean }) {
+function FeedbackTab({ posts, loading, myUserId, onDeleted }: { posts: Post[]; loading: boolean; myUserId: string | null; onDeleted: () => void }) {
   const [showModal, setShowModal] = useState(false);
   return (
     <div>
@@ -271,7 +280,7 @@ function FeedbackTab({ posts, loading }: { posts: Post[]; loading: boolean }) {
         <EmptyState icon="💬" title="아직 게시글이 없습니다" desc="첫 번째 질문을 올려보세요!" />
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          {posts.map((post) => <PostCard key={post.id} post={post} />)}
+          {posts.map((post) => <PostCard key={post.id} post={post} myUserId={myUserId} onDeleted={onDeleted} />)}
         </div>
       )}
 
@@ -383,7 +392,28 @@ function MentorCard({ mentor }: { mentor: Mentor }) {
   );
 }
 
-function PostCard({ post }: { post: Post }) {
+function PostCard({ post, myUserId, onDeleted }: { post: Post; myUserId: string | null; onDeleted: () => void }) {
+  const [deleting, setDeleting] = useState(false);
+  const isMyPost = myUserId === post.user_id;
+  const canDelete = isMyPost && post.comment_count === 0;
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm("게시물을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.")) return;
+    const token = getAccessToken();
+    if (!token) return;
+    setDeleting(true);
+    const res = await fetch(`/api/cad-school/post/${post.id}/delete`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || "삭제 실패"); setDeleting(false); return; }
+    showSuccess("게시물이 삭제되었습니다.");
+    onDeleted();
+  };
+
   return (
     <Link href={`/cad-school/${post.id}`} style={{ textDecoration: "none" }}>
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "16px 20px", cursor: "pointer", transition: "box-shadow 0.15s" }}
@@ -401,9 +431,20 @@ function PostCard({ post }: { post: Post }) {
             </div>
             <p style={{ margin: 0, fontSize: 13, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.content}</p>
           </div>
-          <div style={{ fontSize: 12, color: "#9ca3af", whiteSpace: "nowrap", textAlign: "right", flexShrink: 0 }}>
-            <div>💬 {post.comment_count}</div>
-            <div style={{ marginTop: 4 }}>{timeAgo(post.created_at)}</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: "#9ca3af", whiteSpace: "nowrap", textAlign: "right" }}>
+              <div>💬 {post.comment_count}</div>
+              <div style={{ marginTop: 4 }}>{timeAgo(post.created_at)}</div>
+            </div>
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "3px 8px", cursor: deleting ? "not-allowed" : "pointer" }}
+              >
+                {deleting ? "삭제 중" : "삭제"}
+              </button>
+            )}
           </div>
         </div>
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>

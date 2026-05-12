@@ -55,6 +55,8 @@ export default function CadPostDetailPage() {
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -149,6 +151,20 @@ export default function CadPostDetailPage() {
     setReplySubmitting(false);
   };
 
+  const handleDelete = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    setDeleting(true);
+    const res = await fetch(`/api/cad-school/post/${id}/delete`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || "삭제 실패"); setDeleting(false); setShowDeleteModal(false); return; }
+    showSuccess("게시물이 삭제되었습니다.");
+    router.push("/cad-school");
+  };
+
   const handlePickBest = async (commentId: string) => {
     const token = getAccessToken();
     if (!token) { showError("로그인이 필요합니다."); return; }
@@ -174,6 +190,7 @@ export default function CadPostDetailPage() {
   const topComments = allComments
     .filter((c) => !c.parent_id)
     .sort((a, b) => (b.is_best_answer ? 1 : 0) - (a.is_best_answer ? 1 : 0) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const canDelete = isOwner && topComments.length === 0;
   const subCommentMap: Record<string, Comment[]> = {};
   for (const c of allComments) {
     if (c.parent_id) {
@@ -193,7 +210,7 @@ export default function CadPostDetailPage() {
       {/* 질문 */}
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "24px 24px 20px", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               {post.status === "closed"
                 ? <StatusBadge color="#6b7280" bg="#f3f4f6" label="마감" />
@@ -202,6 +219,14 @@ export default function CadPostDetailPage() {
             </div>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1.3 }}>{post.title}</h1>
           </div>
+          {canDelete && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 14px", cursor: "pointer", flexShrink: 0 }}
+            >
+              삭제
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
@@ -249,6 +274,41 @@ export default function CadPostDetailPage() {
           </div>
         )}
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteModal && (
+        <div
+          onClick={() => { if (!deleting) setShowDeleteModal(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "white", borderRadius: 20, padding: "28px 28px 24px", maxWidth: 380, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}
+          >
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 14 }}>🗑️</div>
+            <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 900, color: "#111827", textAlign: "center" }}>게시물 삭제</h3>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6b7280", textAlign: "center", lineHeight: 1.6 }}>
+              게시물을 삭제하시겠습니까?<br />삭제 후 복구할 수 없습니다.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: deleting ? "not-allowed" : "pointer" }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: deleting ? "#d1d5db" : "#dc2626", color: "white", fontWeight: 800, fontSize: 14, cursor: deleting ? "not-allowed" : "pointer" }}
+              >
+                {deleting ? "삭제 중..." : "삭제하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 답변 작성 (본인 질문에는 표시 안 함) */}
       {post.status === "open" && !isOwner && (
