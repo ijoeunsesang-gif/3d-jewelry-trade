@@ -83,7 +83,7 @@ export default function SubscribePlanPage() {
     setPaying(mentor.id);
     try {
       const payload = decodeJwt(token) as { sub?: string; email?: string } | null;
-      const orderId = `cad-sub-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const orderId = `cad-sub-${Date.now()}`;
 
       localStorage.setItem("pendingCadPayment", JSON.stringify({
         type: "subscription",
@@ -101,9 +101,9 @@ export default function SubscribePlanPage() {
         method: "CARD",
         amount: { currency: "KRW", value: planInfo.price },
         orderId,
-        orderName: `[캐드스쿨] ${planInfo.label} 수강 패키지 - ${mentor.profiles?.nickname ?? "멘토"}`,
-        successUrl: `${window.location.origin}/cad-school/payment/success`,
-        failUrl: `${window.location.origin}/cad-school/payment/fail`,
+        orderName: `[캐드스쿨] ${planInfo.label} 30일`,
+        successUrl: "https://www.3d-jewelry-trade.com/cad-school/payment/success",
+        failUrl: "https://www.3d-jewelry-trade.com/cad-school/payment/fail",
         ...(payload?.email ? { customerEmail: payload.email } : {}),
         customerName: "구매자",
       });

@@ -129,12 +129,11 @@ export default function MentorDetailPage() {
 
     const sessionType = SESSION_TYPES[selectedType];
     const price = sessionType.price;
-    const orderName = `[캐드스쿨] ${mentor.profiles?.nickname ?? "멘토"} ${sessionType.label}`;
 
     setPaying(true);
     try {
       const payload = decodeJwt(token) as { sub?: string; email?: string } | null;
-      const orderId = `cad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const orderId = `cad-session-${Date.now()}`;
 
       localStorage.setItem("pendingCadPayment", JSON.stringify({
         type: "session",
@@ -154,9 +153,9 @@ export default function MentorDetailPage() {
         method: "CARD",
         amount: { currency: "KRW", value: price },
         orderId,
-        orderName,
-        successUrl: `${window.location.origin}/cad-school/payment/success`,
-        failUrl: `${window.location.origin}/cad-school/payment/fail`,
+        orderName: `[캐드스쿨] ${sessionType.label}`,
+        successUrl: "https://www.3d-jewelry-trade.com/cad-school/payment/success",
+        failUrl: "https://www.3d-jewelry-trade.com/cad-school/payment/fail",
         ...(payload?.email ? { customerEmail: payload.email } : {}),
         customerName: "구매자",
       });
