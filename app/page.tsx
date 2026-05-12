@@ -600,48 +600,48 @@ export default function Home() {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 20,
-              background: "linear-gradient(135deg, #1a1308 0%, #2d1f06 50%, #111827 100%)",
+              background: "linear-gradient(135deg, #f8f6f0 0%, #ede8dc 50%, #e8e0cc 100%)",
               borderRadius: 20,
-              padding: "28px 32px",
+              padding: "18px 28px",
               textDecoration: "none",
-              border: "1px solid #c9a84c44",
+              border: "1px solid rgba(160,140,91,0.35)",
               flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <div
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 14,
-                  background: "rgba(201,168,76,0.18)",
-                  border: "1px solid #c9a84c55",
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  background: "rgba(201,168,76,0.2)",
+                  border: "1px solid rgba(160,140,91,0.4)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 26,
+                  fontSize: 22,
                   flexShrink: 0,
                 }}
               >
                 🎓
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#c9a84c", letterSpacing: 2, marginBottom: 5 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: "#a08c5b", letterSpacing: 2, marginBottom: 3 }}>
                   CAD SCHOOL
                 </div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: "white", lineHeight: 1.2, marginBottom: 4 }}>
+                <div style={{ fontSize: 17, fontWeight: 900, color: "#2c2416", lineHeight: 1.2, marginBottom: 3 }}>
                   캐드스쿨
                 </div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: "#7a6840", lineHeight: 1.5 }}>
                   질문 · 피드백 · 1:1 멘토링 · 패키지 학습
                 </div>
               </div>
             </div>
             <div
               style={{
-                padding: "11px 22px",
+                padding: "9px 20px",
                 borderRadius: 12,
-                background: "#c9a84c",
+                background: "#a08c5b",
                 color: "white",
                 fontWeight: 800,
                 fontSize: 13,
