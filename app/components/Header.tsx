@@ -345,9 +345,7 @@ export default function Header() {
         <MyMenuLink href="/profile"   icon={<IconDropUser   active={pathname.startsWith("/profile")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/profile")}>내 정보</MyMenuLink>
         <MyMenuLink href="/my-models" icon={<IconDropBox    active={pathname.startsWith("/my-models")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/my-models")}>내 모델</MyMenuLink>
         <MyMenuLink href="/upload"    icon={<IconDropUpload active={pathname.startsWith("/upload")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/upload")}>업로드</MyMenuLink>
-        {(userRole === "seller" || userRole === "admin") && (
-          <MyMenuLink href="/ask" icon={<IconDropAsk active={pathname.startsWith("/ask")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/ask")}>물어보기</MyMenuLink>
-        )}
+        <MyMenuLink href="/cad-school" icon={<IconDropCadSchool active={pathname.startsWith("/cad-school")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cad-school")}>캐드스쿨</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
@@ -965,6 +963,9 @@ function IconDropClipboard({ active = false }: { active?: boolean }) {
 }
 function IconDropAsk({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" /><line x1="12" y1="7" x2="12" y2="13" /></svg>;
+}
+function IconDropCadSchool({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12.5v4.5c3.5 2.5 8.5 2.5 12 0v-4.5" /><line x1="22" y1="10" x2="22" y2="16" /></svg>;
 }
 function IconDropJobs({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" /></svg>;

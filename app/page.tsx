@@ -591,6 +591,69 @@ export default function Home() {
           </div>
         </section>
 
+        {/* 캐드스쿨 배너 */}
+        <section style={{ marginTop: 10, marginBottom: 28 }}>
+          <a
+            href="/cad-school"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 20,
+              background: "linear-gradient(135deg, #1a1308 0%, #2d1f06 50%, #111827 100%)",
+              borderRadius: 20,
+              padding: "28px 32px",
+              textDecoration: "none",
+              border: "1px solid #c9a84c44",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  background: "rgba(201,168,76,0.18)",
+                  border: "1px solid #c9a84c55",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 26,
+                  flexShrink: 0,
+                }}
+              >
+                🎓
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#c9a84c", letterSpacing: 2, marginBottom: 5 }}>
+                  CAD SCHOOL
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: "white", lineHeight: 1.2, marginBottom: 4 }}>
+                  캐드스쿨
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+                  질문 · 피드백 · 1:1 멘토링 · 패키지 학습
+                </div>
+              </div>
+            </div>
+            <div
+              style={{
+                padding: "11px 22px",
+                borderRadius: 12,
+                background: "#c9a84c",
+                color: "white",
+                fontWeight: 800,
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              입장하기 →
+            </div>
+          </a>
+        </section>
+
         {/* 필터 */}
         <section className={styles.filterSection}>
           <div className={styles.filterTopRow}>
