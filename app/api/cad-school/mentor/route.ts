@@ -33,19 +33,19 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const { intro, per_session_price, package_5_price, package_10_price, daily_limit } = await req.json();
+    const { intro } = await req.json();
 
     if (existing) {
       await adminSupabase
         .from("cad_mentors")
-        .update({ intro: intro ?? "", per_session_price: per_session_price ?? 0, package_5_price: package_5_price ?? 0, package_10_price: package_10_price ?? 0, daily_limit: daily_limit ?? 2, is_active: true })
+        .update({ intro: intro ?? "", is_active: true })
         .eq("user_id", user.id);
       return NextResponse.json({ ok: true, updated: true });
     }
 
     const { error: insertErr } = await adminSupabase
       .from("cad_mentors")
-      .insert({ user_id: user.id, intro: intro ?? "", per_session_price: per_session_price ?? 0, package_5_price: package_5_price ?? 0, package_10_price: package_10_price ?? 0, daily_limit: daily_limit ?? 2 });
+      .insert({ user_id: user.id, intro: intro ?? "" });
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 

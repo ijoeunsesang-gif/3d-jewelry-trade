@@ -18,7 +18,6 @@ export default function MentorRegisterPage() {
   const [existing, setExisting] = useState(false);
 
   const [intro, setIntro] = useState("");
-  const [dailyLimit, setDailyLimit] = useState("2");
 
   useEffect(() => {
     init();
@@ -42,14 +41,13 @@ export default function MentorRegisterPage() {
 
     const { data: mentorData } = await supabase
       .from("cad_mentors")
-      .select("intro, daily_limit")
+      .select("intro")
       .eq("user_id", uid)
       .maybeSingle();
 
     if (mentorData) {
       setExisting(true);
       setIntro(mentorData.intro ?? "");
-      setDailyLimit(String(mentorData.daily_limit ?? 2));
     }
     setLoading(false);
   };
@@ -64,7 +62,6 @@ export default function MentorRegisterPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         intro: intro.trim(),
-        daily_limit: parseInt(dailyLimit) || 2,
       }),
     });
     const data = await res.json();
@@ -139,10 +136,6 @@ export default function MentorRegisterPage() {
             rows={5}
             style={{ ...inputStyle, resize: "vertical" }}
           />
-        </Field>
-
-        <Field label="1일 최대 수락 건수">
-          <input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} placeholder="2" min={1} max={10} style={inputStyle} />
         </Field>
 
         {/* 고정 가격 안내 */}

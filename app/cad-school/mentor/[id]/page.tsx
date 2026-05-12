@@ -22,7 +22,6 @@ type FileItem = { name: string; url: string; ext: string };
 type Mentor = {
   id: string;
   intro: string;
-  daily_limit: number;
   user_id: string;
   profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
 };
@@ -56,7 +55,7 @@ export default function MentorDetailPage() {
   const loadMentor = async () => {
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, intro, daily_limit, user_id, profiles(nickname, avatar_url, grade)")
+      .select("id, intro, user_id, profiles(nickname, avatar_url, grade)")
       .eq("id", id)
       .eq("is_active", true)
       .single();
@@ -190,10 +189,9 @@ export default function MentorDetailPage() {
               <span style={{ fontSize: 22, fontWeight: 900, color: "#111827" }}>{mentor.profiles?.nickname ?? "멘토"}</span>
               {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="md" />}
             </div>
-            <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151", lineHeight: 1.7 }}>
+            <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.7 }}>
               {mentor.intro || "소개글이 없습니다."}
             </p>
-            <div style={{ fontSize: 12, color: "#9ca3af" }}>1일 최대 {mentor.daily_limit}건 수락</div>
           </div>
           {isMyMentor && (
             <Link
