@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
 
     const { data: model, error: modelError } = await adminSupabase
       .from("models")
-      .select("model_file_path, seller_id")
+      .select("model_file_path, seller_id, title")
       .eq("id", modelId)
       .single();
 
@@ -129,7 +129,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ signedUrl });
+    // 파일 확장자 추출 및 Content-Type 결정
+    const ext = model.model_file_path.split(".").pop()?.toLowerCase() || "bin";
+    const CONTENT_TYPES: Record<string, string> = {
+      stl: "application/octet-stream",
+      obj: "application/octet-stream",
+      "3dm": "application/octet-stream",
+      zip: "application/zip",
+    };
+    const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
+
+    // 다운로드 파일명: 모델 제목에서 특수문자 제거 후 확장자 붙이기
+    const safeTitle = (model.title || "model")
+      .replace(/[\\/:*?"<>|]/g, "_")
+      .trim() || "model";
+    const filename = `${safeTitle}.${ext}`;
+
+    return NextResponse.json({ signedUrl, filename, contentType });
         
   } catch (error) {
     console.error("다운로드 API 오류:", error);

@@ -134,7 +134,10 @@ function LibraryPageInner() {
       const data = await res.json();
       if (!res.ok) { showError(data.error || "다운로드 링크 생성에 실패했습니다."); return; }
 
-      startProgress(progressId, item.title, "downloading");
+      const filename = data.filename || `${item.title || "model"}.bin`;
+      const contentType = data.contentType || "application/octet-stream";
+
+      startProgress(progressId, filename, "downloading");
       const fileRes = await fetch(data.signedUrl);
       if (!fileRes.ok) throw new Error("파일 다운로드 실패");
 
@@ -154,14 +157,14 @@ function LibraryPageInner() {
 
       completeProgress(progressId);
 
-      const blob = new Blob(chunks);
-      const ext = item.title?.split(".").pop() || "";
-      const filename = item.title || "model";
+      const blob = new Blob(chunks, { type: contentType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = ext ? filename : filename;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
       errorProgress(progressId, "다운로드 실패");
