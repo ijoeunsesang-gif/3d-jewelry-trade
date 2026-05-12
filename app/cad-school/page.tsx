@@ -30,8 +30,6 @@ type Post = {
 type Mentor = {
   id: string;
   intro: string;
-  per_session_price: number;
-  daily_limit: number;
   avg_rating: number;
   total_ratings: number;
   response_rate: number;
@@ -78,7 +76,7 @@ export default function CadSchoolPage() {
     setLoadingMentors(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, intro, per_session_price, daily_limit, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
+      .select("id, intro, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
       .eq("is_active", true)
       .eq("is_suspended", false)
       .order("avg_rating", { ascending: false });
@@ -368,16 +366,9 @@ function MentorCard({ mentor }: { mentor: Mentor }) {
               )}
             </div>
             <p style={{ margin: "0 0 8px", fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>{mentor.intro || "소개글이 없습니다."}</p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {mentor.per_session_price > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "3px 10px" }}>
-                  건별 {mentor.per_session_price.toLocaleString("ko-KR")}원
-                </span>
-              )}
-              {mentor.response_rate > 0 && (
-                <span style={{ fontSize: 12, color: "#6b7280" }}>답변률 {mentor.response_rate.toFixed(0)}%</span>
-              )}
-            </div>
+            {mentor.response_rate > 0 && (
+              <span style={{ fontSize: 12, color: "#6b7280" }}>답변률 {mentor.response_rate.toFixed(0)}%</span>
+            )}
           </div>
         </div>
       </div>
