@@ -8,6 +8,7 @@ import GradeBadge from "../../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
+import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -132,16 +133,6 @@ export default function MentorDetailPage() {
 
     setPaying(true);
     try {
-      if (!(window as { TossPayments?: unknown }).TossPayments) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://js.tosspayments.com/v2/standard";
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("스크립트 로드 실패"));
-          document.head.appendChild(script);
-        });
-      }
-
       const payload = decodeJwt(token) as { sub?: string; email?: string } | null;
       const orderId = `cad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -157,13 +148,10 @@ export default function MentorDetailPage() {
         orderId,
       }));
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tossPayments = (window as any).TossPayments(clientKey);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payment = tossPayments.payment({ customerKey: payload?.sub ?? "ANONYMOUS" }) as any;
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: price },
+      const tossPayments = await loadTossPayments(clientKey);
+      const widgets = tossPayments.widgets({ customerKey: payload?.sub ?? "ANONYMOUS" });
+      await widgets.setAmount({ currency: "KRW", value: price });
+      await widgets.requestPayment({
         orderId,
         orderName,
         successUrl: `${window.location.origin}/cad-school/payment/success`,
@@ -172,7 +160,7 @@ export default function MentorDetailPage() {
         customerName: "구매자",
       });
     } catch (e: unknown) {
-      // TossPayments SDK는 Error 인스턴스가 아닌 { code, message } 객체를 던짐
+      // TossPayments SDK는 { code, message } 객체를 던짐
       const errObj = (e !== null && typeof e === "object") ? (e as Record<string, unknown>) : {};
       const errCode = typeof errObj.code === "string" ? errObj.code : "";
       const errMsg = e instanceof Error ? e.message : typeof errObj.message === "string" ? errObj.message : "";
