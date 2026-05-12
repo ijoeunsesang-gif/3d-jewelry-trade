@@ -347,6 +347,7 @@ function PointInfoModal({ onClose }: { onClose: () => void }) {
           <Section title="적립 방법">
             <Row icon="✅">답변 등록: 답변 1건당 <Gold>50P</Gold> 적립</Row>
             <Row icon="⭐">베스트 답변 채택: 채택 1건당 <Gold>300P</Gold> 적립</Row>
+            <Row icon="🛒">모델 구매 시: 결제금액의 <Gold>2%</Gold> 자동 적립</Row>
             <Row icon="📅">일일 최대 적립 한도: <Gold>1,000P</Gold></Row>
             <Row icon="📌">월 최대 적립 한도: <Gold>10,000P</Gold></Row>
           </Section>
@@ -358,8 +359,8 @@ function PointInfoModal({ onClose }: { onClose: () => void }) {
 
           <Section title="유의사항" last>
             <Row icon="❗">질문 등록은 무료입니다</Row>
-            <Row icon="❗">포인트는 캐드스쿨 답변 활동을 통해서만 적립됩니다</Row>
-            <Row icon="❗">일 1,000P / 월 10,000P 한도 초과 시 추가 적립되지 않습니다</Row>
+            <Row icon="❗">캐드스쿨 포인트 일일 한도는 1,000P, 월 한도는 10,000P입니다</Row>
+            <Row icon="❗">포인트는 모델 구매 시 최대 50% 사용 가능합니다</Row>
           </Section>
         </div>
 
