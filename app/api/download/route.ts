@@ -106,10 +106,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "signed URL 생성 실패" }, { status: 500 });
     }
 
-    // increment_model_download RPC로 원자적 증가 (SECURITY DEFINER)
-    const { error: rpcError } = await adminSupabase.rpc("increment_model_download", { mid: modelId });
-    if (rpcError) {
-      console.error("[download_count] increment_model_download RPC 실패:", rpcError.message);
+    // 최초 다운로드 여부 확인 (user_id + model_id 조합)
+    const { data: existingDownload } = await adminSupabase
+      .from("user_downloads")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("model_id", modelId)
+      .maybeSingle();
+
+    if (!existingDownload) {
+      // 최초 다운로드: 이력 기록 + 카운트 증가
+      const { error: insertErr } = await adminSupabase
+        .from("user_downloads")
+        .insert({ user_id: user.id, model_id: modelId });
+      if (insertErr) {
+        console.error("[download_count] user_downloads insert 실패:", insertErr.message);
+      } else {
+        const { error: rpcError } = await adminSupabase.rpc("increment_model_download", { mid: modelId });
+        if (rpcError) {
+          console.error("[download_count] increment_model_download RPC 실패:", rpcError.message);
+        }
+      }
     }
 
     return NextResponse.json({ signedUrl });
