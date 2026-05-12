@@ -979,6 +979,10 @@ export default function ProfilePage() {
                     멘토 활동을 통해 수익을 창출할 수 있으며, 플랫폼 수수료가 적용됩니다.
                   </p>
                 </div>
+                <div style={{ background: "#fdf6e3", border: "1px solid #c9a84c66", borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: "#92681a", lineHeight: 1.8 }}>
+                  💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.<br />
+                  추후 멘토 등록 조건이 변경될 수 있습니다.
+                </div>
                 <a
                   href="/cad-school/mentor/register"
                   style={{
@@ -1818,28 +1822,26 @@ function PointsTab({ userId, isSeller, isAdmin }: { userId: string; isSeller: bo
             {/* 적립 방법 */}
             <div style={{ marginBottom: 10 }}>
               <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 방법</strong>
-              <div>• 상품 구매: <strong style={{ color: GOLD }}>결제금액의 2% 적립</strong></div>
+              <div>• 모델 구매: <strong style={{ color: GOLD }}>결제금액의 2% 자동 적립</strong></div>
               {(isSeller || isAdmin) && (
                 <>
-                  <div>• 물어보기 답변 등록 (20자 이상): <strong style={{ color: GOLD }}>+5P</strong></div>
-                  <div>• 물어보기 답변 채택: <strong style={{ color: GOLD }}>+20P</strong></div>
-                  <div>• 물어보기 답변 좋아요 받기: <strong style={{ color: GOLD }}>+2P</strong></div>
+                  <div>• 캐드스쿨 답변 등록 (20자 이상): <strong style={{ color: GOLD }}>+50P</strong></div>
+                  <div>• 캐드스쿨 베스트 답변 채택: <strong style={{ color: GOLD }}>+300P</strong></div>
                 </>
               )}
             </div>
             {/* 사용 방법 */}
             <div style={{ marginBottom: 10 }}>
               <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>사용 방법</strong>
-              <div>• 상품 구매 시 최대 결제금액의 <strong>50%</strong>까지 사용 가능</div>
+              <div>• 모델 구매 시 최대 결제금액의 <strong>50%</strong>까지 사용 가능</div>
               <div>• 1포인트 = 1원 할인</div>
             </div>
             {/* 적립 제한 (판매자/관리자만) */}
             {(isSeller || isAdmin) && (
               <div style={{ marginBottom: 10 }}>
                 <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>적립 제한</strong>
-                <div>• 같은 질문에 첫 번째 답변만 포인트 지급</div>
-                <div>• 해결된 질문(채택 완료)에 답변 시 포인트 미지급</div>
-                <div>• 하루 최대 적립 한도: <strong>100P</strong></div>
+                <div>• 일일 최대 적립: <strong>1,000P</strong></div>
+                <div>• 월 최대 적립: <strong>10,000P</strong></div>
                 <div>• 포인트 유효기간: 적립일로부터 1년</div>
               </div>
             )}
@@ -1849,15 +1851,6 @@ function PointsTab({ userId, isSeller, isAdmin }: { userId: string; isSeller: bo
                 <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>안내사항</strong>
                 <div>• 포인트 유효기간: 적립일로부터 1년</div>
                 <div>• 만료 30일 전 알림 표시</div>
-              </div>
-            )}
-            {/* 주의사항 (판매자/관리자만) */}
-            {(isSeller || isAdmin) && (
-              <div>
-                <strong style={{ display: "block", marginBottom: 4, color: "#92400e" }}>주의사항</strong>
-                <div>• 복사/붙여넣기, 도배, 관련 없는 답변은 신고 대상</div>
-                <div>• 신고 3회 이상 누적 시 포인트 회수 및 적립 차단</div>
-                <div>• 차단 해제는 관리자에게 문의</div>
               </div>
             )}
           </div>

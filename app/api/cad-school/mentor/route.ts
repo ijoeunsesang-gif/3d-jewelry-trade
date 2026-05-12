@@ -14,6 +14,18 @@ export async function POST(req: NextRequest) {
   if (authErr || !user) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
 
   try {
+    // 판매자 여부 확인 (판매자 또는 관리자만 멘토 등록 가능)
+    const { data: profile } = await adminSupabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const role = profile?.role ?? "buyer";
+    if (role !== "seller" && role !== "admin") {
+      return NextResponse.json({ error: "판매자로 등록된 회원만 멘토 등록이 가능합니다." }, { status: 403 });
+    }
+
     // 이미 등록된 멘토인지 확인
     const { data: existing } = await adminSupabase
       .from("cad_mentors")
@@ -24,7 +36,6 @@ export async function POST(req: NextRequest) {
     const { intro, per_session_price, package_5_price, package_10_price, daily_limit } = await req.json();
 
     if (existing) {
-      // 업데이트
       await adminSupabase
         .from("cad_mentors")
         .update({ intro: intro ?? "", per_session_price: per_session_price ?? 0, package_5_price: package_5_price ?? 0, package_10_price: package_10_price ?? 0, daily_limit: daily_limit ?? 2, is_active: true })

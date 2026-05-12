@@ -8,11 +8,13 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
 
 const GOLD = "#c9a84c";
+const GOLD_LIGHT = "#fdf6e3";
 
 export default function MentorRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isSeller, setIsSeller] = useState(false);
   const [existing, setExisting] = useState(false);
 
   const [intro, setIntro] = useState("");
@@ -31,6 +33,15 @@ export default function MentorRegisterPage() {
     const payload = decodeJwt(token) as { sub?: string } | null;
     const uid = payload?.sub;
     if (!uid) { router.push("/auth"); return; }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", uid)
+      .single();
+
+    const role = profile?.role ?? "buyer";
+    setIsSeller(role === "seller" || role === "admin");
 
     const { data: mentorData } = await supabase
       .from("cad_mentors")
@@ -76,6 +87,37 @@ export default function MentorRegisterPage() {
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
 
+  if (!isSeller) {
+    return (
+      <main style={{ maxWidth: 600, margin: "0 auto", padding: "60px 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', textAlign: "center" }}>
+        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "40px 32px" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🎓</div>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: "#111827", marginBottom: 10 }}>멘토 등록 불가</h1>
+          <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 6, lineHeight: 1.7 }}>
+            현재는 <strong style={{ color: "#111827" }}>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.
+          </p>
+          <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>
+            추후 멘토 등록 조건이 변경될 수 있습니다.
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <Link
+              href="/profile?tab=seller"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 14 }}
+            >
+              판매자 등록하러 가기
+            </Link>
+            <Link
+              href="/cad-school"
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontWeight: 700, fontSize: 14 }}
+            >
+              캐드스쿨로 돌아가기
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
@@ -88,9 +130,15 @@ export default function MentorRegisterPage() {
         <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900, color: "#111827" }}>
           {existing ? "멘토 정보 수정" : "멘토 등록"}
         </h1>
-        <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6b7280" }}>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
           주얼리 CAD 멘토링을 제공하고 수익을 창출해보세요.
         </p>
+
+        {/* 조건 안내 */}
+        <div style={{ background: GOLD_LIGHT, border: `1px solid ${GOLD}66`, borderRadius: 12, padding: "10px 14px", marginBottom: 22, fontSize: 12, color: "#92681a", lineHeight: 1.8 }}>
+          💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.<br />
+          추후 멘토 등록 조건이 변경될 수 있습니다.
+        </div>
 
         <Field label="소개글">
           <textarea
@@ -104,48 +152,19 @@ export default function MentorRegisterPage() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
           <Field label="건별 멘토링 가격 (원)">
-            <input
-              type="number"
-              value={perSession}
-              onChange={(e) => setPerSession(e.target.value)}
-              placeholder="30000"
-              min={0}
-              style={inputStyle}
-            />
+            <input type="number" value={perSession} onChange={(e) => setPerSession(e.target.value)} placeholder="30000" min={0} style={inputStyle} />
           </Field>
           <Field label="1일 최대 수락 건수">
-            <input
-              type="number"
-              value={dailyLimit}
-              onChange={(e) => setDailyLimit(e.target.value)}
-              placeholder="2"
-              min={1}
-              max={10}
-              style={inputStyle}
-            />
+            <input type="number" value={dailyLimit} onChange={(e) => setDailyLimit(e.target.value)} placeholder="2" min={1} max={10} style={inputStyle} />
           </Field>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
           <Field label="5회 패키지 가격 (원)">
-            <input
-              type="number"
-              value={pkg5}
-              onChange={(e) => setPkg5(e.target.value)}
-              placeholder="120000"
-              min={0}
-              style={inputStyle}
-            />
+            <input type="number" value={pkg5} onChange={(e) => setPkg5(e.target.value)} placeholder="120000" min={0} style={inputStyle} />
           </Field>
           <Field label="10회 패키지 가격 (원)">
-            <input
-              type="number"
-              value={pkg10}
-              onChange={(e) => setPkg10(e.target.value)}
-              placeholder="200000"
-              min={0}
-              style={inputStyle}
-            />
+            <input type="number" value={pkg10} onChange={(e) => setPkg10(e.target.value)} placeholder="200000" min={0} style={inputStyle} />
           </Field>
         </div>
 
