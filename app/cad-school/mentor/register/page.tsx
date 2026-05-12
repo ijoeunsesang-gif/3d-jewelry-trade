@@ -10,6 +10,15 @@ import { showError, showSuccess } from "../../../lib/toast";
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 
+const PROGRAM_OPTIONS = ["주얼리CAD", "Rhino 5", "Rhino 6", "Rhino 7", "Rhino 8", "ZBrush (지브러쉬)", "KeyShot (키샷)"];
+const WORK_TYPE_OPTIONS = ["패션세트", "예물", "미스링", "미스팔찌", "패션팔찌", "패션반지", "귀걸이(원터치)"];
+const LEVELS = ["상", "중", "하"] as const;
+type Level = typeof LEVELS[number];
+type SkillItem = { name: string; level: Level };
+
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 1989 }, (_, i) => CURRENT_YEAR - i);
+
 export default function MentorRegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -18,10 +27,12 @@ export default function MentorRegisterPage() {
   const [existing, setExisting] = useState(false);
 
   const [intro, setIntro] = useState("");
+  const [careerStartYear, setCareerStartYear] = useState<string>("");
+  const [programs, setPrograms] = useState<SkillItem[]>([]);
+  const [workTypes, setWorkTypes] = useState<SkillItem[]>([]);
+  const [canCpx, setCanCpx] = useState(false);
 
-  useEffect(() => {
-    init();
-  }, []);
+  useEffect(() => { init(); }, []);
 
   const init = async () => {
     const token = getAccessToken();
@@ -30,26 +41,35 @@ export default function MentorRegisterPage() {
     const uid = payload?.sub;
     if (!uid) { router.push("/auth"); return; }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", uid)
-      .single();
-
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", uid).single();
     const role = profile?.role ?? "buyer";
     setIsSeller(role === "seller" || role === "admin");
 
-    const { data: mentorData } = await supabase
+    const { data: m } = await supabase
       .from("cad_mentors")
-      .select("intro")
+      .select("intro, career_start_year, programs, work_types, can_cpx")
       .eq("user_id", uid)
       .maybeSingle();
 
-    if (mentorData) {
+    if (m) {
       setExisting(true);
-      setIntro(mentorData.intro ?? "");
+      setIntro(m.intro ?? "");
+      setCareerStartYear(m.career_start_year ? String(m.career_start_year) : "");
+      setPrograms((m.programs as SkillItem[]) ?? []);
+      setWorkTypes((m.work_types as SkillItem[]) ?? []);
+      setCanCpx(m.can_cpx ?? false);
     }
     setLoading(false);
+  };
+
+  const toggleItem = (list: SkillItem[], setList: (v: SkillItem[]) => void, name: string) => {
+    const exists = list.find((p) => p.name === name);
+    if (exists) setList(list.filter((p) => p.name !== name));
+    else setList([...list, { name, level: "중" }]);
+  };
+
+  const setItemLevel = (list: SkillItem[], setList: (v: SkillItem[]) => void, name: string, level: Level) => {
+    setList(list.map((p) => (p.name === name ? { ...p, level } : p)));
   };
 
   const handleSubmit = async () => {
@@ -62,6 +82,10 @@ export default function MentorRegisterPage() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         intro: intro.trim(),
+        career_start_year: careerStartYear ? parseInt(careerStartYear) : null,
+        programs,
+        work_types: workTypes,
+        can_cpx: canCpx,
       }),
     });
     const data = await res.json();
@@ -84,20 +108,12 @@ export default function MentorRegisterPage() {
           <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 6, lineHeight: 1.7 }}>
             현재는 <strong style={{ color: "#111827" }}>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.
           </p>
-          <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>
-            추후 멘토 등록 조건이 변경될 수 있습니다.
-          </p>
+          <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>추후 멘토 등록 조건이 변경될 수 있습니다.</p>
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <Link
-              href="/profile?tab=seller"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 14 }}
-            >
+            <Link href="/profile?tab=seller" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 14 }}>
               판매자 등록하러 가기
             </Link>
-            <Link
-              href="/cad-school"
-              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontWeight: 700, fontSize: 14 }}
-            >
+            <Link href="/cad-school" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontWeight: 700, fontSize: 14 }}>
               캐드스쿨로 돌아가기
             </Link>
           </div>
@@ -105,6 +121,8 @@ export default function MentorRegisterPage() {
       </main>
     );
   }
+
+  const careerYears = careerStartYear ? CURRENT_YEAR - parseInt(careerStartYear) : null;
 
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -118,24 +136,123 @@ export default function MentorRegisterPage() {
         <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900, color: "#111827" }}>
           {existing ? "멘토 정보 수정" : "멘토 등록"}
         </h1>
-        <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>
-          주얼리 CAD 멘토링을 제공하고 수익을 창출해보세요.
-        </p>
+        <p style={{ margin: "0 0 16px", fontSize: 13, color: "#6b7280" }}>주얼리 CAD 멘토링을 제공하고 수익을 창출해보세요.</p>
 
-        {/* 조건 안내 */}
         <div style={{ background: GOLD_LIGHT, border: `1px solid ${GOLD}66`, borderRadius: 12, padding: "10px 14px", marginBottom: 22, fontSize: 12, color: "#92681a", lineHeight: 1.8 }}>
           💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.<br />
           추후 멘토 등록 조건이 변경될 수 있습니다.
         </div>
 
+        {/* 소개글 */}
         <Field label="소개글">
           <textarea
             value={intro}
             onChange={(e) => setIntro(e.target.value)}
             placeholder="CAD 경력, 전문 분야, 멘토링 방식 등을 소개해주세요."
-            rows={5}
+            rows={4}
             style={{ ...inputStyle, resize: "vertical" }}
           />
+        </Field>
+
+        {/* 경력 시작 연도 */}
+        <Field label="주얼리 실무 시작 연도">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <select
+              value={careerStartYear}
+              onChange={(e) => setCareerStartYear(e.target.value)}
+              style={{ ...inputStyle, width: "auto", minWidth: 140 }}
+            >
+              <option value="">연도 선택</option>
+              {YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>{y}년</option>
+              ))}
+            </select>
+            {careerYears !== null && (
+              <span style={{ fontSize: 14, fontWeight: 800, color: "#111827", background: "#f3f4f6", borderRadius: 8, padding: "6px 14px" }}>
+                경력 {careerYears}년
+              </span>
+            )}
+          </div>
+        </Field>
+
+        {/* 사용 가능 프로그램 */}
+        <Field label="사용 가능 프로그램">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {PROGRAM_OPTIONS.map((name) => {
+              const item = programs.find((p) => p.name === name);
+              const checked = !!item;
+              return (
+                <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: `1px solid ${checked ? "#111827" : "#e5e7eb"}`, background: checked ? "#f8fafc" : "white", cursor: "pointer" }}
+                  onClick={() => toggleItem(programs, setPrograms, name)}
+                >
+                  <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${checked ? "#111827" : "#d1d5db"}`, background: checked ? "#111827" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {checked && <span style={{ color: "white", fontSize: 11, fontWeight: 900 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: checked ? 700 : 400, color: checked ? "#111827" : "#6b7280", flex: 1 }}>{name}</span>
+                  {checked && (
+                    <select
+                      value={item.level}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => { e.stopPropagation(); setItemLevel(programs, setPrograms, name, e.target.value as Level); }}
+                      style={{ fontSize: 12, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", cursor: "pointer" }}
+                    >
+                      {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Field>
+
+        {/* 작업 분야 */}
+        <Field label="작업 분야">
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {WORK_TYPE_OPTIONS.map((name) => {
+              const item = workTypes.find((p) => p.name === name);
+              const checked = !!item;
+              return (
+                <div key={name} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 10, border: `1px solid ${checked ? "#111827" : "#e5e7eb"}`, background: checked ? "#f8fafc" : "white", cursor: "pointer" }}
+                  onClick={() => toggleItem(workTypes, setWorkTypes, name)}
+                >
+                  <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${checked ? "#111827" : "#d1d5db"}`, background: checked ? "#111827" : "white", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {checked && <span style={{ color: "white", fontSize: 11, fontWeight: 900 }}>✓</span>}
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: checked ? 700 : 400, color: checked ? "#111827" : "#6b7280", flex: 1 }}>{name}</span>
+                  {checked && (
+                    <select
+                      value={item.level}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => { e.stopPropagation(); setItemLevel(workTypes, setWorkTypes, name, e.target.value as Level); }}
+                      style={{ fontSize: 12, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid #d1d5db", background: "white", cursor: "pointer" }}
+                    >
+                      {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Field>
+
+        {/* CPX 금주물 모델링 */}
+        <Field label="CPX (최저중량) 금주물 모델링 제작 가능">
+          <button
+            type="button"
+            onClick={() => setCanCpx(!canCpx)}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${canCpx ? "#111827" : "#e5e7eb"}`,
+              background: canCpx ? "#111827" : "white", cursor: "pointer", width: "100%",
+            }}
+          >
+            <div style={{ width: 44, height: 24, borderRadius: 12, background: canCpx ? GOLD : "#d1d5db", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+              <div style={{ position: "absolute", top: 3, left: canCpx ? 22 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", transition: "left 0.2s" }} />
+            </div>
+            <span style={{ fontSize: 14, fontWeight: 700, color: canCpx ? "white" : "#6b7280" }}>
+              {canCpx ? "✅ 가능" : "불가능"}
+            </span>
+          </button>
         </Field>
 
         {/* 고정 가격 안내 */}
@@ -163,8 +280,8 @@ export default function MentorRegisterPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>{label}</label>
+    <div style={{ marginBottom: 20 }}>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>{label}</label>
       {children}
     </div>
   );

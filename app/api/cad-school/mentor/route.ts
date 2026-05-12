@@ -33,19 +33,27 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user.id)
       .maybeSingle();
 
-    const { intro } = await req.json();
+    const { intro, career_start_year, programs, work_types, can_cpx } = await req.json();
+
+    const profileFields = {
+      intro: intro ?? "",
+      career_start_year: career_start_year ?? null,
+      programs: programs ?? [],
+      work_types: work_types ?? [],
+      can_cpx: can_cpx ?? false,
+    };
 
     if (existing) {
       await adminSupabase
         .from("cad_mentors")
-        .update({ intro: intro ?? "", is_active: true })
+        .update({ ...profileFields, is_active: true })
         .eq("user_id", user.id);
       return NextResponse.json({ ok: true, updated: true });
     }
 
     const { error: insertErr } = await adminSupabase
       .from("cad_mentors")
-      .insert({ user_id: user.id, intro: intro ?? "" });
+      .insert({ user_id: user.id, ...profileFields });
 
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 

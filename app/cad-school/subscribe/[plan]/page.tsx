@@ -11,6 +11,7 @@ import { showError, showInfo } from "../../../lib/toast";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
+const CURRENT_YEAR = new Date().getFullYear();
 
 const PLAN_INFO = {
   basic:  { label: "BASIC",  price: 19900, mentorChanges: 1, responseTime: "48시간" },
@@ -24,6 +25,7 @@ type Mentor = {
   id: string;
   user_id: string;
   intro: string;
+  career_start_year: number | null;
   avg_rating: number;
   total_ratings: number;
   response_rate: number;
@@ -59,7 +61,7 @@ export default function SubscribePlanPage() {
     setLoading(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, user_id, intro, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
+      .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
       .eq("is_active", true)
       .eq("is_suspended", false)
       .order("avg_rating", { ascending: false });
@@ -185,6 +187,7 @@ export default function SubscribePlanPage() {
             const isMe = myUserId === mentor.user_id;
             const isPaying = paying === mentor.id;
             const stars = Math.round(mentor.avg_rating);
+            const careerYears = mentor.career_start_year ? CURRENT_YEAR - mentor.career_start_year : null;
             return (
               <div key={mentor.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "20px 22px" }}>
                 <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
@@ -195,6 +198,9 @@ export default function SubscribePlanPage() {
                         {mentor.profiles?.nickname ?? "멘토"}
                       </span>
                       {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="sm" />}
+                      {careerYears !== null && (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", borderRadius: 6, padding: "2px 7px" }}>경력 {careerYears}년</span>
+                      )}
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>

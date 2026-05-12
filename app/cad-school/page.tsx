@@ -27,9 +27,12 @@ type Post = {
   comment_count: number;
 };
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 type Mentor = {
   id: string;
   intro: string;
+  career_start_year: number | null;
   avg_rating: number;
   total_ratings: number;
   response_rate: number;
@@ -76,7 +79,7 @@ export default function CadSchoolPage() {
     setLoadingMentors(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, intro, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
+      .select("id, intro, career_start_year, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
       .eq("is_active", true)
       .eq("is_suspended", false)
       .order("avg_rating", { ascending: false });
@@ -349,6 +352,7 @@ function MentorTab({ mentors, loading }: { mentors: Mentor[]; loading: boolean }
 }
 
 function MentorCard({ mentor }: { mentor: Mentor }) {
+  const careerYears = mentor.career_start_year ? CURRENT_YEAR - mentor.career_start_year : null;
   return (
     <Link href={`/cad-school/mentor/${mentor.id}`} style={{ textDecoration: "none" }}>
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", cursor: "pointer", transition: "box-shadow 0.15s" }}
@@ -358,9 +362,12 @@ function MentorCard({ mentor }: { mentor: Mentor }) {
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
           <Avatar url={mentor.profiles?.avatar_url} size={48} />
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>{mentor.profiles?.nickname ?? "멘토"}</span>
               {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="sm" />}
+              {careerYears !== null && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", borderRadius: 6, padding: "2px 7px" }}>경력 {careerYears}년</span>
+              )}
               {mentor.avg_rating > 0 && (
                 <span style={{ fontSize: 12, color: GOLD, fontWeight: 700 }}>★ {mentor.avg_rating.toFixed(1)}</span>
               )}

@@ -9,6 +9,16 @@ import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
 
+const CURRENT_YEAR = new Date().getFullYear();
+
+type SkillItem = { name: string; level: string };
+
+const LEVEL_COLOR: Record<string, { bg: string; color: string }> = {
+  상: { bg: "#fdf6e3", color: "#92681a" },
+  중: { bg: "#f3f4f6", color: "#374151" },
+  하: { bg: "#f9fafb", color: "#9ca3af" },
+};
+
 const SESSION_TYPES = {
   image_review: { label: "이미지 검토", price: 3000, desc: "이미지로 CAD 작업 피드백", icon: "🖼" },
   file_review:  { label: "파일 검토",   price: 5000, desc: "CAD 파일 열람 후 피드백",  icon: "📂" },
@@ -23,6 +33,10 @@ type Mentor = {
   id: string;
   intro: string;
   user_id: string;
+  career_start_year: number | null;
+  programs: SkillItem[];
+  work_types: SkillItem[];
+  can_cpx: boolean;
   profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
 };
 
@@ -55,7 +69,7 @@ export default function MentorDetailPage() {
   const loadMentor = async () => {
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, intro, user_id, profiles(nickname, avatar_url, grade)")
+      .select("id, intro, user_id, career_start_year, programs, work_types, can_cpx, profiles(nickname, avatar_url, grade)")
       .eq("id", id)
       .eq("is_active", true)
       .single();
@@ -177,6 +191,9 @@ export default function MentorDetailPage() {
 
   const isMyMentor = myUserId === mentor.user_id;
   const currentType = selectedType ? SESSION_TYPES[selectedType] : null;
+  const careerYears = mentor.career_start_year ? CURRENT_YEAR - mentor.career_start_year : null;
+  const programs = (mentor.programs ?? []) as SkillItem[];
+  const workTypes = (mentor.work_types ?? []) as SkillItem[];
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -195,9 +212,57 @@ export default function MentorDetailPage() {
               <span style={{ fontSize: 22, fontWeight: 900, color: "#111827" }}>{mentor.profiles?.nickname ?? "멘토"}</span>
               {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="md" />}
             </div>
-            <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.7 }}>
+            <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151", lineHeight: 1.7 }}>
               {mentor.intro || "소개글이 없습니다."}
             </p>
+
+            {/* 경력 */}
+            {careerYears !== null && (
+              <div style={{ marginBottom: 12 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#374151", background: "#f3f4f6", borderRadius: 8, padding: "4px 10px" }}>
+                  경력 {careerYears}년
+                </span>
+              </div>
+            )}
+
+            {/* 사용 프로그램 */}
+            {programs.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, letterSpacing: 0.5 }}>사용 프로그램</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {programs.map((p) => {
+                    const lc = LEVEL_COLOR[p.level] ?? LEVEL_COLOR["중"];
+                    return (
+                      <span key={p.name} style={{ fontSize: 12, fontWeight: 700, background: lc.bg, color: lc.color, border: `1px solid ${lc.color}33`, borderRadius: 8, padding: "3px 10px" }}>
+                        {p.name} · {p.level}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 작업 분야 */}
+            {workTypes.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#9ca3af", marginBottom: 6, letterSpacing: 0.5 }}>작업 분야</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {workTypes.map((w) => {
+                    const lc = LEVEL_COLOR[w.level] ?? LEVEL_COLOR["중"];
+                    return (
+                      <span key={w.name} style={{ fontSize: 12, fontWeight: 700, background: lc.bg, color: lc.color, border: `1px solid ${lc.color}33`, borderRadius: 8, padding: "3px 10px" }}>
+                        {w.name} · {w.level}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* CPX */}
+            {mentor.can_cpx && (
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>✅ CPX 금주물 모델링 가능</div>
+            )}
           </div>
           {isMyMentor && (
             <Link
