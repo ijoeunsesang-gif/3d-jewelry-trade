@@ -57,14 +57,20 @@ export async function POST(req: NextRequest) {
 
     const ext = getExt(file.name || path);
 
+    const MAX_CAD_SIZE = 50 * 1024 * 1024; // 50MB for CAD files in thumbnails
+
     if (bucket === "thumbnails") {
-      if (!ALLOWED_IMAGE_EXTS.includes(ext)) {
+      const allAllowedThumbnail = [...ALLOWED_IMAGE_EXTS, ...ALLOWED_MODEL_EXTS];
+      if (!allAllowedThumbnail.includes(ext)) {
         return NextResponse.json(
-          { error: `이미지 파일만 허용됩니다. (${ALLOWED_IMAGE_EXTS.join(", ")})` },
+          { error: `허용되지 않은 파일 형식입니다. (${allAllowedThumbnail.join(", ")})` },
           { status: 400 }
         );
       }
-      if (file.size > MAX_IMAGE_SIZE) {
+      if (ALLOWED_MODEL_EXTS.includes(ext) && file.size > MAX_CAD_SIZE) {
+        return NextResponse.json({ error: "CAD 파일은 50MB 이하만 허용됩니다." }, { status: 400 });
+      }
+      if (ALLOWED_IMAGE_EXTS.includes(ext) && file.size > MAX_IMAGE_SIZE) {
         return NextResponse.json({ error: "이미지는 10MB 이하만 허용됩니다." }, { status: 400 });
       }
     } else {
@@ -82,9 +88,10 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const contentType = bucket === "thumbnails"
-      ? (file.type || "image/jpeg")
-      : "application/octet-stream";
+    const isModelFile = ALLOWED_MODEL_EXTS.includes(ext);
+    const contentType = isModelFile
+      ? "application/octet-stream"
+      : (file.type || "image/jpeg");
 
     await r2Upload(bucket, path, buffer, contentType);
 
