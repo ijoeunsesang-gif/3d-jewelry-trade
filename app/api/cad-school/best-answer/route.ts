@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
     if (!post) return NextResponse.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
     if (post.user_id !== user.id) return NextResponse.json({ error: "게시글 작성자만 채택할 수 있습니다." }, { status: 403 });
     if (post.status === "closed") return NextResponse.json({ error: "이미 마감된 질문입니다." }, { status: 400 });
+    if (comment.user_id === user.id) return NextResponse.json({ error: "본인의 답변은 채택할 수 없습니다." }, { status: 400 });
 
     await adminSupabase
       .from("cad_post_comments")

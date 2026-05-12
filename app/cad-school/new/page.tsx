@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getAccessToken } from "@/lib/supabase-fetch";
@@ -19,6 +19,17 @@ export default function NewCadPostPage() {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    document.addEventListener("dragover", prevent);
+    document.addEventListener("drop", prevent);
+    return () => {
+      document.removeEventListener("dragover", prevent);
+      document.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
@@ -28,6 +39,18 @@ export default function NewCadPostPage() {
     }
     await uploadFiles(selected);
     e.target.value = "";
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    if (!dropped.length) return;
+    if (files.length + dropped.length > MAX_FILES) {
+      showError(`파일은 최대 ${MAX_FILES}개까지 첨부할 수 있습니다.`);
+      return;
+    }
+    await uploadFiles(dropped);
   };
 
   const uploadFiles = async (selected: File[]) => {
@@ -89,7 +112,7 @@ export default function NewCadPostPage() {
 
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "28px 28px 32px", marginBottom: 16 }}>
         <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900, color: "#111827" }}>CAD 질문 등록</h1>
-        <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6b7280" }}>질문 등록은 <strong style={{ color: "#111827" }}>무료</strong>입니다. 채택 시 답변자에게 <strong style={{ color: GOLD }}>+20P</strong>가 지급됩니다.</p>
+        <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6b7280" }}>질문 등록은 <strong style={{ color: "#111827" }}>무료</strong>입니다. 채택 시 답변자에게 <strong style={{ color: GOLD }}>+300P</strong>가 지급됩니다.</p>
 
         <label style={labelStyle}>제목</label>
         <input
@@ -111,12 +134,24 @@ export default function NewCadPostPage() {
 
         <label style={labelStyle}>파일 첨부 (최대 {MAX_FILES}개 · 이미지/STL/OBJ/3DM)</label>
         <div
-          style={{ border: "1px dashed #d1d5db", borderRadius: 12, padding: "16px 20px", marginBottom: 20, cursor: "pointer", background: "#fafafa" }}
+          style={{
+            position: "relative",
+            border: isDragOver ? `2px dashed ${GOLD}` : "1px dashed #d1d5db",
+            borderRadius: 12,
+            padding: "16px 20px",
+            marginBottom: 20,
+            cursor: "pointer",
+            background: isDragOver ? "#fdf6e3" : "#fafafa",
+            transition: "border-color 0.15s, background 0.15s",
+          }}
           onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); }}
+          onDrop={handleDrop}
         >
           <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.stl,.obj,.3dm" style={{ display: "none" }} onChange={handleFileChange} />
-          <div style={{ fontSize: 13, color: "#6b7280", textAlign: "center" }}>
-            {uploading ? "업로드 중..." : "클릭하여 파일 선택"}
+          <div style={{ fontSize: 13, color: isDragOver ? GOLD : "#6b7280", textAlign: "center", fontWeight: isDragOver ? 700 : 400 }}>
+            {uploading ? "업로드 중..." : isDragOver ? "여기에 놓으세요" : "클릭하거나 파일을 드래그하여 첨부"}
           </div>
         </div>
 

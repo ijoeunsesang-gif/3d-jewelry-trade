@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (authErr || !user) return NextResponse.json({ error: "인증 실패" }, { status: 401 });
 
   try {
-    const { post_id, content, files } = await req.json();
+    const { post_id, content, files, parent_id } = await req.json();
     if (!post_id || !content?.trim()) {
       return NextResponse.json({ error: "게시글 ID와 내용을 입력해주세요." }, { status: 400 });
     }
@@ -61,6 +61,37 @@ export async function POST(req: NextRequest) {
 
     if (!post) return NextResponse.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
     if (post.status !== "open") return NextResponse.json({ error: "마감된 질문에는 답변할 수 없습니다." }, { status: 400 });
+
+    // 대댓글: 질문자만 작성 가능, 포인트 없음
+    if (parent_id) {
+      if (user.id !== post.user_id) {
+        return NextResponse.json({ error: "대댓글은 질문 작성자만 달 수 있습니다." }, { status: 403 });
+      }
+
+      const { data: parentComment } = await adminSupabase
+        .from("cad_post_comments")
+        .select("id, post_id, parent_id")
+        .eq("id", parent_id)
+        .single();
+
+      if (!parentComment || parentComment.post_id !== post_id || parentComment.parent_id) {
+        return NextResponse.json({ error: "유효하지 않은 부모 댓글입니다." }, { status: 400 });
+      }
+
+      const { data: subComment, error: subErr } = await adminSupabase
+        .from("cad_post_comments")
+        .insert({ post_id, user_id: user.id, content: content.trim(), files: [], parent_id, point_reward: 0 })
+        .select("id")
+        .single();
+
+      if (subErr) return NextResponse.json({ error: subErr.message }, { status: 500 });
+      return NextResponse.json({ id: subComment.id, pointAwarded: 0 });
+    }
+
+    // 일반 답변: 본인 질문에 답변 불가
+    if (user.id === post.user_id) {
+      return NextResponse.json({ error: "본인의 질문에는 답변할 수 없습니다." }, { status: 403 });
+    }
 
     const { data: comment, error: commentErr } = await adminSupabase
       .from("cad_post_comments")

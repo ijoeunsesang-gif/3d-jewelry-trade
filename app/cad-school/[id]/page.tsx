@@ -32,6 +32,7 @@ type Comment = {
   point_reward: number;
   created_at: string;
   user_id: string;
+  parent_id: string | null;
   profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
 };
 
@@ -41,7 +42,7 @@ export default function CadPostDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [post, setPost] = useState<Post | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [allComments, setAllComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
@@ -50,6 +51,10 @@ export default function CadPostDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [picking, setPicking] = useState(false);
+
+  const [replyToId, setReplyToId] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [replySubmitting, setReplySubmitting] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -73,12 +78,11 @@ export default function CadPostDetailPage() {
 
     const { data: commentData } = await supabase
       .from("cad_post_comments")
-      .select("id, content, files, is_best_answer, point_reward, created_at, user_id, profiles(nickname, avatar_url, grade)")
+      .select("id, content, files, is_best_answer, point_reward, created_at, user_id, parent_id, profiles(nickname, avatar_url, grade)")
       .eq("post_id", id)
-      .order("is_best_answer", { ascending: false })
       .order("created_at", { ascending: true });
 
-    setComments((commentData ?? []) as unknown as Comment[]);
+    setAllComments((commentData ?? []) as unknown as Comment[]);
     setLoading(false);
   };
 
@@ -115,12 +119,34 @@ export default function CadPostDetailPage() {
     const data = await res.json();
     if (!res.ok) { showError(data.error || "답변 등록 실패"); }
     else {
-      showSuccess("답변이 등록되었습니다! (+5P)");
+      const awarded = data.pointAwarded ?? 0;
+      showSuccess(awarded > 0 ? `답변이 등록되었습니다! (+${awarded}P)` : "답변이 등록되었습니다!");
       setCommentContent("");
       setCommentFiles([]);
       loadPost();
     }
     setSubmitting(false);
+  };
+
+  const handleSubmitReply = async (parentCommentId: string) => {
+    if (!replyContent.trim()) { showError("댓글 내용을 입력해주세요."); return; }
+    const token = getAccessToken();
+    if (!token) { showError("로그인이 필요합니다."); return; }
+    setReplySubmitting(true);
+    const res = await fetch("/api/cad-school/comment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ post_id: id, content: replyContent.trim(), files: [], parent_id: parentCommentId }),
+    });
+    const data = await res.json();
+    if (!res.ok) showError(data.error || "댓글 등록 실패");
+    else {
+      showSuccess("댓글이 등록되었습니다.");
+      setReplyContent("");
+      setReplyToId(null);
+      loadPost();
+    }
+    setReplySubmitting(false);
   };
 
   const handlePickBest = async (commentId: string) => {
@@ -135,7 +161,7 @@ export default function CadPostDetailPage() {
     });
     const data = await res.json();
     if (!res.ok) showError(data.error || "채택 실패");
-    else { showSuccess("채택되었습니다! 답변자에게 +20P가 지급되었습니다."); loadPost(); }
+    else { showSuccess(`채택되었습니다! 답변자에게 +${data.pointAwarded ?? 300}P가 지급되었습니다.`); loadPost(); }
     setPicking(false);
   };
 
@@ -145,6 +171,16 @@ export default function CadPostDetailPage() {
   if (!post) return null;
 
   const isOwner = myUserId === post.user_id;
+  const topComments = allComments
+    .filter((c) => !c.parent_id)
+    .sort((a, b) => (b.is_best_answer ? 1 : 0) - (a.is_best_answer ? 1 : 0) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  const subCommentMap: Record<string, Comment[]> = {};
+  for (const c of allComments) {
+    if (c.parent_id) {
+      if (!subCommentMap[c.parent_id]) subCommentMap[c.parent_id] = [];
+      subCommentMap[c.parent_id].push(c);
+    }
+  }
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
@@ -187,30 +223,38 @@ export default function CadPostDetailPage() {
       {/* 답변 목록 */}
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111827", margin: "0 0 14px" }}>
-          답변 {comments.length}개
+          답변 {topComments.length}개
         </h2>
-        {comments.map((c) => (
+        {topComments.map((c) => (
           <CommentCard
             key={c.id}
             comment={c}
+            subComments={subCommentMap[c.id] ?? []}
             isOwner={isOwner}
+            myUserId={myUserId}
             postClosed={post.status === "closed"}
             onPickBest={() => handlePickBest(c.id)}
             picking={picking}
+            replyToId={replyToId}
+            onReplyToggle={(cid) => { setReplyToId(cid); setReplyContent(""); }}
+            replyContent={replyContent}
+            onReplyChange={setReplyContent}
+            onReplySubmit={handleSubmitReply}
+            replySubmitting={replySubmitting}
           />
         ))}
-        {comments.length === 0 && (
+        {topComments.length === 0 && (
           <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 16, padding: "30px 20px", textAlign: "center", color: "#9ca3af", fontSize: 13 }}>
             아직 답변이 없습니다. 첫 번째로 답변해보세요!
           </div>
         )}
       </div>
 
-      {/* 답변 작성 */}
-      {post.status === "open" && (
+      {/* 답변 작성 (본인 질문에는 표시 안 함) */}
+      {post.status === "open" && !isOwner && (
         <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "22px 24px" }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 900, color: "#111827" }}>
-            답변 작성 <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>+5P</span>
+            답변 작성 <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>+50P</span>
           </h3>
           <textarea
             value={commentContent}
@@ -250,9 +294,27 @@ export default function CadPostDetailPage() {
   );
 }
 
-function CommentCard({ comment, isOwner, postClosed, onPickBest, picking }: {
-  comment: Comment; isOwner: boolean; postClosed: boolean; onPickBest: () => void; picking: boolean;
+function CommentCard({
+  comment, subComments, isOwner, myUserId, postClosed, onPickBest, picking,
+  replyToId, onReplyToggle, replyContent, onReplyChange, onReplySubmit, replySubmitting,
+}: {
+  comment: Comment;
+  subComments: Comment[];
+  isOwner: boolean;
+  myUserId: string | null;
+  postClosed: boolean;
+  onPickBest: () => void;
+  picking: boolean;
+  replyToId: string | null;
+  onReplyToggle: (id: string | null) => void;
+  replyContent: string;
+  onReplyChange: (v: string) => void;
+  onReplySubmit: (parentId: string) => void;
+  replySubmitting: boolean;
 }) {
+  const isReplying = replyToId === comment.id;
+  const isMyComment = myUserId === comment.user_id;
+
   return (
     <div style={{
       background: comment.is_best_answer ? "#fffbeb" : "white",
@@ -276,14 +338,73 @@ function CommentCard({ comment, isOwner, postClosed, onPickBest, picking }: {
           {comment.files.map((f, i) => <FileAttachment key={i} file={f} />)}
         </div>
       )}
-      {isOwner && !comment.is_best_answer && !postClosed && (
-        <button
-          onClick={onPickBest}
-          disabled={picking}
-          style={{ fontSize: 12, fontWeight: 800, color: GOLD, background: GOLD + "15", border: `1px solid ${GOLD}44`, borderRadius: 8, padding: "5px 12px", cursor: picking ? "not-allowed" : "pointer" }}
-        >
-          채택하기
-        </button>
+
+      {/* 대댓글 목록 */}
+      {subComments.length > 0 && (
+        <div style={{ marginTop: 12, borderLeft: "2px solid #e5e7eb", paddingLeft: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          {subComments.map((sc) => (
+            <div key={sc.id}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <Avatar url={sc.profiles?.avatar_url} size={22} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{sc.profiles?.nickname ?? "익명"}</span>
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>{timeAgo(sc.created_at)}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", paddingLeft: 28 }}>{sc.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 액션 버튼 영역 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+        {/* 채택 버튼: 질문자 && 본인 답변 아님 && 미채택 && 미마감 */}
+        {isOwner && !isMyComment && !comment.is_best_answer && !postClosed && (
+          <button
+            onClick={onPickBest}
+            disabled={picking}
+            style={{ fontSize: 12, fontWeight: 800, color: GOLD, background: GOLD + "15", border: `1px solid ${GOLD}44`, borderRadius: 8, padding: "5px 12px", cursor: picking ? "not-allowed" : "pointer" }}
+          >
+            채택하기
+          </button>
+        )}
+        {/* 댓글 달기: 질문자 && 미마감 */}
+        {isOwner && !postClosed && (
+          <button
+            onClick={() => onReplyToggle(isReplying ? null : comment.id)}
+            style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}
+          >
+            💬 {isReplying ? "취소" : "댓글 달기"}
+          </button>
+        )}
+      </div>
+
+      {/* 대댓글 입력창 */}
+      {isReplying && (
+        <div style={{ marginTop: 10, borderLeft: "2px solid #e5e7eb", paddingLeft: 16 }}>
+          <textarea
+            value={replyContent}
+            onChange={(e) => onReplyChange(e.target.value)}
+            placeholder="답변자에게 추가 질문을 작성하세요..."
+            rows={3}
+            autoFocus
+            style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical", marginBottom: 8 }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button
+              onClick={() => onReplyToggle(null)}
+              style={{ fontSize: 12, color: "#6b7280", background: "none", border: "1px solid #d1d5db", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => onReplySubmit(comment.id)}
+              disabled={replySubmitting}
+              style={{ fontSize: 12, fontWeight: 800, color: "white", background: replySubmitting ? "#d1d5db" : "#111827", border: "none", borderRadius: 8, padding: "5px 16px", cursor: replySubmitting ? "not-allowed" : "pointer" }}
+            >
+              {replySubmitting ? "등록 중..." : "댓글 등록"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
