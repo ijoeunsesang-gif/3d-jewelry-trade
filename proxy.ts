@@ -1,7 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
 const MAINTENANCE_MODE = false
+
+// RLS 우회용 서비스 롤 클라이언트 (admin role 조회 전용)
+const serviceSupabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -44,7 +51,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/', request.url))
     }
 
-    const { data: profile } = await supabase
+    const { data: profile } = await serviceSupabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
