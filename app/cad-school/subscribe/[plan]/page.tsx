@@ -95,15 +95,14 @@ export default function SubscribePlanPage() {
     try {
       const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!;
       const tossPayments = await loadTossPayments(clientKey);
-      const payment = tossPayments.payment({ customerKey: payload?.sub ?? ANONYMOUS });
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: planInfo.price },
+      const widgets = tossPayments.widgets({ customerKey: payload?.sub ?? ANONYMOUS });
+      await widgets.setAmount({ currency: "KRW", value: planInfo.price });
+      await widgets.requestPayment({
         orderId,
         orderName: `[캐드스쿨] ${planInfo.label} 30일`,
         successUrl: `${window.location.origin}/cad-school/payment/success`,
         failUrl: `${window.location.origin}/cad-school/payment/fail`,
-        ...(payload?.email ? { customerEmail: payload.email } : {}),
+        customerEmail: payload?.email ?? "",
         customerName: "구매자",
       });
     } catch (e: unknown) {
