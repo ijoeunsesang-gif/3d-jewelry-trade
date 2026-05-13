@@ -6,8 +6,6 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
-import GradeBadge from "../../../components/GradeBadge";
-import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -39,7 +37,6 @@ type Subscription = {
     avg_rating: number;
     total_ratings: number;
     is_suspended: boolean;
-    grade?: string;
     profiles: { nickname: string | null; avatar_url: string | null } | null;
   } | null;
   subscriber_profile: { nickname: string | null; avatar_url: string | null } | null;
@@ -63,7 +60,6 @@ type AvailableMentor = {
   avg_rating: number;
   total_ratings: number;
   is_suspended: boolean;
-  grade?: string;
   profiles: { nickname: string | null; avatar_url: string | null } | null;
 };
 
@@ -108,7 +104,7 @@ export default function SubscriptionChatPage() {
   const loadData = useCallback(async () => {
     const { data: subData } = await supabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, grade, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
       .eq("id", id)
       .single();
 
@@ -223,7 +219,7 @@ export default function SubscriptionChatPage() {
     setLoadingMentors(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, user_id, avg_rating, total_ratings, is_suspended, grade, profiles(nickname, avatar_url)")
+      .select("id, user_id, avg_rating, total_ratings, is_suspended, profiles(nickname, avatar_url)")
       .eq("is_active", true)
       .eq("is_suspended", false)
       .neq("id", sub?.mentor_id ?? "");
@@ -291,7 +287,6 @@ export default function SubscriptionChatPage() {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>{mentorName}</span>
-                {mentor?.grade && <GradeBadge grade={mentor.grade as Grade} />}
                 {currentMentorSuspended && <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", background: "#fee2e2", padding: "2px 7px", borderRadius: 5 }}>활동정지</span>}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#6b7280" }}>
