@@ -55,7 +55,12 @@ function CadPaymentSuccessContent() {
           amount,
           type: pending.type,
           mentorId: pending.mentorId,
+          menteeId: pending.menteeId,
           planType: pending.planType,
+          sessionType: pending.sessionType,
+          title: pending.title,
+          description: pending.description,
+          files: pending.files,
         }),
       });
       const confirmData = await confirmRes.json();
