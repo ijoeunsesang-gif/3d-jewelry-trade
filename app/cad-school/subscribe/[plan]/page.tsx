@@ -9,6 +9,7 @@ import ReputationBadge from "../../../components/ReputationBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -76,7 +77,7 @@ export default function SubscribePlanPage() {
     if (!token) { showInfo("로그인이 필요합니다."); router.push("/auth"); return; }
     if (myUserId === mentor.user_id) { showError("본인 멘토를 수강할 수 없습니다."); return; }
 
-    const payload = decodeJwt(token) as { sub?: string } | null;
+    const payload = decodeJwt(token) as { sub?: string; email?: string } | null;
     const orderId = `cad-sub-${Date.now()}`;
 
     localStorage.setItem("pendingCadPayment", JSON.stringify({
@@ -91,7 +92,30 @@ export default function SubscribePlanPage() {
     }));
 
     setPaying(mentor.id);
-    router.push("/checkout?mode=cad");
+    try {
+      const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!;
+      const tossPayments = await loadTossPayments(clientKey);
+      const payment = tossPayments.payment({ customerKey: payload?.sub ?? ANONYMOUS });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: planInfo.price },
+        orderId,
+        orderName: `[캐드스쿨] ${planInfo.label} 30일`,
+        successUrl: `${window.location.origin}/cad-school/payment/success`,
+        failUrl: `${window.location.origin}/cad-school/payment/fail`,
+        ...(payload?.email ? { customerEmail: payload.email } : {}),
+        customerName: "구매자",
+      });
+    } catch (e: unknown) {
+      const errObj = e !== null && typeof e === "object" ? (e as Record<string, unknown>) : {};
+      const errCode = typeof errObj.code === "string" ? errObj.code : "";
+      const errMsg = e instanceof Error ? e.message : typeof errObj.message === "string" ? errObj.message : "";
+      if (!errMsg.includes("취소") && !errCode.includes("CANCELED")) {
+        showError("결제 중 오류가 발생했습니다.");
+      }
+    } finally {
+      setPaying(null);
+    }
   };
 
   const planBg = planKey === "master" ? "#111827" : planKey === "pro" ? GOLD_LIGHT : "#f8fafc";
