@@ -202,10 +202,8 @@ export default function AdminPage() {
   useEffect(() => {
     (async () => {
       const token = getAccessToken();
-      console.log("admin auth - token:", !!token);
       if (!token) { router.replace("/"); return; }
       const uid = (decodeJwt(token) as any)?.sub as string;
-      console.log("admin auth - uid:", uid);
       if (!uid) { router.replace("/"); return; }
 
       const res = await fetch(
@@ -219,7 +217,6 @@ export default function AdminPage() {
       );
       const profileArr = await res.json();
       const role = profileArr?.[0]?.role;
-      console.log("admin auth - role:", role);
       if (role !== "admin") { router.replace("/"); return; }
 
       setAuthorized(true);
