@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken } from "@/lib/supabase-fetch";
 
 type Status = "loading" | "success" | "error";
@@ -40,57 +39,32 @@ function CadPaymentSuccessContent() {
       if (!pending) { setErrorMessage("주문 정보를 찾을 수 없습니다."); setStatus("error"); return; }
       if (pending.price !== amount) { setErrorMessage("결제 금액이 일치하지 않습니다."); setStatus("error"); return; }
 
-      // 서버 결제 승인
-      const confirmRes = await fetch("/api/payment/confirm", {
+      const token = getAccessToken();
+      if (!token) { setErrorMessage("인증 정보가 없습니다."); setStatus("error"); return; }
+
+      // 결제 승인 + DB 저장 한 번에 처리
+      const confirmRes = await fetch("/api/cad-school/payment/confirm", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentKey, orderId, amount }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          paymentKey,
+          orderId,
+          amount,
+          type: pending.type,
+          mentorId: pending.mentorId,
+          planType: pending.planType,
+        }),
       });
       const confirmData = await confirmRes.json();
-      if (!confirmData.success) {
-        setErrorMessage(`결제 승인 실패: ${confirmData.message}`); setStatus("error"); return;
-      }
-
-      // DB 저장
-      const { type, mentorId, menteeId, title, description, files } = pending;
-
-      if (type === "session") {
-        const { data: session, error: sessionErr } = await supabase
-          .from("cad_mentoring_sessions")
-          .insert({
-            mentor_id:   mentorId,
-            mentee_id:   menteeId,
-            title:       title || "건별 멘토링 의뢰",
-            description: description || "",
-            files:       files || [],
-            price:       amount,
-          })
-          .select("id")
-          .single();
-
-        if (sessionErr) throw new Error(sessionErr.message);
-        setResult({ type: "session", redirectId: session.id });
-
-      } else if (type === "subscription") {
-        const token = getAccessToken();
-        if (!token) throw new Error("인증 정보가 없습니다.");
-
-        const subRes = await fetch("/api/cad-school/subscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            mentor_id: pending.mentorId,
-            plan_type: pending.planType,
-            price: amount,
-          }),
-        });
-        const subData = await subRes.json();
-        if (!subRes.ok) throw new Error(subData.error || "구독 생성 실패");
-
-        setResult({ type: "subscription", redirectId: subData.id });
+      if (!confirmRes.ok || !confirmData.ok) {
+        setErrorMessage(confirmData.error || "결제 처리에 실패했습니다."); setStatus("error"); return;
       }
 
       localStorage.removeItem("pendingCadPayment");
+      setResult({ type: confirmData.type, redirectId: confirmData.id ?? "" });
       setStatus("success");
     } catch (err) {
       console.error("결제 처리 오류:", err);

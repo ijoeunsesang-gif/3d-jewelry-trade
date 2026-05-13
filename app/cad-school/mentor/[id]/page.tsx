@@ -123,63 +123,26 @@ export default function MentorDetailPage() {
     if (!title.trim()) { showError("멘토링 제목을 입력해주세요."); return; }
     if (!description.trim()) { showError("멘토링 내용을 입력해주세요."); return; }
 
-    const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
-    if (!clientKey) { showError("결제 설정이 올바르지 않습니다."); return; }
-
     const sessionType = SESSION_TYPES[selectedType];
     const price = sessionType.price;
+    const payload = decodeJwt(token) as { sub?: string } | null;
+    const orderId = `cad-session-${Date.now()}`;
+
+    localStorage.setItem("pendingCadPayment", JSON.stringify({
+      type: "session",
+      sessionType: selectedType,
+      mentorId: mentor.id,
+      menteeId: payload?.sub,
+      price,
+      title: title.trim(),
+      description: description.trim(),
+      files,
+      orderId,
+      orderName: `[캐드스쿨] ${sessionType.label}`,
+    }));
 
     setPaying(true);
-    try {
-      const payload = decodeJwt(token) as { sub?: string; email?: string } | null;
-      const orderId = `cad-session-${Date.now()}`;
-
-      console.log("[결제 시작] clientKey:", clientKey?.slice(0, 12), "orderId:", orderId, "customerKey:", payload?.sub ?? "ANONYMOUS");
-
-      localStorage.setItem("pendingCadPayment", JSON.stringify({
-        type: "session",
-        sessionType: selectedType,
-        mentorId: mentor.id,
-        menteeId: payload?.sub,
-        price,
-        title: title.trim(),
-        description: description.trim(),
-        files,
-        orderId,
-      }));
-
-      // CDN 스크립트 로드 (checkout/page.tsx 동일 방식)
-      if (!(window as { TossPayments?: unknown }).TossPayments) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://js.tosspayments.com/v2/standard";
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("TossPayments SDK 로드 실패"));
-          document.head.appendChild(script);
-        });
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tossPayments = (window as any).TossPayments(clientKey);
-      const payment = tossPayments.payment({ customerKey: payload?.sub ?? "ANONYMOUS" });
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: price },
-        orderId,
-        orderName: `[캐드스쿨] ${sessionType.label}`,
-        successUrl: "https://www.3d-jewelry-trade.com/cad-school/payment/success",
-        failUrl: "https://www.3d-jewelry-trade.com/cad-school/payment/fail",
-        ...(payload?.email ? { customerEmail: payload.email } : {}),
-        customerName: "구매자",
-      });
-    } catch (error: unknown) {
-      const err = error as { code?: string; message?: string };
-      console.error("결제에러:", error);
-      if (err?.code !== "USER_CANCEL") {
-        showError(`결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`);
-      }
-    } finally {
-      setPaying(false);
-    }
+    router.push("/checkout?mode=cad");
   };
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;

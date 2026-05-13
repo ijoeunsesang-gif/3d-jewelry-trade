@@ -39,7 +39,8 @@
       "Bash(node -e \"require\\('sharp'\\); console.log\\('sharp OK'\\)\")",
       "Bash(node -e ':*)",
       "Bash(curl:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npx ts-node *)"
     ]
   }
 }

@@ -1,0 +1,9 @@
+윈도우 PowerShell 열고
+
+Remove-Item "$env:USERPROFILE\.claude\.credentials.json" -Force
+
+입력 후 계정삭제 
+아무 문구 안뜨면 삭제 완료된것
+
+그 후 클라우드 시작하고 
+Claude.ai Subscription 클릭 → 원하는 계정으로 로그인!
