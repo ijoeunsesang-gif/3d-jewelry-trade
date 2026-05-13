@@ -44,7 +44,6 @@ function CheckoutContent() {
     loadMyPoints();
   }, []);
 
-  // 아이템 로드 완료 후 위젯 초기화
   useEffect(() => {
     if (!loading && items.length > 0 && !widgetInitRef.current) {
       widgetInitRef.current = true;
@@ -152,6 +151,22 @@ function CheckoutContent() {
           window.location.href = "/";
           return;
         }
+      } else if (mode === "cad") {
+        const pending = (() => {
+          try { return JSON.parse(localStorage.getItem("pendingCadPayment") || "null"); } catch { return null; }
+        })();
+        if (!pending) {
+          showError("결제 정보를 찾을 수 없습니다.");
+          window.location.href = "/cad-school";
+          return;
+        }
+        setItems([{
+          id: pending.orderId,
+          title: pending.orderName,
+          price: pending.price,
+          thumbUrl: "",
+          category: "캐드스쿨",
+        }]);
       } else {
         const cart = JSON.parse(localStorage.getItem("cart") || "[]");
         setItems(migrateItems(cart));
@@ -165,22 +180,17 @@ function CheckoutContent() {
 
   const initWidgets = async (amount: number) => {
     const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY;
-
-    // 디버깅: clientKey 로드 여부 확인
     console.log(
       "[TossPayments] clientKey:",
       clientKey
         ? `설정됨 (${clientKey.substring(0, 10)}...)`
         : "❌ undefined — NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY 환경변수 미설정"
     );
-
     if (!clientKey) {
       showError("결제 설정이 올바르지 않습니다.");
       return;
     }
-
     try {
-      // CDN 스크립트가 아직 로드되지 않은 경우에만 삽입
       if (!(window as { TossPayments?: unknown }).TossPayments) {
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
@@ -190,56 +200,31 @@ function CheckoutContent() {
           document.head.appendChild(script);
         });
       }
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tossPayments = (window as any).TossPayments(clientKey);
       const widgets = tossPayments.widgets({ customerKey: "ANONYMOUS" });
-
-      // setAmount 완료 후 renderPaymentMethods / renderAgreement 실행
       await widgets.setAmount({ currency: "KRW", value: amount });
-
       await Promise.all([
-        widgets.renderPaymentMethods({
-          selector: "#payment-method",
-          variantKey: "DEFAULT",
-        }),
-        widgets.renderAgreement({
-          selector: "#agreement",
-          variantKey: "AGREEMENT",
-        }),
+        widgets.renderPaymentMethods({ selector: "#payment-method", variantKey: "DEFAULT" }),
+        widgets.renderAgreement({ selector: "#agreement", variantKey: "AGREEMENT" }),
       ]);
-
       widgetsRef.current = widgets;
       setWidgetReady(true);
     } catch (error) {
       console.error("결제 위젯 초기화 실패:", error);
-      // 실패 시 재시도 허용
       widgetInitRef.current = false;
       showError("결제 위젯을 불러오는 데 실패했습니다. 페이지를 새로고침해주세요.");
     }
   };
 
   const handleCheckout = async () => {
-    if (!buyerName.trim()) {
-      showInfo("이름을 입력해주세요.");
-      return;
-    }
-    if (!buyerEmail.trim()) {
-      showInfo("이메일을 입력해주세요.");
-      return;
-    }
-    if (items.length === 0) {
-      showError("결제할 상품이 없습니다.");
-      return;
-    }
-    if (!widgetsRef.current) {
-      showError("결제 위젯이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
-      return;
-    }
+    if (!buyerName.trim()) { showInfo("이름을 입력해주세요."); return; }
+    if (!buyerEmail.trim()) { showInfo("이메일을 입력해주세요."); return; }
+    if (items.length === 0) { showError("결제할 상품이 없습니다."); return; }
+    if (!widgetsRef.current) { showError("결제 위젯이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요."); return; }
 
-    const orderId = `order-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`;
+    const mode = searchParams.get("mode");
+    const orderId = `order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const orderName =
       items.length === 1
         ? items[0].title
@@ -263,17 +248,19 @@ function CheckoutContent() {
       await widgetsRef.current.requestPayment({
         orderId,
         orderName,
-        successUrl: `${window.location.origin}/payment/success`,
-        failUrl: `${window.location.origin}/payment/fail`,
+        successUrl: mode === "cad"
+          ? `${window.location.origin}/cad-school/payment/success`
+          : `${window.location.origin}/payment/success`,
+        failUrl: mode === "cad"
+          ? `${window.location.origin}/cad-school/payment/fail`
+          : `${window.location.origin}/payment/fail`,
         customerEmail: buyerEmail.trim(),
         customerName: buyerName.trim(),
       });
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err?.code !== "USER_CANCEL") {
-        showError(
-          `결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`
-        );
+        showError(`결제에 실패했습니다. (${err?.message ?? "알 수 없는 오류"})`);
       }
     } finally {
       setPaying(false);
@@ -282,10 +269,7 @@ function CheckoutContent() {
 
   if (loading) {
     return (
-      <main
-        className="cart-checkout-main"
-        style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}
-      >
+      <main className="cart-checkout-main" style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}>
         <p>결제 정보를 불러오는 중...</p>
       </main>
     );
@@ -294,319 +278,96 @@ function CheckoutContent() {
   return (
     <main
       className="cart-checkout-main"
-      style={{
-        maxWidth: 1100,
-        margin: "40px auto",
-        padding: "0 20px",
-        fontFamily:
-          'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
+      style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
     >
-      <h1
-        style={{
-          fontSize: 34,
-          fontWeight: 900,
-          color: "#111827",
-          marginBottom: 24,
-        }}
-      >
-        결제하기
-      </h1>
+      <h1 style={{ fontSize: 34, fontWeight: 900, color: "#111827", marginBottom: 24 }}>결제하기</h1>
 
       {items.length === 0 ? (
-        <div
-          style={{
-            border: "1px solid #e5e7eb",
-            borderRadius: 24,
-            padding: 32,
-            background: "white",
-          }}
-        >
-          <p style={{ color: "#6b7280", marginBottom: 16 }}>
-            결제할 상품이 없습니다.
-          </p>
-          <Link
-            href="/cart"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: 48,
-              padding: "0 18px",
-              borderRadius: 14,
-              background: "#111827",
-              color: "white",
-              textDecoration: "none",
-              fontWeight: 800,
-            }}
-          >
+        <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
+          <p style={{ color: "#6b7280", marginBottom: 16 }}>결제할 상품이 없습니다.</p>
+          <Link href="/cart" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", height: 48, padding: "0 18px", borderRadius: 14, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800 }}>
             장바구니로 이동
           </Link>
         </div>
       ) : (
-        <div
-          className="cart-checkout-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 0.8fr)",
-            gap: 24,
-            alignItems: "start",
-          }}
-        >
-          {/* 왼쪽: 구매자 정보 + 주문 상품 + 결제위젯 */}
+        <div className="cart-checkout-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 0.8fr)", gap: 24, alignItems: "start" }}>
           <section style={{ display: "grid", gap: 16 }}>
             {/* 구매자 정보 */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 24,
-                padding: 24,
-                background: "white",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  marginBottom: 18,
-                  color: "#111827",
-                }}
-              >
-                구매자 정보
-              </h2>
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
+              <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>구매자 정보</h2>
               <div style={{ display: "grid", gap: 14 }}>
                 <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 700,
-                    }}
-                  >
-                    이름
-                  </label>
-                  <input
-                    value={buyerName}
-                    onChange={(e) => setBuyerName(e.target.value)}
-                    placeholder="이름 입력"
-                    style={{
-                      width: "100%",
-                      height: 48,
-                      borderRadius: 14,
-                      border: "1px solid #d1d5db",
-                      padding: "0 14px",
-                      fontSize: 15,
-                      boxSizing: "border-box",
-                    }}
-                  />
+                  <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>이름</label>
+                  <input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="이름 입력"
+                    style={{ width: "100%", height: 48, borderRadius: 14, border: "1px solid #d1d5db", padding: "0 14px", fontSize: 15, boxSizing: "border-box" }} />
                 </div>
                 <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontWeight: 700,
-                    }}
-                  >
-                    이메일
-                  </label>
-                  <input
-                    value={buyerEmail}
-                    onChange={(e) => setBuyerEmail(e.target.value)}
-                    placeholder="이메일 입력"
-                    style={{
-                      width: "100%",
-                      height: 48,
-                      borderRadius: 14,
-                      border: "1px solid #d1d5db",
-                      padding: "0 14px",
-                      fontSize: 15,
-                      boxSizing: "border-box",
-                    }}
-                  />
+                  <label style={{ display: "block", marginBottom: 6, fontWeight: 700 }}>이메일</label>
+                  <input value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="이메일 입력"
+                    style={{ width: "100%", height: 48, borderRadius: 14, border: "1px solid #d1d5db", padding: "0 14px", fontSize: 15, boxSizing: "border-box" }} />
                 </div>
               </div>
             </div>
 
             {/* 주문 상품 */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 24,
-                padding: 24,
-                background: "white",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: 22,
-                  fontWeight: 900,
-                  marginBottom: 18,
-                  color: "#111827",
-                }}
-              >
-                주문 상품
-              </h2>
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
+              <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>주문 상품</h2>
               <div style={{ display: "grid", gap: 14 }}>
                 {items.map((item) => (
-                  <article
-                    key={item.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "90px minmax(0, 1fr) auto",
-                      gap: 14,
-                      alignItems: "center",
-                      border: "1px solid #f3f4f6",
-                      borderRadius: 18,
-                      padding: 12,
-                    }}
-                  >
-                    <img
-                      src={item.thumbUrl}
-                      alt={item.title}
-                      style={{
-                        width: 90,
-                        height: 70,
-                        objectFit: "cover",
-                        borderRadius: 12,
-                        border: "1px solid #e5e7eb",
-                      }}
-                    />
+                  <article key={item.id} style={{ display: "grid", gridTemplateColumns: "90px minmax(0, 1fr) auto", gap: 14, alignItems: "center", border: "1px solid #f3f4f6", borderRadius: 18, padding: 12 }}>
+                    {item.thumbUrl ? (
+                      <img src={item.thumbUrl} alt={item.title} style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+                    ) : (
+                      <div style={{ width: 90, height: 70, borderRadius: 12, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎓</div>
+                    )}
                     <div>
-                      <div
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 800,
-                          color: "#111827",
-                          marginBottom: 4,
-                        }}
-                      >
-                        {item.title}
-                      </div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>
-                        {item.category}
-                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 4 }}>{item.title}</div>
+                      <div style={{ fontSize: 13, color: "#6b7280" }}>{item.category}</div>
                     </div>
-                    <div
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 900,
-                        color: "#111827",
-                      }}
-                    >
-                      {item.price.toLocaleString("ko-KR")}원
-                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}원</div>
                   </article>
                 ))}
               </div>
             </div>
 
-            {/* 토스페이먼츠 결제위젯 - 결제 수단 */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 24,
-                padding: 24,
-                background: "white",
-              }}
-            >
+            {/* 결제 위젯 */}
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
               <div id="payment-method" />
             </div>
-
-            {/* 토스페이먼츠 결제위젯 - 이용약관 동의 */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 24,
-                padding: 24,
-                background: "white",
-              }}
-            >
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
               <div id="agreement" />
             </div>
           </section>
 
-          {/* 오른쪽: 결제 요약 + 결제 버튼 */}
-          <aside
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 24,
-              padding: 24,
-              background: "white",
-              position: "sticky",
-              top: 24,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 24,
-                fontWeight: 900,
-                marginBottom: 18,
-                color: "#111827",
-              }}
-            >
-              결제 요약
-            </h2>
-
+          {/* 결제 요약 */}
+          <aside style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white", position: "sticky", top: 24 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 18, color: "#111827" }}>결제 요약</h2>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
-              <span>상품 수</span>
-              <span>{items.length}개</span>
+              <span>상품 수</span><span>{items.length}개</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
-              <span>상품 금액</span>
-              <span>{totalPrice.toLocaleString("ko-KR")}원</span>
+              <span>상품 금액</span><span>{totalPrice.toLocaleString("ko-KR")}원</span>
             </div>
 
             {/* 포인트 사용 */}
-            <div style={{
-              margin: "14px 0",
-              padding: "16px",
-              borderRadius: 14,
-              background: "#fdf8ec",
-              border: "1px solid #c9a84c44",
-            }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 10 }}>
-                포인트 사용
-              </div>
+            <div style={{ margin: "14px 0", padding: "16px", borderRadius: 14, background: "#fdf8ec", border: "1px solid #c9a84c44" }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 10 }}>포인트 사용</div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#6b7280", marginBottom: 8 }}>
                 <span>보유 포인트</span>
                 <span style={{ fontWeight: 700, color: "#c9a84c" }}>{myPoints.toLocaleString("ko-KR")} P</span>
               </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  type="number"
-                  min={0}
-                  max={Math.min(maxUsable, myPoints)}
-                  value={usedPoints || ""}
-                  onChange={(e) => handlePointsInput(e.target.value)}
-                  placeholder="0"
-                  disabled={myPoints === 0}
-                  style={{
-                    flex: 1, height: 40, borderRadius: 10,
-                    border: "1.5px solid #d1d5db", padding: "0 10px",
-                    fontSize: 14, outline: "none", boxSizing: "border-box",
-                    background: myPoints === 0 ? "#f9fafb" : "white",
-                  }}
-                />
+                <input type="number" min={0} max={Math.min(maxUsable, myPoints)} value={usedPoints || ""} onChange={(e) => handlePointsInput(e.target.value)}
+                  placeholder="0" disabled={myPoints === 0}
+                  style={{ flex: 1, height: 40, borderRadius: 10, border: "1.5px solid #d1d5db", padding: "0 10px", fontSize: 14, outline: "none", boxSizing: "border-box", background: myPoints === 0 ? "#f9fafb" : "white" }} />
                 <span style={{ fontSize: 13, color: "#374151", fontWeight: 700, flexShrink: 0 }}>P</span>
-                <button
-                  type="button"
-                  onClick={() => handlePointsInput(String(Math.min(maxUsable, myPoints)))}
-                  disabled={myPoints === 0}
-                  style={{
-                    height: 40, padding: "0 12px", borderRadius: 10, border: "none",
-                    background: myPoints === 0 ? "#e5e7eb" : "#111827",
-                    color: myPoints === 0 ? "#9ca3af" : "#c9a84c",
-                    fontSize: 13, fontWeight: 800,
-                    cursor: myPoints === 0 ? "default" : "pointer", flexShrink: 0,
-                  }}
-                >
+                <button type="button" onClick={() => handlePointsInput(String(Math.min(maxUsable, myPoints)))} disabled={myPoints === 0}
+                  style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "none", background: myPoints === 0 ? "#e5e7eb" : "#111827", color: myPoints === 0 ? "#9ca3af" : "#c9a84c", fontSize: 13, fontWeight: 800, cursor: myPoints === 0 ? "default" : "pointer", flexShrink: 0 }}>
                   전액사용
                 </button>
               </div>
               <div style={{ marginTop: 8, fontSize: 12, color: "#9ca3af" }}>
-                최대 사용 가능: {Math.min(maxUsable, myPoints).toLocaleString("ko-KR")} P
-                (결제금액의 50%)
+                최대 사용 가능: {Math.min(maxUsable, myPoints).toLocaleString("ko-KR")} P (결제금액의 50%)
               </div>
               {usedPoints > 0 && (
                 <div style={{ marginTop: 8, fontSize: 13, color: "#16a34a", fontWeight: 700 }}>
@@ -615,13 +376,8 @@ function CheckoutContent() {
               )}
             </div>
 
-            <div style={{
-              display: "flex", justifyContent: "space-between",
-              marginBottom: 18, fontSize: 20, fontWeight: 900, color: "#111827",
-              borderTop: "1px solid #f3f4f6", paddingTop: 14,
-            }}>
-              <span>최종 결제금액</span>
-              <span>{finalPrice.toLocaleString("ko-KR")}원</span>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 18, fontSize: 20, fontWeight: 900, color: "#111827", borderTop: "1px solid #f3f4f6", paddingTop: 14 }}>
+              <span>최종 결제금액</span><span>{finalPrice.toLocaleString("ko-KR")}원</span>
             </div>
 
             <p style={{ fontSize: 12, color: "#6b7280", margin: "0 0 10px", lineHeight: 1.5 }}>
@@ -629,46 +385,12 @@ function CheckoutContent() {
               💰 결제금액의 2% 포인트 자동 적립
             </p>
 
-            <button
-              onClick={handleCheckout}
-              disabled={paying || !widgetReady}
-              style={{
-                width: "100%",
-                height: 54,
-                borderRadius: 16,
-                border: "none",
-                background: paying || !widgetReady ? "#9ca3af" : "#111827",
-                color: "white",
-                fontSize: 16,
-                fontWeight: 900,
-                cursor: paying || !widgetReady ? "default" : "pointer",
-                marginBottom: 10,
-                transition: "background 0.15s",
-              }}
-            >
-              {paying
-                ? "결제 처리 중..."
-                : !widgetReady
-                ? "결제 수단 로딩 중..."
-                : "결제 완료하기"}
+            <button onClick={handleCheckout} disabled={paying || !widgetReady}
+              style={{ width: "100%", height: 54, borderRadius: 16, border: "none", background: paying || !widgetReady ? "#9ca3af" : "#111827", color: "white", fontSize: 16, fontWeight: 900, cursor: paying || !widgetReady ? "default" : "pointer", marginBottom: 10, transition: "background 0.15s" }}>
+              {paying ? "결제 처리 중..." : !widgetReady ? "결제 수단 로딩 중..." : "결제 완료하기"}
             </button>
 
-            <Link
-              href="/cart"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: "100%",
-                height: 50,
-                borderRadius: 16,
-                border: "1px solid #d1d5db",
-                background: "white",
-                color: "#111827",
-                textDecoration: "none",
-                fontWeight: 800,
-              }}
-            >
+            <Link href="/cart" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: 50, borderRadius: 16, border: "1px solid #d1d5db", background: "white", color: "#111827", textDecoration: "none", fontWeight: 800 }}>
               장바구니로 돌아가기
             </Link>
           </aside>
@@ -680,19 +402,7 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense
-      fallback={
-        <main
-          style={{
-            padding: "60px 20px",
-            textAlign: "center",
-            color: "#6b7280",
-          }}
-        >
-          불러오는 중...
-        </main>
-      }
-    >
+    <Suspense fallback={<main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>}>
       <CheckoutContent />
     </Suspense>
   );
