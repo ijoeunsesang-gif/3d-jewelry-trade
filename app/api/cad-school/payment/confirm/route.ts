@@ -133,8 +133,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, type: "subscription", id: subscription.id });
 
     } else if (type === "session") {
-      // ── 건별 세션 결제 ──
-      return NextResponse.json({ ok: true, type: "session" });
+      const { mentorId, menteeId, title, description, files, sessionType } = body as any;
+      if (!mentorId || !menteeId) {
+        return NextResponse.json({ error: "멘토/멘티 정보가 누락되었습니다." }, { status: 400 });
+      }
+
+      // 멘토 확인
+      const { data: mentor } = await adminSupabase
+        .from("cad_mentors")
+        .select("id, user_id")
+        .eq("id", mentorId)
+        .single();
+      if (!mentor) return NextResponse.json({ error: "멘토를 찾을 수 없습니다." }, { status: 404 });
+
+      // 세션 생성
+      const { data: session, error: sessionErr } = await adminSupabase
+        .from("cad_mentoring_sessions")
+        .insert({
+          mentor_id: mentorId,
+          mentee_id: menteeId,
+          session_type: sessionType,
+          title: title || "건별 멘토링 의뢰",
+          description: description || "",
+          files: files || [],
+          price: amount,
+          payment_key: paymentKey,
+          order_id: orderId,
+          status: "pending",
+        })
+        .select("id")
+        .single();
+      if (sessionErr) throw new Error(sessionErr.message);
+
+      // 닉네임 조회
+      const [{ data: menteeProfile }, { data: mentorProfile }] = await Promise.all([
+        adminSupabase.from("profiles").select("nickname").eq("id", menteeId).single(),
+        adminSupabase.from("profiles").select("nickname").eq("id", mentor.user_id).single(),
+      ]);
+      const menteeName = menteeProfile?.nickname ?? "멘티";
+      const mentorName = mentorProfile?.nickname ?? "멘토";
+
+      // 알림
+      await adminSupabase.from("notifications").insert([
+        {
+          user_id: menteeId,
+          type: "cad_session",
+          title: `${mentorName} 멘토에게 건별 의뢰가 완료되었습니다`,
+          link: `/cad-school/session/${session.id}`,
+          is_read: false,
+        },
+        {
+          user_id: mentor.user_id,
+          type: "cad_session",
+          title: `${menteeName}님이 건별 멘토링을 의뢰했습니다`,
+          link: `/cad-school/session/${session.id}`,
+          is_read: false,
+        },
+      ]);
+
+      return NextResponse.json({ ok: true, type: "session", id: session.id });
 
     } else {
       return NextResponse.json({ error: "유효하지 않은 결제 타입입니다." }, { status: 400 });

@@ -142,7 +142,7 @@ export default function MentorDetailPage() {
     }));
 
     setPaying(true);
-    router.push("/checkout?mode=cad");
+    router.push("/cad-school/payment");
   };
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
