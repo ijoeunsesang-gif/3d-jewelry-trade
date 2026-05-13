@@ -9,7 +9,6 @@ import ReputationBadge from "../../../components/ReputationBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
-import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -44,7 +43,6 @@ export default function SubscribePlanPage() {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
-  const [paying, setPaying] = useState<string | null>(null);
 
   useEffect(() => {
     if (!["basic", "pro", "master"].includes(plan ?? "")) {
@@ -91,31 +89,7 @@ export default function SubscribePlanPage() {
       orderName: `[캐드스쿨] ${planInfo.label} 30일`,
     }));
 
-    setPaying(mentor.id);
-    try {
-      const clientKey = process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!;
-      const tossPayments = await loadTossPayments(clientKey);
-      const widgets = tossPayments.widgets({ customerKey: payload?.sub ?? ANONYMOUS });
-      await widgets.setAmount({ currency: "KRW", value: planInfo.price });
-      await widgets.requestPayment({
-        orderId,
-        orderName: `[캐드스쿨] ${planInfo.label} 30일`,
-        successUrl: `${window.location.origin}/cad-school/payment/success`,
-        failUrl: `${window.location.origin}/cad-school/payment/fail`,
-        customerEmail: payload?.email ?? "",
-        customerName: "구매자",
-      });
-    } catch (e: unknown) {
-      console.error("결제 오류 상세:", e);
-      const errObj = e !== null && typeof e === "object" ? (e as Record<string, unknown>) : {};
-      const errCode = typeof errObj.code === "string" ? errObj.code : "";
-      const errMsg = e instanceof Error ? e.message : typeof errObj.message === "string" ? errObj.message : "";
-      if (!errMsg.includes("취소") && !errCode.includes("CANCELED")) {
-        showError("결제 중 오류가 발생했습니다.");
-      }
-    } finally {
-      setPaying(null);
-    }
+    router.push("/cad-school/payment");
   };
 
   const planBg = planKey === "master" ? "#111827" : planKey === "pro" ? GOLD_LIGHT : "#f8fafc";
@@ -171,7 +145,6 @@ export default function SubscribePlanPage() {
         <div style={{ display: "grid", gap: 14 }}>
           {mentors.map((mentor) => {
             const isMe = myUserId === mentor.user_id;
-            const isPaying = paying === mentor.id;
             const stars = Math.round(mentor.avg_rating);
             const careerYears = mentor.career_start_year ? CURRENT_YEAR - mentor.career_start_year : null;
             return (
@@ -214,16 +187,16 @@ export default function SubscribePlanPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                       <button
                         onClick={() => handleSubscribe(mentor)}
-                        disabled={isMe || isPaying || paying !== null}
+                        disabled={isMe}
                         style={{
                           padding: "10px 22px", borderRadius: 12, border: "none",
-                          background: isMe ? "#f3f4f6" : isPaying ? "#d1d5db" : "#111827",
+                          background: isMe ? "#f3f4f6" : "#111827",
                           color: isMe ? "#9ca3af" : "white",
                           fontWeight: 800, fontSize: 13,
-                          cursor: isMe || isPaying || paying !== null ? "not-allowed" : "pointer",
+                          cursor: isMe ? "not-allowed" : "pointer",
                         }}
                       >
-                        {isMe ? "본인 멘토" : isPaying ? "결제 중..." : "이 멘토로 수강하기"}
+                        {isMe ? "본인 멘토" : "이 멘토로 수강하기"}
                       </button>
                       <Link
                         href={`/cad-school/mentor/${mentor.id}`}
