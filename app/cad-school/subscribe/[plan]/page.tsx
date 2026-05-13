@@ -107,6 +107,7 @@ export default function SubscribePlanPage() {
         customerName: "구매자",
       });
     } catch (e: unknown) {
+      console.error("결제 오류 상세:", e);
       const errObj = e !== null && typeof e === "object" ? (e as Record<string, unknown>) : {};
       const errCode = typeof errObj.code === "string" ? errObj.code : "";
       const errMsg = e instanceof Error ? e.message : typeof errObj.message === "string" ? errObj.message : "";
