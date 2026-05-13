@@ -202,13 +202,25 @@ export default function AdminPage() {
   useEffect(() => {
     (async () => {
       const token = getAccessToken();
+      console.log("admin auth - token:", !!token);
       if (!token) { router.replace("/"); return; }
       const uid = (decodeJwt(token) as any)?.sub as string;
+      console.log("admin auth - uid:", uid);
       if (!uid) { router.replace("/"); return; }
 
-      const { data } = await supabase
-        .from("profiles").select("role").eq("id", uid).single();
-      if (data?.role !== "admin") { router.replace("/"); return; }
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}&select=role&limit=1`,
+        {
+          headers: {
+            "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      const profileArr = await res.json();
+      const role = profileArr?.[0]?.role;
+      console.log("admin auth - role:", role);
+      if (role !== "admin") { router.replace("/"); return; }
 
       setAuthorized(true);
       setLoading(false);
