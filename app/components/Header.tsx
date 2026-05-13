@@ -117,6 +117,7 @@ export default function Header() {
       const profile = (profileArr as any[])?.[0] ?? null;
       setAvatarUrl(profile?.avatar_url || "");
       setNickname(profile?.nickname || "");
+      console.log("userRole:", profile?.role);
       setUserRole(profile?.role || "user");
     } else {
       setUserEmail("");

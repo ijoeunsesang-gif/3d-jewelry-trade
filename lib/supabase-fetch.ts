@@ -24,7 +24,6 @@ export function getAccessToken(): string | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     const token = parsed?.access_token ?? parsed?.[0]?.access_token ?? null;
-    if (token) console.log('토큰 sub:', decodeJwt(token)?.sub);
     return token;
   } catch { return null; }
 }
