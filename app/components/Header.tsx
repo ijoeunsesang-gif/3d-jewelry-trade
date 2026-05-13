@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
+import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -113,7 +113,7 @@ export default function Header() {
       setUserEmail(payload?.email || "kakao_user");
       const uid = payload?.sub as string;
       setUserId(uid);
-      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${uid}&select=avatar_url,nickname,role&limit=1`);
+      const { data: profileArr } = await sbAuthFetch("profiles", `?id=eq.${uid}&select=avatar_url,nickname,role&limit=1`);
       const profile = (profileArr as any[])?.[0] ?? null;
       setAvatarUrl(profile?.avatar_url || "");
       setNickname(profile?.nickname || "");
