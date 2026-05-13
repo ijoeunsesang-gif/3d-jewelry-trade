@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
-import { getAccessToken, decodeJwt } from "../../lib/supabase-fetch";
+import { getAccessToken, decodeJwt } from "../../../lib/supabase-fetch";
 import { showError } from "../../lib/toast";
 
 function CadPaymentContent() {
