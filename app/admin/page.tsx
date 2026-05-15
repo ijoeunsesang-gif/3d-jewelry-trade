@@ -12,7 +12,7 @@ const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests";
 
 interface UserProfile {
   id: string;
@@ -78,6 +78,16 @@ interface SellerProfile {
   nickname: string;
 }
 
+interface DeletionRequest {
+  id: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  admin_note: string | null;
+  created_at: string;
+  mission: { id: string; title: string } | null;
+  requester: { nickname: string; email: string } | null;
+}
+
 interface Commission {
   id: string;
   title: string;
@@ -124,7 +134,8 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "bannedWords",    label: "금지어 관리",  icon: "🚫" },
   { key: "deletedMembers", label: "탈퇴 회원",    icon: "👤" },
   { key: "notices",        label: "공지사항",     icon: "📢" },
-  { key: "modelReports",   label: "모델 신고",    icon: "🚨" },
+  { key: "modelReports",      label: "모델 신고",      icon: "🚨" },
+  { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
 ];
 
 export default function AdminPage() {
@@ -167,6 +178,11 @@ export default function AdminPage() {
   }[]>([]);
   const [deletedMembersLoading, setDeletedMembersLoading] = useState(false);
   const [deletedMemberSearch, setDeletedMemberSearch] = useState("");
+
+  /* ── Deletion Requests ── */
+  const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
+  const [deletionRequestsLoading, setDeletionRequestsLoading] = useState(false);
+  const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
 
   /* ── Model Reports ── */
   const [modelReports, setModelReports] = useState<{
@@ -254,7 +270,8 @@ export default function AdminPage() {
     if (tab === "bannedWords"    && bannedWords.length === 0)    fetchBannedWords();
     if (tab === "deletedMembers" && deletedMembers.length === 0) fetchDeletedMembers();
     if (tab === "notices"        && notices.length === 0)        fetchNotices();
-    if (tab === "modelReports"   && modelReports.length === 0)  fetchModelReports();
+    if (tab === "modelReports"     && modelReports.length === 0)     fetchModelReports();
+    if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -334,6 +351,36 @@ export default function AdminPage() {
       setCommissions(data || []);
     } catch { showError("의뢰 목록 불러오기 실패"); }
     finally { setCommLoading(false); }
+  };
+
+  const fetchDeletionRequests = async () => {
+    setDeletionRequestsLoading(true);
+    try {
+      const res = await fetch("/api/admin/cad-school/mission-delete-requests", { headers: await authHeader() });
+      const { requests } = await res.json();
+      setDeletionRequests(requests || []);
+    } catch { showError("삭제 요청 목록 불러오기 실패"); }
+    finally { setDeletionRequestsLoading(false); }
+  };
+
+  const handleDeletionRequest = async (requestId: string, action: "approve" | "reject") => {
+    const msg = action === "approve"
+      ? "미션을 실제로 삭제하고 요청을 승인하시겠습니까?"
+      : "이 삭제 요청을 거절하시겠습니까?";
+    if (!confirm(msg)) return;
+    setProcessingRequestId(requestId + action);
+    try {
+      const res = await fetch("/api/admin/cad-school/mission-delete-requests", {
+        method: "POST",
+        headers: await authHeader(),
+        body: JSON.stringify({ request_id: requestId, action }),
+      });
+      if (!res.ok) { showError("처리 실패"); return; }
+      showSuccess(action === "approve" ? "미션이 삭제되고 요청이 승인되었습니다." : "요청이 거절되었습니다.");
+      const newStatus = action === "approve" ? "approved" : "rejected";
+      setDeletionRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: newStatus } : r));
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setProcessingRequestId(null); }
   };
 
   const fetchDeletedMembers = async () => {
@@ -820,7 +867,7 @@ export default function AdminPage() {
                               </span>
                             </td>
                             <td style={{ padding: "10px 12px", color: "#9ca3af", whiteSpace: "nowrap" }}>
-                              {new Date(u.created_at).toLocaleDateString("ko-KR")}
+                              {u.created_at ? new Date(u.created_at).toLocaleDateString("ko-KR") : "-"}
                             </td>
                             <td style={{ padding: "10px 12px" }}>
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1553,6 +1600,90 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              삭제 요청 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "deletionRequests" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>삭제 요청 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                    미션 게시판 삭제 요청 — 전체 {deletionRequests.length}건
+                  </p>
+                </div>
+                <button type="button" onClick={fetchDeletionRequests} style={btnStyle("outline")}>새로고침</button>
+              </div>
+
+              {deletionRequestsLoading ? <LoadingSpinner /> : deletionRequests.length === 0 ? (
+                <Empty text="삭제 요청이 없습니다." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {deletionRequests.map((r) => {
+                    const isPending = r.status === "pending";
+                    const statusColor = r.status === "approved" ? "#16a34a" : r.status === "rejected" ? "#dc2626" : "#d97706";
+                    const statusLabel = r.status === "approved" ? "승인" : r.status === "rejected" ? "거절" : "대기중";
+                    const isProcessing = processingRequestId?.startsWith(r.id);
+                    return (
+                      <div key={r.id} style={{ background: "white", border: `1px solid ${isPending ? "#fde68a" : "#e5e7eb"}`, borderRadius: 14, padding: "16px 20px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            {/* 제목 + 상태 */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+                              <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                                {r.mission?.title ?? "(삭제된 미션)"}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, color: statusColor, background: `${statusColor}18`, border: `1px solid ${statusColor}40` }}>
+                                {statusLabel}
+                              </span>
+                            </div>
+                            {/* 메타 */}
+                            <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 8, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                              <span>작성자: <strong style={{ color: "#374151" }}>{r.requester?.nickname ?? "—"}</strong></span>
+                              <span>{r.requester?.email ?? ""}</span>
+                              <span>요청일: {new Date(r.created_at).toLocaleDateString("ko-KR")}</span>
+                            </div>
+                            {/* 사유 */}
+                            <div style={{ background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
+                              <span style={{ fontWeight: 700, color: "#6b7280", marginRight: 6 }}>삭제 사유:</span>
+                              {r.reason}
+                            </div>
+                            {r.admin_note && (
+                              <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+                                관리자 메모: {r.admin_note}
+                              </div>
+                            )}
+                          </div>
+                          {/* 버튼 */}
+                          {isPending && (
+                            <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", alignSelf: "flex-start" }}>
+                              <button
+                                type="button"
+                                disabled={!!isProcessing}
+                                onClick={() => handleDeletionRequest(r.id, "approve")}
+                                style={{ ...miniBtn("#16a34a"), opacity: isProcessing ? 0.5 : 1 }}
+                              >
+                                {processingRequestId === r.id + "approve" ? "처리 중..." : "삭제 승인"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={!!isProcessing}
+                                onClick={() => handleDeletionRequest(r.id, "reject")}
+                                style={{ ...miniBtn("#dc2626"), opacity: isProcessing ? 0.5 : 1 }}
+                              >
+                                {processingRequestId === r.id + "reject" ? "처리 중..." : "요청 거절"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>

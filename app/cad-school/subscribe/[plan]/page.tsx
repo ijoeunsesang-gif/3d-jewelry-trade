@@ -15,9 +15,9 @@ const GOLD_LIGHT = "#fdf6e3";
 const CURRENT_YEAR = new Date().getFullYear();
 
 const PLAN_INFO = {
-  basic:  { label: "BASIC",  price: 19900, mentorChanges: 1, responseTime: "48시간" },
-  pro:    { label: "PRO",    price: 39900, mentorChanges: 2, responseTime: "36시간" },
-  master: { label: "MASTER", price: 79000, mentorChanges: 3, responseTime: "24시간" },
+  basic:  { label: "BASIC",  price: 39900, mentorChanges: 1, responseTime: "48시간" },
+  pro:    { label: "PRO",    price: 69900, mentorChanges: 2, responseTime: "36시간" },
+  master: { label: "MASTER", price: 99900, mentorChanges: 3, responseTime: "24시간" },
 } as const;
 
 type PlanKey = keyof typeof PLAN_INFO;
@@ -86,7 +86,7 @@ export default function SubscribePlanPage() {
       subscriberId: payload?.sub,
       price: planInfo.price,
       orderId,
-      orderName: `[캐드스쿨] ${planInfo.label} 30일`,
+      orderName: `[캐드스쿨] ${planInfo.label} 7일`,
     }));
 
     router.push("/cad-school/payment");
@@ -111,14 +111,14 @@ export default function SubscribePlanPage() {
             <div style={{ fontSize: 11, fontWeight: 800, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af", letterSpacing: 2, marginBottom: 4 }}>선택한 패키지</div>
             <div style={{ fontSize: 24, fontWeight: 900, color: planTextColor }}>{planInfo.label}</div>
             <div style={{ fontSize: 14, color: planKey === "master" ? "rgba(255,255,255,0.6)" : "#6b7280", marginTop: 4 }}>
-              답변 {planInfo.responseTime} 내 · 월 {planInfo.mentorChanges}회 멘토 교체
+              멘토 {planInfo.mentorChanges}명 지정 · 주 {planInfo.mentorChanges}회 교체 가능 · 답변 {planInfo.responseTime} 내
             </div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 28, fontWeight: 900, color: planKey === "pro" ? "#92400e" : planTextColor }}>
               {planInfo.price.toLocaleString("ko-KR")}원
             </div>
-            <div style={{ fontSize: 12, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>30일 수강</div>
+            <div style={{ fontSize: 12, color: planKey === "master" ? "rgba(255,255,255,0.5)" : "#9ca3af" }}>7일 수강</div>
           </div>
         </div>
       </div>

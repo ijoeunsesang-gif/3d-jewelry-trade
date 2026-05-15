@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
     if (!mentor) return NextResponse.json({ error: "멘토를 찾을 수 없습니다." }, { status: 404 });
     if (mentor.is_suspended) return NextResponse.json({ error: "현재 활동이 중단된 멘토입니다." }, { status: 400 });
 
-    // 구독 생성 (만료일 = 30일 후)
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    // 구독 생성 (만료일 = 7일 후)
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data: subscription, error: subErr } = await adminSupabase
       .from("cad_subscriptions")
       .insert({ subscriber_id: user.id, mentor_id, plan_type, price, expires_at: expiresAt })

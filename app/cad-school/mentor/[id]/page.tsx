@@ -20,9 +20,12 @@ const LEVEL_COLOR: Record<string, { bg: string; color: string }> = {
 };
 
 const SESSION_TYPES = {
-  image_review: { label: "이미지 검토", price: 3000, desc: "이미지로 CAD 작업 피드백", icon: "🖼" },
-  file_review:  { label: "파일 검토",   price: 5000, desc: "CAD 파일 열람 후 피드백",  icon: "📂" },
-  file_edit:    { label: "파일 수정",   price: 15000, desc: "직접 파일 수정 후 전달",  icon: "✏️" },
+  image_review:  { label: "이미지 검토",      price: 3000,  desc: "이미지로 CAD 작업 피드백",   icon: "🖼",  accept: "image/*" },
+  file_review:   { label: "파일 검토",        price: 5000,  desc: "CAD 파일 열람 후 피드백",    icon: "📂",  accept: ".3dm,.stl,.obj" },
+  file_edit:     { label: "파일 수정",        price: 10000, desc: "직접 파일 수정 후 전달",     icon: "✏️", accept: ".3dm" },
+  cad_revision:  { label: "CAD수정 질문",     price: 19900, desc: "CAD 파일 직접 수정 질문",    icon: "🔧",  accept: ".3dm" },
+  review:        { label: "실무 검수 질문",   price: 29900, desc: "제작 가능 여부 전문 검수",   icon: "🔍",  accept: ".3dm,.stl,.obj" },
+  review_cad:    { label: "검수+CAD수정 질문",price: 49900, desc: "검수 후 직접 CAD 수정까지",  icon: "⚡",  accept: ".3dm" },
 } as const;
 
 type SessionTypeKey = keyof typeof SESSION_TYPES;
@@ -119,7 +122,7 @@ export default function MentorDetailPage() {
     const token = getAccessToken();
     if (!token) { showInfo("로그인이 필요합니다."); router.push("/auth"); return; }
     if (!mentor || !selectedType) return;
-    if (myUserId === mentor.user_id) { showError("본인의 멘토링은 의뢰할 수 없습니다."); return; }
+    if (myUserId === mentor.user_id) { showError("본인의 멘토링은 질문할 수 없습니다."); return; }
     if (!title.trim()) { showError("멘토링 제목을 입력해주세요."); return; }
     if (!description.trim()) { showError("멘토링 내용을 입력해주세요."); return; }
 
@@ -235,13 +238,31 @@ export default function MentorDetailPage() {
       </div>
 
       {!isMyMentor && (
-        <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "24px 28px" }}>
-          <div style={{ fontSize: 17, fontWeight: 900, color: "#111827", marginBottom: 4 }}>건별 멘토링 의뢰</div>
-          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>의뢰 유형을 선택해주세요</div>
+        <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+          <a
+            href="#paid-feedback-section"
+            onClick={(e) => { e.preventDefault(); document.getElementById("paid-feedback-section")?.scrollIntoView({ behavior: "smooth" }); }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "13px", borderRadius: 14, background: "#111827", color: "white", fontWeight: 800, fontSize: 14, textDecoration: "none", cursor: "pointer" }}
+          >
+            💬 유료 질문하기
+          </a>
+          <Link
+            href="/cad-school?tab=subscription"
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "13px", borderRadius: 14, background: "#c9a84c", color: "white", fontWeight: 800, fontSize: 14, textDecoration: "none" }}
+          >
+            📦 수강 패키지 보기
+          </Link>
+        </div>
+      )}
+
+      {!isMyMentor && (
+        <div id="paid-feedback-section" style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "24px 28px" }}>
+          <div style={{ fontSize: 17, fontWeight: 900, color: "#111827", marginBottom: 4 }}>유료 피드백 질문</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>질문 유형을 선택해주세요</div>
 
           {!showForm ? (
             /* 유형 선택 카드 */
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
               {(Object.entries(SESSION_TYPES) as [SessionTypeKey, typeof SESSION_TYPES[SessionTypeKey]][]).map(([key, info]) => (
                 <button
                   key={key}
@@ -308,7 +329,7 @@ export default function MentorDetailPage() {
                 >
                   {uploading ? "업로드 중..." : "📎 파일 첨부"}
                 </button>
-                <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.stl,.obj,.3dm" style={{ display: "none" }} onChange={handleFileChange} />
+                <input ref={fileInputRef} type="file" multiple accept={selectedType ? SESSION_TYPES[selectedType].accept : ".jpg,.jpeg,.png,.webp,.gif,.stl,.obj,.3dm"} style={{ display: "none" }} onChange={handleFileChange} />
               </div>
 
               <div style={{ display: "flex", gap: 10 }}>
@@ -320,7 +341,7 @@ export default function MentorDetailPage() {
                   disabled={paying || uploading}
                   style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: paying ? "#d1d5db" : "#111827", color: "white", fontWeight: 800, fontSize: 14, cursor: paying || uploading ? "not-allowed" : "pointer" }}
                 >
-                  {paying ? "결제 중..." : `결제하기 · ${currentType?.price.toLocaleString("ko-KR")}원`}
+                  {paying ? "결제 중..." : `질문하기 · ${currentType?.price.toLocaleString("ko-KR")}원`}
                 </button>
               </div>
             </div>

@@ -56,8 +56,22 @@ function LibraryPageInner() {
   const [selectedCategory, setSelectedCategory] = useState("ALL");
 
   // 페이지네이션
-  const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
+  const currentPage = Number(searchParams.get("page") ?? "1") || 1;
+
+  const goToPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page");
+    else params.set("page", String(p));
+    router.push(`?${params.toString()}`);
+    scrollToTop();
+  };
+
+  const resetPage = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    router.replace(`?${params.toString()}`);
+  };
 
   useEffect(() => { fetchLibrary(); }, []);
   useEffect(() => { if (activeTab === "commissions" && commissionItems.length === 0) fetchCompletedCommissions(); }, [activeTab]);
@@ -239,7 +253,7 @@ function LibraryPageInner() {
               <input
                 type="text"
                 value={search}
-                onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setSearch(e.target.value); resetPage(); }}
                 placeholder="모델 이름으로 검색..."
                 style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none", marginBottom: 12 }}
               />
@@ -247,7 +261,7 @@ function LibraryPageInner() {
                 {CATEGORIES.map((cat) => (
                   <button
                     key={cat} type="button"
-                    onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
+                    onClick={() => { setSelectedCategory(cat); resetPage(); }}
                     style={{
                       height: 34, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
                       border: selectedCategory === cat ? "none" : "1px solid #d1d5db",
@@ -391,15 +405,15 @@ function LibraryPageInner() {
 
         {activeTab === "purchases" && totalPages > 1 && (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
-            <button onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); scrollToTop(); }} disabled={currentPage === 1}
+            <button onClick={() => goToPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}>‹</button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button key={page} onClick={() => { setCurrentPage(page); scrollToTop(); }}
+              <button key={page} onClick={() => goToPage(page)}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === page ? "none" : "1px solid #d1d5db", background: currentPage === page ? "#111827" : "white", color: currentPage === page ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}>
                 {page}
               </button>
             ))}
-            <button onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); scrollToTop(); }} disabled={currentPage === totalPages}
+            <button onClick={() => goToPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === totalPages ? 0.4 : 1 }}>›</button>
           </div>
         )}

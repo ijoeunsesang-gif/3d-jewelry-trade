@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { scrollToSection } from "@/lib/scroll";
 import { Noto_Sans_KR } from "next/font/google";
 
@@ -11,6 +12,7 @@ import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
 import { getProfile } from "./lib/getProfile";
 import type { ProfileItem } from "./lib/getProfile";
 import { showError } from "./lib/toast";
+import { ClipboardList } from "lucide-react";
 import ModelCard, { type ModelItem } from "./components/ModelCard";
 import TopModelCard from "./components/TopModelCard";
 import QuickViewModal from "./components/QuickViewModal";
@@ -23,14 +25,25 @@ const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기�
 const recommendedKeywords = ["반지", "펜던트", "이어링", "기타부속", "링", "플라워", "큐빅", "체인"];
 const ITEMS_PER_PAGE = 20;
 
-export default function Home() {
+function HomeInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const page = Number(searchParams.get("page") ?? "1") || 1;
+
+  const goToPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page");
+    else params.set("page", String(p));
+    router.push(`?${params.toString()}`);
+    scrollToSection("recent-models");
+  };
+
   const [search, setSearch] = useState("");
   const [models, setModels] = useState<ModelItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [sortBy, setSortBy] = useState<SortType>("latest");
-  const [page, setPage] = useState(1);
 
   const [quickModel, setQuickModel] = useState<ModelItem | null>(null);
   const [viewerUrl, setViewerUrl] = useState("");
@@ -56,9 +69,15 @@ export default function Home() {
     if (token) setCurrentUserId((decodeJwt(token) as any)?.sub ?? null);
   }, []);
 
-  // 카테고리/정렬/검색 변경 시 페이지 초기화
+  // 카테고리/정렬/검색이 실제로 변경됐을 때만 페이지 초기화 (Strict Mode 이중 실행 방지)
+  const prevFilters = useRef({ selectedCategory: "ALL", sortBy: "latest" as SortType, search: "" });
   useEffect(() => {
-    setPage(1);
+    const prev = prevFilters.current;
+    if (prev.selectedCategory === selectedCategory && prev.sortBy === sortBy && prev.search === search) return;
+    prevFilters.current = { selectedCategory, sortBy, search };
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    router.replace(`?${params.toString()}`);
   }, [selectedCategory, sortBy, search]);
 
   useEffect(() => {
@@ -591,64 +610,66 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 캐드스쿨 배너 */}
-        <section style={{ marginTop: 10, marginBottom: 28 }}>
+        {/* 배너 2개: 의뢰하기 + 캐드스쿨 */}
+        <section style={{ marginTop: 10, marginBottom: 28, display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {/* 좌측: 의뢰하기 */}
           <a
-            href="/cad-school"
+            href="/commission"
             style={{
+              flex: "1 1 calc(50% - 6px)",
+              minWidth: 260,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 20,
+              gap: 14,
               background: "linear-gradient(135deg, #f8f6f0 0%, #ede8dc 50%, #e8e0cc 100%)",
               borderRadius: 20,
-              padding: "18px 28px",
+              padding: "11px 22px",
               textDecoration: "none",
               border: "1px solid rgba(160,140,91,0.35)",
-              flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
-                  background: "rgba(201,168,76,0.2)",
-                  border: "1px solid rgba(160,140,91,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 22,
-                  flexShrink: 0,
-                }}
-              >
-                🎓
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(201,168,76,0.2)", border: "1px solid rgba(160,140,91,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ClipboardList size={18} color="#a08c5b" strokeWidth={2} />
               </div>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#a08c5b", letterSpacing: 2, marginBottom: 3 }}>
-                  CAD SCHOOL
-                </div>
-                <div style={{ fontSize: 17, fontWeight: 900, color: "#2c2416", lineHeight: 1.2, marginBottom: 3 }}>
-                  캐드스쿨
-                </div>
-                <div style={{ fontSize: 12, color: "#7a6840", lineHeight: 1.5 }}>
-                  질문 · 피드백 · 1:1 멘토링 · 패키지 학습
-                </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20, fontWeight: 900, color: "#2c2416", lineHeight: 1, whiteSpace: "nowrap" }}>의뢰하기</span>
+                <span style={{ fontSize: 12, color: "#7a6840", lineHeight: 1.4 }}>원하는 3D 모델을 전문가에게 의뢰하세요</span>
               </div>
             </div>
-            <div
-              style={{
-                padding: "9px 20px",
-                borderRadius: 12,
-                background: "#a08c5b",
-                color: "white",
-                fontWeight: 800,
-                fontSize: 13,
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
+            <div style={{ padding: "7px 15px", borderRadius: 10, background: "#a08c5b", color: "white", fontWeight: 800, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>
+              의뢰하기 →
+            </div>
+          </a>
+
+          {/* 우측: 캐드스쿨 */}
+          <a
+            href="/cad-school"
+            style={{
+              flex: "1 1 calc(50% - 6px)",
+              minWidth: 260,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 14,
+              background: "linear-gradient(135deg, #f8f6f0 0%, #ede8dc 50%, #e8e0cc 100%)",
+              borderRadius: 20,
+              padding: "11px 22px",
+              textDecoration: "none",
+              border: "1px solid rgba(160,140,91,0.35)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(201,168,76,0.2)", border: "1px solid rgba(160,140,91,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                🎓
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20, fontWeight: 900, color: "#2c2416", lineHeight: 1, whiteSpace: "nowrap" }}>캐드스쿨</span>
+                <span style={{ fontSize: 12, color: "#7a6840", lineHeight: 1.4 }}>질문 · 피드백 · 1:1 멘토링 · 패키지 학습</span>
+              </div>
+            </div>
+            <div style={{ padding: "7px 15px", borderRadius: 10, background: "#a08c5b", color: "white", fontWeight: 800, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>
               입장하기 →
             </div>
           </a>
@@ -721,7 +742,7 @@ export default function Home() {
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
               <button
                 type="button"
-                onClick={() => { setPage((p) => Math.max(1, p - 1)); scrollToSection("recent-models"); }}
+                onClick={() => goToPage(Math.max(1, page - 1))}
                 disabled={page === 1}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === 1 ? 0.4 : 1 }}
               >
@@ -731,7 +752,7 @@ export default function Home() {
                 <button
                   key={p}
                   type="button"
-                  onClick={() => { setPage(p); scrollToSection("recent-models"); }}
+                  onClick={() => goToPage(p)}
                   style={{ height: 38, minWidth: 38, borderRadius: 10, border: page === p ? "none" : "1px solid #d1d5db", background: page === p ? "#111827" : "white", color: page === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
                 >
                   {p}
@@ -739,7 +760,7 @@ export default function Home() {
               ))}
               <button
                 type="button"
-                onClick={() => { setPage((p) => Math.min(totalPages, p + 1)); scrollToSection("recent-models"); }}
+                onClick={() => goToPage(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === totalPages ? 0.4 : 1 }}
               >
@@ -764,5 +785,13 @@ export default function Home() {
         />
       )}
     </>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
   );
 }

@@ -20,6 +20,10 @@ export default function NewCadPostPage() {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [todayCount, setTodayCount] = useState<number | null>(null);
+
+  const DAILY_LIMIT = 5;
+  const remaining = todayCount !== null ? Math.max(0, DAILY_LIMIT - todayCount) : null;
 
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
@@ -29,6 +33,15 @@ export default function NewCadPostPage() {
       document.removeEventListener("dragover", prevent);
       document.removeEventListener("drop", prevent);
     };
+  }, []);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) return;
+    fetch("/api/cad-school/post", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((d) => { if (typeof d.count === "number") setTodayCount(d.count); })
+      .catch(() => {});
   }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +125,24 @@ export default function NewCadPostPage() {
 
       <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "28px 28px 32px", marginBottom: 16 }}>
         <h1 style={{ margin: "0 0 6px", fontSize: 22, fontWeight: 900, color: "#111827" }}>CAD 질문 등록</h1>
-        <p style={{ margin: "0 0 24px", fontSize: 13, color: "#6b7280" }}>질문 등록은 <strong style={{ color: "#111827" }}>무료</strong>입니다. 채택 시 답변자에게 <strong style={{ color: GOLD }}>+300P</strong>가 지급됩니다.</p>
+        <p style={{ margin: "0 0 12px", fontSize: 13, color: "#6b7280" }}>질문 등록은 <strong style={{ color: "#111827" }}>무료</strong>입니다. 채택 시 답변자에게 <strong style={{ color: GOLD }}>+300P</strong>가 지급됩니다.</p>
+
+        {remaining !== null && (
+          <div style={{
+            marginBottom: 20,
+            padding: "10px 14px",
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 700,
+            background: remaining === 0 ? "#fef2f2" : remaining <= 2 ? "#fff7ed" : "#f0fdf4",
+            color: remaining === 0 ? "#dc2626" : remaining <= 2 ? "#ea580c" : "#16a34a",
+            border: `1px solid ${remaining === 0 ? "#fecaca" : remaining <= 2 ? "#fed7aa" : "#bbf7d0"}`,
+          }}>
+            {remaining === 0
+              ? "오늘 질문 횟수를 모두 사용했습니다."
+              : `오늘 남은 질문 횟수: ${remaining}/${DAILY_LIMIT}회`}
+          </div>
+        )}
 
         <label style={labelStyle}>제목</label>
         <input
@@ -165,11 +195,11 @@ export default function NewCadPostPage() {
 
         <button
           onClick={handleSubmit}
-          disabled={submitting || uploading}
+          disabled={submitting || uploading || remaining === 0}
           style={{
             width: "100%", padding: "14px", borderRadius: 14, border: "none",
-            background: submitting || uploading ? "#d1d5db" : GOLD,
-            color: "white", fontSize: 15, fontWeight: 900, cursor: submitting || uploading ? "not-allowed" : "pointer",
+            background: submitting || uploading || remaining === 0 ? "#d1d5db" : GOLD,
+            color: "white", fontSize: 15, fontWeight: 900, cursor: submitting || uploading || remaining === 0 ? "not-allowed" : "pointer",
           }}
         >
           {submitting ? "등록 중..." : "질문 등록 (무료)"}

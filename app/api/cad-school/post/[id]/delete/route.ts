@@ -35,15 +35,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "삭제 권한이 없습니다." }, { status: 403 });
   }
 
-  // 답변(최상위 댓글) 존재 여부 확인
-  const { count } = await adminSupabase
-    .from("cad_post_comments")
-    .select("*", { count: "exact", head: true })
-    .eq("post_id", id)
-    .is("parent_id", null);
+  // 답변(최상위 댓글) 존재 여부 확인 — 관리자는 예외
+  if (!isAdmin) {
+    const { count } = await adminSupabase
+      .from("cad_post_comments")
+      .select("*", { count: "exact", head: true })
+      .eq("post_id", id)
+      .is("parent_id", null);
 
-  if ((count ?? 0) > 0) {
-    return NextResponse.json({ error: "답변이 있는 게시물은 삭제할 수 없습니다." }, { status: 400 });
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({ error: "답변이 있는 게시물은 삭제할 수 없습니다." }, { status: 400 });
+    }
   }
 
   // DB 삭제 (댓글/대댓글 cascade 처리)

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { scrollToTop } from "@/lib/scroll";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
@@ -25,14 +26,31 @@ const CATEGORY_LABEL: Record<string, string> = {
   ALL: "전체", RING: "링", PENDANT: "팬던트", EARRING: "이어링", BRACELET: "브레이슬릿", 기타부속: "기타부속",
 };
 
-export default function FavoritesPage() {
+function FavoritesPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPage = Number(searchParams.get("page") ?? "1") || 1;
+
+  const goToPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page");
+    else params.set("page", String(p));
+    router.push(`?${params.toString()}`);
+    scrollToTop();
+  };
+
+  const resetPage = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("page");
+    router.replace(`?${params.toString()}`);
+  };
+
   const [loading, setLoading] = useState(true);
   const [models, setModels] = useState<ModelItem[]>([]);
   const [sortBy, setSortBy] = useState<SortType>("latest");
   const [removingId, setRemovingId] = useState("");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
@@ -147,7 +165,7 @@ export default function FavoritesPage() {
           <input
             type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            onChange={(e) => { setSearch(e.target.value); resetPage(); }}
             placeholder="모델 이름으로 검색..."
             style={{ flex: 1, minWidth: 180, height: 44, borderRadius: 12, border: "1px solid #d1d5db", padding: "0 16px", fontSize: 14, boxSizing: "border-box", outline: "none" }}
           />
@@ -169,7 +187,7 @@ export default function FavoritesPage() {
             <button
               key={cat}
               type="button"
-              onClick={() => { setSelectedCategory(cat); setCurrentPage(1); }}
+              onClick={() => { setSelectedCategory(cat); resetPage(); }}
               style={{
                 height: 34, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
                 border: selectedCategory === cat ? "none" : "1px solid #d1d5db",
@@ -249,7 +267,7 @@ export default function FavoritesPage() {
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
             <button
               type="button"
-              onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); scrollToTop(); }}
+              onClick={() => goToPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}
             >
@@ -259,7 +277,7 @@ export default function FavoritesPage() {
               <button
                 key={p}
                 type="button"
-                onClick={() => { setCurrentPage(p); scrollToTop(); }}
+                onClick={() => goToPage(p)}
                 style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === p ? "none" : "1px solid #d1d5db", background: currentPage === p ? "#111827" : "white", color: currentPage === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
               >
                 {p}
@@ -267,7 +285,7 @@ export default function FavoritesPage() {
             ))}
             <button
               type="button"
-              onClick={() => { setCurrentPage((p) => Math.min(Math.ceil(filteredModels.length / ITEMS_PER_PAGE), p + 1)); scrollToTop(); }}
+              onClick={() => goToPage(Math.min(Math.ceil(filteredModels.length / ITEMS_PER_PAGE), currentPage + 1))}
               disabled={currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE)}
               style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE) ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === Math.ceil(filteredModels.length / ITEMS_PER_PAGE) ? 0.4 : 1 }}
             >
@@ -278,5 +296,13 @@ export default function FavoritesPage() {
         </>
       )}
     </main>
+  );
+}
+
+export default function FavoritesPage() {
+  return (
+    <Suspense fallback={null}>
+      <FavoritesPageInner />
+    </Suspense>
   );
 }

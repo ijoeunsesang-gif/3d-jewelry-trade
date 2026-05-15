@@ -181,6 +181,13 @@ function MessagesContent() {
 
     setDeletingId(convId);
     try {
+      await supabase
+        .from("messages")
+        .update({ is_read: true })
+        .eq("conversation_id", convId)
+        .eq("is_read", false);
+      window.dispatchEvent(new Event("messages-updated"));
+
       const { error } = await supabase
         .from("conversations")
         .update({ [column]: true })

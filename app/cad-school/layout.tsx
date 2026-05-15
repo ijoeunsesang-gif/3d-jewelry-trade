@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-const IS_MAINTENANCE = true;
+const IS_MAINTENANCE = false;
 
 export default function CadSchoolLayout({ children }: { children: ReactNode }) {
   if (IS_MAINTENANCE) {

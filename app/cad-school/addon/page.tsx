@@ -14,9 +14,9 @@ const GOLD = "#c9a84c";
 type AddonType = "checklist" | "review" | "post_review_cad";
 
 const ADDONS: { type: AddonType; label: string; desc: string; price: number; icon: string }[] = [
-  { type: "checklist",       label: "CAD수정 1회",        desc: "멘토가 파일을 직접 수정해드립니다.",        price: 9900,  icon: "✏️" },
-  { type: "review",          label: "실무 검수 1회",       desc: "판매·출력 가능 여부를 컨펌해드립니다.",      price: 14900, icon: "🔍" },
-  { type: "post_review_cad", label: "검수 후 CAD수정 1회", desc: "검수 후 수정까지 한 번에 처리해드립니다.",   price: 19900, icon: "⚡" },
+  { type: "checklist",       label: "CAD수정 1회",        desc: "멘토가 파일을 직접 수정해드립니다.",        price: 19900, icon: "✏️" },
+  { type: "review",          label: "실무 검수 1회",       desc: "판매·출력 가능 여부를 컨펌해드립니다.",      price: 29900, icon: "🔍" },
+  { type: "post_review_cad", label: "검수 후 CAD수정 1회", desc: "검수 후 수정까지 한 번에 처리해드립니다.",   price: 49900, icon: "⚡" },
 ];
 
 function AddonContent() {

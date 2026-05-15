@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import GradeBadge from "../../components/GradeBadge";
+import MentorNickname from "../../components/MentorNickname";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
@@ -45,6 +46,8 @@ export default function CadPostDetailPage() {
   const [allComments, setAllComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mentorUserIdMap, setMentorUserIdMap] = useState<Record<string, string>>({});
 
   const [commentContent, setCommentContent] = useState("");
   const [commentFiles, setCommentFiles] = useState<FileItem[]>([]);
@@ -55,16 +58,46 @@ export default function CadPostDetailPage() {
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
+
+  // 게시물 수정
+  const [editingPost, setEditingPost] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [savingPost, setSavingPost] = useState(false);
+
+  // 게시물 삭제
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // 댓글 수정
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [savingComment, setSavingComment] = useState(false);
+
+  // 댓글 삭제
+  const [commentDeleteModal, setCommentDeleteModal] = useState<string | null>(null);
+  const [deletingComment, setDeletingComment] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
     if (token) {
       const payload = decodeJwt(token) as { sub?: string } | null;
-      setMyUserId(payload?.sub ?? null);
+      const uid = payload?.sub ?? null;
+      setMyUserId(uid);
+      if (uid) {
+        supabase.from("profiles").select("role").eq("id", uid).maybeSingle()
+          .then(({ data }) => { if (data?.role === "admin") setIsAdmin(true); });
+      }
     }
     loadPost();
+    supabase.from("cad_mentors").select("id, user_id").eq("is_active", true)
+      .then(({ data }) => {
+        if (data) {
+          const map: Record<string, string> = {};
+          data.forEach((m: { id: string; user_id: string }) => { map[m.user_id] = m.id; });
+          setMentorUserIdMap(map);
+        }
+      });
   }, [id]);
 
   const loadPost = async () => {
@@ -90,6 +123,16 @@ export default function CadPostDetailPage() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
+    const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif"];
+    const nonImages = selected.filter((f) => {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      return !IMAGE_EXTS.includes(ext) && !f.type.startsWith("image/");
+    });
+    if (nonImages.length > 0) {
+      showError("답변에는 이미지만 첨부 가능합니다.");
+      e.target.value = "";
+      return;
+    }
     const token = getAccessToken();
     if (!token) { showError("로그인이 필요합니다."); return; }
     if (commentFiles.length + selected.length > 3) { showError("파일은 최대 3개까지 첨부할 수 있습니다."); return; }
@@ -123,9 +166,7 @@ export default function CadPostDetailPage() {
     else {
       const awarded = data.pointAwarded ?? 0;
       showSuccess(awarded > 0 ? `답변이 등록되었습니다! (+${awarded}P)` : "답변이 등록되었습니다!");
-      setCommentContent("");
-      setCommentFiles([]);
-      loadPost();
+      setCommentContent(""); setCommentFiles([]); loadPost();
     }
     setSubmitting(false);
   };
@@ -142,16 +183,27 @@ export default function CadPostDetailPage() {
     });
     const data = await res.json();
     if (!res.ok) showError(data.error || "댓글 등록 실패");
-    else {
-      showSuccess("댓글이 등록되었습니다.");
-      setReplyContent("");
-      setReplyToId(null);
-      loadPost();
-    }
+    else { showSuccess("댓글이 등록되었습니다."); setReplyContent(""); setReplyToId(null); loadPost(); }
     setReplySubmitting(false);
   };
 
-  const handleDelete = async () => {
+  const handleEditPost = async () => {
+    if (!editTitle.trim() || !editContent.trim()) { showError("제목과 내용을 입력해주세요."); return; }
+    const token = getAccessToken();
+    if (!token) return;
+    setSavingPost(true);
+    const res = await fetch(`/api/cad-school/post/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ title: editTitle.trim(), content: editContent.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || "수정 실패"); }
+    else { showSuccess("게시물이 수정되었습니다."); setEditingPost(false); loadPost(); }
+    setSavingPost(false);
+  };
+
+  const handleDeletePost = async () => {
     const token = getAccessToken();
     if (!token) return;
     setDeleting(true);
@@ -181,6 +233,37 @@ export default function CadPostDetailPage() {
     setPicking(false);
   };
 
+  const handleEditComment = async (commentId: string) => {
+    if (!editCommentContent.trim()) { showError("내용을 입력해주세요."); return; }
+    const token = getAccessToken();
+    if (!token) return;
+    setSavingComment(true);
+    const res = await fetch(`/api/cad-school/comment/${commentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ content: editCommentContent.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || "수정 실패"); }
+    else { showSuccess("댓글이 수정되었습니다."); setEditingCommentId(null); loadPost(); }
+    setSavingComment(false);
+  };
+
+  const handleDeleteComment = async () => {
+    if (!commentDeleteModal) return;
+    const token = getAccessToken();
+    if (!token) return;
+    setDeletingComment(true);
+    const res = await fetch(`/api/cad-school/comment/${commentDeleteModal}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || "삭제 실패"); }
+    else { showSuccess("댓글이 삭제되었습니다."); setCommentDeleteModal(null); loadPost(); }
+    setDeletingComment(false);
+  };
+
   if (loading) {
     return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
   }
@@ -190,7 +273,8 @@ export default function CadPostDetailPage() {
   const topComments = allComments
     .filter((c) => !c.parent_id)
     .sort((a, b) => (b.is_best_answer ? 1 : 0) - (a.is_best_answer ? 1 : 0) || new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-  const canDelete = isOwner && topComments.length === 0;
+  const canDeletePost = (isOwner && topComments.length === 0) || isAdmin;
+  const canEditPost = isOwner || isAdmin;
   const subCommentMap: Record<string, Comment[]> = {};
   for (const c of allComments) {
     if (c.parent_id) {
@@ -208,40 +292,90 @@ export default function CadPostDetailPage() {
       </div>
 
       {/* 질문 */}
-      <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "24px 24px 20px", marginBottom: 20 }}>
+      <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "24px 24px 20px", marginBottom: 20, overflow: "hidden", maxWidth: "100%", wordBreak: "break-all", overflowWrap: "break-word" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              {post.status === "closed"
-                ? <StatusBadge color="#6b7280" bg="#f3f4f6" label="마감" />
-                : <StatusBadge color="#16a34a" bg="#dcfce7" label="진행중" />
-              }
-            </div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1.3 }}>{post.title}</h1>
+          <div style={{ flex: 1, minWidth: 0, overflow: "hidden", maxWidth: "100%", wordBreak: "break-all", overflowWrap: "break-word" }}>
+            {!editingPost && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                {post.status === "closed"
+                  ? <StatusBadge color="#6b7280" bg="#f3f4f6" label="마감" />
+                  : <StatusBadge color="#16a34a" bg="#dcfce7" label="진행중" />
+                }
+              </div>
+            )}
+            {editingPost ? (
+              <div>
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  style={{ width: "100%", fontSize: 18, fontWeight: 800, color: "#111827", border: "1px solid #d1d5db", borderRadius: 10, padding: "8px 12px", outline: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 10 }}
+                  maxLength={100}
+                />
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={6}
+                  style={{ width: "100%", fontSize: 14, color: "#374151", border: "1px solid #d1d5db", borderRadius: 10, padding: "10px 12px", outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical", lineHeight: 1.7, marginBottom: 12 }}
+                />
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button
+                    onClick={() => setEditingPost(false)}
+                    style={{ fontSize: 13, color: "#6b7280", background: "white", border: "1px solid #d1d5db", borderRadius: 9, padding: "7px 16px", cursor: "pointer", fontWeight: 700 }}
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={handleEditPost}
+                    disabled={savingPost}
+                    style={{ fontSize: 13, fontWeight: 800, color: "white", background: savingPost ? "#d1d5db" : "#111827", border: "none", borderRadius: 9, padding: "7px 16px", cursor: savingPost ? "not-allowed" : "pointer" }}
+                  >
+                    {savingPost ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1.3, wordBreak: "break-all", overflowWrap: "break-word", overflow: "hidden", maxWidth: "100%" }}>{post.title}</h1>
+            )}
           </div>
-          {canDelete && (
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 14px", cursor: "pointer", flexShrink: 0 }}
-            >
-              삭제
-            </button>
+          {!editingPost && (canEditPost || canDeletePost) && (
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              {canEditPost && (
+                <button
+                  onClick={() => { setEditTitle(post.title); setEditContent(post.content); setEditingPost(true); }}
+                  style={{ fontSize: 12, fontWeight: 700, color: "#374151", background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}
+                >
+                  수정
+                </button>
+              )}
+              {canDeletePost && (
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 12px", cursor: "pointer" }}
+                >
+                  삭제
+                </button>
+              )}
+            </div>
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-          <Avatar url={post.profiles?.avatar_url} size={28} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{post.profiles?.nickname ?? "익명"}</span>
-          {post.profiles?.grade && <GradeBadge grade={post.profiles.grade as Grade} size="sm" />}
-          <span style={{ fontSize: 12, color: "#9ca3af" }}>{timeAgo(post.created_at)}</span>
-        </div>
-
-        <p style={{ margin: "0 0 16px", fontSize: 15, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{post.content}</p>
-
-        {post.files.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {post.files.map((f, i) => <FileAttachment key={i} file={f} />)}
-          </div>
+        {!editingPost && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+              <Avatar url={post.profiles?.avatar_url} size={28} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
+                <MentorNickname
+                  mentorId={mentorUserIdMap[post.user_id] ?? ""}
+                  nickname={post.profiles?.nickname ?? "익명"}
+                  isMentor={!!mentorUserIdMap[post.user_id]}
+                />
+              </span>
+              {post.profiles?.grade && <GradeBadge grade={post.profiles.grade as Grade} size="sm" />}
+              <span style={{ fontSize: 12, color: "#9ca3af" }}>{timeAgo(post.created_at)}</span>
+            </div>
+            <p style={{ margin: "0 0 16px", fontSize: 15, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-all", overflowWrap: "break-word", overflow: "hidden", maxWidth: "100%" }}>{post.content}</p>
+            {post.files.length > 0 && <FilesBlock files={post.files} />}
+          </>
         )}
       </div>
 
@@ -257,6 +391,7 @@ export default function CadPostDetailPage() {
             subComments={subCommentMap[c.id] ?? []}
             isOwner={isOwner}
             myUserId={myUserId}
+            isAdmin={isAdmin}
             postClosed={post.status === "closed"}
             onPickBest={() => handlePickBest(c.id)}
             picking={picking}
@@ -266,6 +401,15 @@ export default function CadPostDetailPage() {
             onReplyChange={setReplyContent}
             onReplySubmit={handleSubmitReply}
             replySubmitting={replySubmitting}
+            editingCommentId={editingCommentId}
+            editCommentContent={editCommentContent}
+            onEditStart={(cid, content) => { setEditingCommentId(cid); setEditCommentContent(content); }}
+            onEditSave={handleEditComment}
+            onEditCancel={() => setEditingCommentId(null)}
+            onEditChange={setEditCommentContent}
+            onDeleteRequest={(cid) => setCommentDeleteModal(cid)}
+            savingComment={savingComment}
+            mentorUserIdMap={mentorUserIdMap}
           />
         ))}
         {topComments.length === 0 && (
@@ -275,7 +419,7 @@ export default function CadPostDetailPage() {
         )}
       </div>
 
-      {/* 삭제 확인 모달 */}
+      {/* 게시물 삭제 확인 모달 */}
       {showDeleteModal && (
         <div
           onClick={() => { if (!deleting) setShowDeleteModal(false); }}
@@ -288,7 +432,7 @@ export default function CadPostDetailPage() {
             <div style={{ fontSize: 32, textAlign: "center", marginBottom: 14 }}>🗑️</div>
             <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 900, color: "#111827", textAlign: "center" }}>게시물 삭제</h3>
             <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6b7280", textAlign: "center", lineHeight: 1.6 }}>
-              게시물을 삭제하시겠습니까?<br />삭제 후 복구할 수 없습니다.
+              정말 삭제하시겠습니까?<br />삭제 후 복구할 수 없습니다.
             </p>
             <div style={{ display: "flex", gap: 10 }}>
               <button
@@ -299,7 +443,7 @@ export default function CadPostDetailPage() {
                 취소
               </button>
               <button
-                onClick={handleDelete}
+                onClick={handleDeletePost}
                 disabled={deleting}
                 style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: deleting ? "#d1d5db" : "#dc2626", color: "white", fontWeight: 800, fontSize: 14, cursor: deleting ? "not-allowed" : "pointer" }}
               >
@@ -310,11 +454,47 @@ export default function CadPostDetailPage() {
         </div>
       )}
 
+      {/* 댓글 삭제 확인 모달 */}
+      {commentDeleteModal && (
+        <div
+          onClick={() => { if (!deletingComment) setCommentDeleteModal(null); }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "white", borderRadius: 20, padding: "28px 28px 24px", maxWidth: 360, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}
+          >
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 14 }}>🗑️</div>
+            <h3 style={{ margin: "0 0 10px", fontSize: 18, fontWeight: 900, color: "#111827", textAlign: "center" }}>댓글 삭제</h3>
+            <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6b7280", textAlign: "center", lineHeight: 1.6 }}>
+              댓글을 삭제하시겠습니까?<br />삭제 후 복구할 수 없습니다.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setCommentDeleteModal(null)}
+                disabled={deletingComment}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: deletingComment ? "not-allowed" : "pointer" }}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteComment}
+                disabled={deletingComment}
+                style={{ flex: 1, padding: "12px", borderRadius: 12, border: "none", background: deletingComment ? "#d1d5db" : "#dc2626", color: "white", fontWeight: 800, fontSize: 14, cursor: deletingComment ? "not-allowed" : "pointer" }}
+              >
+                {deletingComment ? "삭제 중..." : "삭제하기"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 답변 작성 (본인 질문에는 표시 안 함) */}
-      {post.status === "open" && !isOwner && (
+      {!isOwner && (
         <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 20, padding: "22px 24px" }}>
           <h3 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 900, color: "#111827" }}>
-            답변 작성 <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}>+50P</span>
+            답변 작성{post.status === "open" && <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 700 }}> +50P</span>}
+            {post.status !== "open" && <span style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600 }}> (채택 완료 — 포인트 미지급)</span>}
           </h3>
           <textarea
             value={commentContent}
@@ -334,11 +514,12 @@ export default function CadPostDetailPage() {
               ))}
               <button
                 onClick={() => fileInputRef.current?.click()}
+                title="이미지만 첨부 가능합니다 (jpg, png, webp, gif)"
                 style={{ fontSize: 12, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}
               >
-                {uploading ? "업로드 중..." : "📎 파일 첨부"}
+                {uploading ? "업로드 중..." : "🖼 이미지 첨부"}
               </button>
-              <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.stl,.obj,.3dm" style={{ display: "none" }} onChange={handleFileChange} />
+              <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: "none" }} onChange={handleFileChange} />
             </div>
             <button
               onClick={handleSubmitComment}
@@ -355,13 +536,18 @@ export default function CadPostDetailPage() {
 }
 
 function CommentCard({
-  comment, subComments, isOwner, myUserId, postClosed, onPickBest, picking,
+  comment, subComments, isOwner, myUserId, isAdmin,
+  postClosed, onPickBest, picking,
   replyToId, onReplyToggle, replyContent, onReplyChange, onReplySubmit, replySubmitting,
+  editingCommentId, editCommentContent,
+  onEditStart, onEditSave, onEditCancel, onEditChange,
+  onDeleteRequest, savingComment, mentorUserIdMap,
 }: {
   comment: Comment;
   subComments: Comment[];
   isOwner: boolean;
   myUserId: string | null;
+  isAdmin: boolean;
   postClosed: boolean;
   onPickBest: () => void;
   picking: boolean;
@@ -371,72 +557,191 @@ function CommentCard({
   onReplyChange: (v: string) => void;
   onReplySubmit: (parentId: string) => void;
   replySubmitting: boolean;
+  editingCommentId: string | null;
+  editCommentContent: string;
+  onEditStart: (id: string, content: string) => void;
+  onEditSave: (id: string) => void;
+  onEditCancel: () => void;
+  onEditChange: (v: string) => void;
+  onDeleteRequest: (id: string) => void;
+  savingComment: boolean;
+  mentorUserIdMap: Record<string, string>;
 }) {
   const isReplying = replyToId === comment.id;
   const isMyComment = myUserId === comment.user_id;
+  const canManage = isMyComment || isAdmin;
+  const isEditing = editingCommentId === comment.id;
 
   return (
     <div style={{
       background: comment.is_best_answer ? "#fffbeb" : "white",
       border: `1px solid ${comment.is_best_answer ? GOLD + "66" : "#e5e7eb"}`,
       borderRadius: 16, padding: "18px 20px", marginBottom: 12,
+      overflow: "hidden", maxWidth: "100%",
     }}>
       {comment.is_best_answer && (
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: GOLD, color: "white", borderRadius: 8, padding: "3px 10px", fontSize: 12, fontWeight: 800, marginBottom: 10 }}>
           ⭐ 채택된 답변
         </div>
       )}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <Avatar url={comment.profiles?.avatar_url} size={28} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{comment.profiles?.nickname ?? "익명"}</span>
-        {comment.profiles?.grade && <GradeBadge grade={comment.profiles.grade as Grade} size="sm" />}
-        <span style={{ fontSize: 12, color: "#9ca3af" }}>{timeAgo(comment.created_at)}</span>
-      </div>
-      <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{comment.content}</p>
-      {comment.files.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          {comment.files.map((f, i) => <FileAttachment key={i} file={f} />)}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Avatar url={comment.profiles?.avatar_url} size={28} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
+            <MentorNickname
+              mentorId={mentorUserIdMap[comment.user_id] ?? ""}
+              nickname={comment.profiles?.nickname ?? "익명"}
+              isMentor={!!mentorUserIdMap[comment.user_id]}
+            />
+          </span>
+          {comment.profiles?.grade && <GradeBadge grade={comment.profiles.grade as Grade} size="sm" />}
+          <span style={{ fontSize: 12, color: "#9ca3af" }}>{timeAgo(comment.created_at)}</span>
         </div>
+        {/* 수정/삭제 버튼 */}
+        {canManage && !isEditing && (
+          <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+            <button
+              onClick={() => onEditStart(comment.id, comment.content)}
+              style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer" }}
+            >
+              수정
+            </button>
+            <button
+              onClick={() => onDeleteRequest(comment.id)}
+              style={{ fontSize: 11, fontWeight: 700, color: "#dc2626", background: "#fef2f2", border: "none", borderRadius: 6, padding: "3px 9px", cursor: "pointer" }}
+            >
+              삭제
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isEditing ? (
+        <div style={{ marginBottom: 12 }}>
+          <textarea
+            value={editCommentContent}
+            onChange={(e) => onEditChange(e.target.value)}
+            autoFocus
+            rows={4}
+            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical", lineHeight: 1.6, marginBottom: 8 }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+            <button
+              onClick={onEditCancel}
+              style={{ fontSize: 12, color: "#6b7280", background: "white", border: "1px solid #d1d5db", borderRadius: 8, padding: "5px 12px", cursor: "pointer", fontWeight: 700 }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => onEditSave(comment.id)}
+              disabled={savingComment}
+              style={{ fontSize: 12, fontWeight: 800, color: "white", background: savingComment ? "#d1d5db" : "#111827", border: "none", borderRadius: 8, padding: "5px 16px", cursor: savingComment ? "not-allowed" : "pointer" }}
+            >
+              {savingComment ? "저장 중..." : "저장"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p style={{ margin: "0 0 12px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-all", overflowWrap: "break-word", overflow: "hidden", maxWidth: "100%" }}>{comment.content}</p>
+          {comment.files.length > 0 && <FilesBlock files={comment.files} marginBottom={12} />}
+        </>
       )}
 
       {/* 대댓글 목록 */}
       {subComments.length > 0 && (
         <div style={{ marginTop: 12, borderLeft: "2px solid #e5e7eb", paddingLeft: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-          {subComments.map((sc) => (
-            <div key={sc.id}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                <Avatar url={sc.profiles?.avatar_url} size={22} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{sc.profiles?.nickname ?? "익명"}</span>
-                <span style={{ fontSize: 11, color: "#9ca3af" }}>{timeAgo(sc.created_at)}</span>
+          {subComments.map((sc) => {
+            const isMySubComment = myUserId === sc.user_id;
+            const canManageSub = isMySubComment || isAdmin;
+            const isEditingSub = editingCommentId === sc.id;
+            return (
+              <div key={sc.id}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Avatar url={sc.profiles?.avatar_url} size={22} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                      <MentorNickname
+                        mentorId={mentorUserIdMap[sc.user_id] ?? ""}
+                        nickname={sc.profiles?.nickname ?? "익명"}
+                        isMentor={!!mentorUserIdMap[sc.user_id]}
+                      />
+                    </span>
+                    <span style={{ fontSize: 11, color: "#9ca3af" }}>{timeAgo(sc.created_at)}</span>
+                  </div>
+                  {canManageSub && !isEditingSub && (
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      <button
+                        onClick={() => onEditStart(sc.id, sc.content)}
+                        style={{ fontSize: 10, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 5, padding: "2px 7px", cursor: "pointer" }}
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => onDeleteRequest(sc.id)}
+                        style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", background: "#fef2f2", border: "none", borderRadius: 5, padding: "2px 7px", cursor: "pointer" }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {isEditingSub ? (
+                  <div style={{ paddingLeft: 28, marginBottom: 4 }}>
+                    <textarea
+                      value={editCommentContent}
+                      onChange={(e) => onEditChange(e.target.value)}
+                      autoFocus
+                      rows={3}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit", resize: "vertical", marginBottom: 6 }}
+                    />
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                      <button
+                        onClick={onEditCancel}
+                        style={{ fontSize: 11, color: "#6b7280", background: "white", border: "1px solid #d1d5db", borderRadius: 7, padding: "4px 10px", cursor: "pointer", fontWeight: 700 }}
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={() => onEditSave(sc.id)}
+                        disabled={savingComment}
+                        style={{ fontSize: 11, fontWeight: 800, color: "white", background: savingComment ? "#d1d5db" : "#111827", border: "none", borderRadius: 7, padding: "4px 12px", cursor: savingComment ? "not-allowed" : "pointer" }}
+                      >
+                        {savingComment ? "저장 중..." : "저장"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-all", overflowWrap: "break-word", overflow: "hidden", maxWidth: "100%", paddingLeft: 28 }}>{sc.content}</p>
+                )}
               </div>
-              <p style={{ margin: 0, fontSize: 13, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", paddingLeft: 28 }}>{sc.content}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* 액션 버튼 영역 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-        {/* 채택 버튼: 질문자 && 본인 답변 아님 && 미채택 && 미마감 */}
-        {isOwner && !isMyComment && !comment.is_best_answer && !postClosed && (
-          <button
-            onClick={onPickBest}
-            disabled={picking}
-            style={{ fontSize: 12, fontWeight: 800, color: GOLD, background: GOLD + "15", border: `1px solid ${GOLD}44`, borderRadius: 8, padding: "5px 12px", cursor: picking ? "not-allowed" : "pointer" }}
-          >
-            채택하기
-          </button>
-        )}
-        {/* 댓글 달기: 질문자 && 미마감 */}
-        {isOwner && !postClosed && (
-          <button
-            onClick={() => onReplyToggle(isReplying ? null : comment.id)}
-            style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}
-          >
-            💬 {isReplying ? "취소" : "댓글 달기"}
-          </button>
-        )}
-      </div>
+      {/* 액션 버튼 */}
+      {!isEditing && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+          {isOwner && !isMyComment && !comment.is_best_answer && !postClosed && (
+            <button
+              onClick={onPickBest}
+              disabled={picking}
+              style={{ fontSize: 12, fontWeight: 800, color: GOLD, background: GOLD + "15", border: `1px solid ${GOLD}44`, borderRadius: 8, padding: "5px 12px", cursor: picking ? "not-allowed" : "pointer" }}
+            >
+              채택하기
+            </button>
+          )}
+          {isOwner && (
+            <button
+              onClick={() => onReplyToggle(isReplying ? null : comment.id)}
+              style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}
+            >
+              💬 {isReplying ? "취소" : "댓글 달기"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 대댓글 입력창 */}
       {isReplying && (
@@ -470,19 +775,81 @@ function CommentCard({
   );
 }
 
-function FileAttachment({ file }: { file: FileItem }) {
-  const isImage = ["jpg","jpeg","png","webp","gif"].includes(file.ext);
+function FilesBlock({ files, marginBottom }: { files: FileItem[]; marginBottom?: number }) {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const handleDownloadAll = async () => {
+    for (const file of files) {
+      try {
+        const response = await fetch(file.url);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.url.split("/").pop() || "file";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        await new Promise(resolve => setTimeout(resolve, 500));
+      } catch (e) {
+        console.error("다운로드 실패:", e);
+      }
+    }
+  };
+
+  return (
+    <div style={{ marginBottom, overflow: "hidden", maxWidth: "100%", wordBreak: "break-all", overflowWrap: "break-word" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, maxWidth: "100%", overflow: "hidden", wordBreak: "break-all", overflowWrap: "break-word" }}>
+        {files.map((f, i) => <FileAttachment key={i} file={f} onImageClick={setSelectedImage} />)}
+      </div>
+      <button
+        onClick={(e) => { e.preventDefault(); handleDownloadAll(); }}
+        style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, background: "white", cursor: "pointer", color: "#374151" }}
+      >
+        ⬇ 전체 다운로드 ({files.length}개)
+      </button>
+      {selectedImage && (
+        <div
+          onClick={() => setSelectedImage(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <button
+            onClick={() => setSelectedImage(null)}
+            style={{ position: "absolute", top: 20, right: 20, background: "none", border: "none", color: "white", fontSize: 32, cursor: "pointer", lineHeight: 1 }}
+          >
+            ×
+          </button>
+          <img
+            src={selectedImage}
+            onClick={(e) => e.stopPropagation()}
+            alt="preview"
+            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, objectFit: "contain" }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FileAttachment({ file, onImageClick }: { file: FileItem; onImageClick?: (url: string) => void }) {
+  const IMAGE_EXTS = ["jpg","jpeg","png","webp","gif"];
+  const urlExt = file.url.split("?")[0].split(".").pop()?.toLowerCase() ?? "";
+  const isImage = IMAGE_EXTS.includes(file.ext) || IMAGE_EXTS.includes(urlExt);
   if (isImage) {
     return (
-      <a href={file.url} target="_blank" rel="noreferrer">
-        <img src={file.url} alt={file.name} style={{ height: 80, borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover", cursor: "pointer" }} />
-      </a>
+      <img
+        src={file.url}
+        alt={file.name}
+        onClick={() => onImageClick?.(file.url)}
+        style={{ height: 80, borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover", cursor: "pointer" }}
+      />
     );
   }
   return (
     <a
       href={file.url}
-      download={file.name}
+      download={file.url.split("/").pop() ?? file.name}
       style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f3f4f6", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#374151", textDecoration: "none" }}
     >
       📎 {file.name}

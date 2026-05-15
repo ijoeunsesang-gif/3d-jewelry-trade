@@ -536,9 +536,18 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   return (
     <>
     <main className="detail-main">
-      <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>
-        홈 / 3D 모델 / 상세보기
-      </p>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 10, border: "1px solid #e5e7eb", background: "white", color: "#374151", fontWeight: 700, fontSize: 13, cursor: "pointer", flexShrink: 0 }}
+        >
+          ← 목록으로
+        </button>
+        <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>
+          홈 / 3D 모델 / 상세보기
+        </p>
+      </div>
 
       <div className="detail-grid">
         <section>

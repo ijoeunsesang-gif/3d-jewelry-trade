@@ -60,9 +60,8 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!post) return NextResponse.json({ error: "게시글을 찾을 수 없습니다." }, { status: 404 });
-    if (post.status !== "open") return NextResponse.json({ error: "마감된 질문에는 답변할 수 없습니다." }, { status: 400 });
 
-    // 대댓글: 질문자만 작성 가능, 포인트 없음
+    // 대댓글: 질문자만 작성 가능, 포인트 없음 (채택 후에도 허용)
     if (parent_id) {
       if (user.id !== post.user_id) {
         return NextResponse.json({ error: "대댓글은 질문 작성자만 달 수 있습니다." }, { status: 403 });
@@ -101,7 +100,12 @@ export async function POST(req: NextRequest) {
 
     if (commentErr) return NextResponse.json({ error: commentErr.message }, { status: 500 });
 
-    // 일일·월 한도 확인
+    // 채택 완료(closed) 상태이면 포인트 미지급
+    if (post.status !== "open") {
+      return NextResponse.json({ id: comment.id, pointAwarded: 0 });
+    }
+
+    // 일일·월 한도 확인 후 포인트 지급
     const { daily, monthly } = await getCadEarned(user.id);
     const remainingDaily = Math.max(0, DAILY_CAP - daily);
     const remainingMonthly = Math.max(0, MONTHLY_CAP - monthly);

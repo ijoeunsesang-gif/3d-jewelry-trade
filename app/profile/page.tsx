@@ -465,8 +465,8 @@ export default function ProfilePage() {
     { id: "basic", label: "기본 정보" },
     { id: "grade", label: "내 등급", sellerOnly: true },
     { id: "follow", label: "팔로우" },
-    { id: "seller", label: "판매자 등록" },
-    { id: "mentor", label: "멘토등록" },
+    { id: "seller", label: isSeller ? "판매자 정보" : "판매자 등록" },
+    { id: "mentor", label: isMentor ? "멘토 정보" : "멘토 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
     { id: "points", label: "포인트" },
   ];
@@ -1650,6 +1650,7 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
   const [warnings, setWarnings] = useState<MentorWarning[]>([]);
   const [tabLoading, setTabLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const loadedRef = useRef(false);
 
   useEffect(() => {
@@ -1713,6 +1714,55 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <h2 className="pf-section-title" style={sectionTitle}>멘토 등록</h2>
+
+      {/* 멘토 상세 설명 접이식 */}
+      <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px 20px", marginBottom: 8 }}>
+        <div
+          onClick={() => setShowGuide(!showGuide)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+        >
+          <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>📋 멘토 상세 설명</span>
+          <span style={{ fontSize: 12, color: "#6b7280" }}>{showGuide ? "접기 ▲" : "펼치기 ▼"}</span>
+        </div>
+        {showGuide && (
+          <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>수익 구조</div>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                <li>수강 패키지 구독료의 80%가 멘토에게 지급됩니다</li>
+                <li>건별 멘토링 수익의 80%가 멘토에게 지급됩니다</li>
+              </ul>
+            </div>
+            <div style={{ borderTop: "1px solid #e5e7eb" }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>제공 서비스</div>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                <li>CAD수정: 수강생 3DM 파일 직접 수정 후 전달 (STL/OBJ는 피드백만 가능)</li>
+                <li>실무 검수: 제작/판매/출력 가능 여부 컨펌</li>
+                <li>검수+CAD수정: 검수 후 직접 수정까지 진행 (3DM만 가능)</li>
+              </ul>
+            </div>
+            <div style={{ borderTop: "1px solid #e5e7eb" }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>답변 시간 기준</div>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                <li>BASIC 수강생: 48시간 이내</li>
+                <li>PRO 수강생: 36시간 이내</li>
+                <li>MASTER 수강생: 24시간 이내</li>
+                <li>주말·연휴 제외</li>
+              </ul>
+            </div>
+            <div style={{ borderTop: "1px solid #e5e7eb" }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>주의사항</div>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                <li>불성실한 답변 시 경고 누적 → 활동 정지될 수 있습니다</li>
+                <li>추후 멘토 등록 조건이 변경될 수 있습니다</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* 설명 섹션 */}
       <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.9 }}>

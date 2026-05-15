@@ -7,7 +7,6 @@ import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
 
-const GOLD = "#c9a84c";
 type FileItem = { name: string; url: string; ext: string };
 
 type Session = {
@@ -37,12 +36,19 @@ export default function SessionDetailPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [resultFiles, setResultFiles] = useState<FileItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [acting, setActing] = useState(false);
+
+  const [editingResult, setEditingResult] = useState(false);
+  const [editResultFiles, setEditResultFiles] = useState<FileItem[]>([]);
+  const [editUploading, setEditUploading] = useState(false);
+  const [savingResult, setSavingResult] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -103,6 +109,40 @@ export default function SessionDetailPage() {
     setActing(false);
   };
 
+  const handleEditFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    const token = getAccessToken();
+    if (!token) { showError("로그인이 필요합니다."); return; }
+    setEditUploading(true);
+    for (const file of selected) {
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+      const path = `cad-school/results/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const fd = new FormData();
+      fd.append("file", file); fd.append("bucket", "thumbnails"); fd.append("path", path);
+      const res = await fetch("/api/upload", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+      const d = await res.json();
+      if (d.url) setEditResultFiles((prev) => [...prev, { name: file.name, url: d.url, ext }]);
+      else showError(`업로드 실패: ${d.error || file.name}`);
+    }
+    setEditUploading(false);
+    e.target.value = "";
+  };
+
+  const saveResult = async () => {
+    const token = getAccessToken();
+    if (!token) { showError("로그인이 필요합니다."); return; }
+    setSavingResult(true);
+    const res = await fetch(`/api/cad-school/session/${id}/result`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ result_files: editResultFiles }),
+    });
+    const d = await res.json();
+    if (!res.ok) showError(d.error || "저장 실패");
+    else { showSuccess("결과물이 수정되었습니다."); setEditingResult(false); loadSession(); }
+    setSavingResult(false);
+  };
+
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
   if (!session) return null;
 
@@ -145,12 +185,73 @@ export default function SessionDetailPage() {
       </div>
 
       {/* 결과물 섹션 */}
-      {session.status === "completed" && session.result_files.length > 0 && (
+      {session.result_files.length > 0 && (
         <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 20, padding: "22px 28px", marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 900, color: "#166534", marginBottom: 12 }}>멘토링 결과물</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {session.result_files.map((f, i) => <FileAttachment key={i} file={f} />)}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "#166534" }}>멘토링 결과물</div>
+            {isMentor && !editingResult && (
+              <button
+                onClick={() => { setEditResultFiles([...session.result_files]); setEditingResult(true); }}
+                style={{ fontSize: 12, fontWeight: 700, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 8, padding: "5px 12px", cursor: "pointer" }}
+              >
+                수정
+              </button>
+            )}
           </div>
+
+          {editingResult ? (
+            <div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                {editResultFiles.map((f, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, background: "white", border: "1px solid #d1fae5", borderRadius: 8, padding: "4px 10px", fontSize: 12 }}>
+                    <span>{["jpg","jpeg","png","webp","gif"].includes(f.ext) ? "🖼" : "📎"}</span>
+                    <span style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#374151" }}>{f.name}</span>
+                    <button
+                      onClick={() => setEditResultFiles((p) => p.filter((_, j) => j !== i))}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", padding: "0 0 0 2px", fontSize: 14, lineHeight: 1 }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => editFileInputRef.current?.click()}
+                  disabled={editUploading}
+                  style={{ fontSize: 12, color: "#166534", background: "#dcfce7", border: "1px solid #bbf7d0", borderRadius: 8, padding: "5px 12px", cursor: editUploading ? "not-allowed" : "pointer", fontWeight: 700 }}
+                >
+                  {editUploading ? "업로드 중..." : "📎 파일 추가"}
+                </button>
+                <input
+                  ref={editFileInputRef}
+                  type="file"
+                  multiple
+                  accept=".3dm,.stl,.obj"
+                  style={{ display: "none" }}
+                  onChange={handleEditFileChange}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setEditingResult(false)}
+                  disabled={savingResult}
+                  style={{ fontSize: 13, color: "#6b7280", background: "white", border: "1px solid #d1d5db", borderRadius: 9, padding: "8px 16px", cursor: savingResult ? "not-allowed" : "pointer", fontWeight: 700 }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={saveResult}
+                  disabled={savingResult || editUploading}
+                  style={{ fontSize: 13, fontWeight: 800, color: "white", background: savingResult || editUploading ? "#d1d5db" : "#166534", border: "none", borderRadius: 9, padding: "8px 22px", cursor: savingResult || editUploading ? "not-allowed" : "pointer" }}
+                >
+                  {savingResult ? "저장 중..." : "저장"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {session.result_files.map((f, i) => <FileAttachment key={i} file={f} />)}
+            </div>
+          )}
         </div>
       )}
 

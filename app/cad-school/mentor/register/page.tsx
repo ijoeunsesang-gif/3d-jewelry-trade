@@ -31,6 +31,7 @@ export default function MentorRegisterPage() {
   const [programs, setPrograms] = useState<SkillItem[]>([]);
   const [workTypes, setWorkTypes] = useState<SkillItem[]>([]);
   const [canCpx, setCanCpx] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => { init(); }, []);
 
@@ -141,6 +142,46 @@ export default function MentorRegisterPage() {
         <div style={{ background: GOLD_LIGHT, border: `1px solid ${GOLD}66`, borderRadius: 12, padding: "10px 14px", marginBottom: 22, fontSize: 12, color: "#92681a", lineHeight: 1.8 }}>
           💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.<br />
           추후 멘토 등록 조건이 변경될 수 있습니다.
+        </div>
+
+        {/* 멘토 활동 안내 접이식 */}
+        <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 22 }}>
+          <div
+            onClick={() => setShowGuide(!showGuide)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+          >
+            <span style={{ fontWeight: 700, fontSize: 14, color: "#111827" }}>📋 멘토 활동 안내</span>
+            <span style={{ fontSize: 12, color: "#6b7280" }}>{showGuide ? "접기 ▲" : "펼치기 ▼"}</span>
+          </div>
+          {showGuide && (
+            <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>멘토 수익 구조</div>
+                <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                  <li>수강생 구독료의 80%가 멘토에게 지급됩니다</li>
+                  <li>건별 멘토링 수익의 80%가 멘토에게 지급됩니다</li>
+                </ul>
+              </div>
+              <div style={{ borderTop: "1px solid #e5e7eb" }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>제공 서비스 설명</div>
+                <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                  <li>CAD수정: 수강생 3DM 파일을 직접 수정 후 전달 (STL/OBJ는 피드백만)</li>
+                  <li>실무 검수: 제작/판매 가능 여부 컨펌</li>
+                  <li>검수+CAD수정: 검수 후 직접 수정까지 진행</li>
+                </ul>
+              </div>
+              <div style={{ borderTop: "1px solid #e5e7eb" }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>멘토 주의사항</div>
+                <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
+                  <li>답변 시간을 준수해주세요 (BASIC 48시간, PRO 36시간, MASTER 24시간)</li>
+                  <li>불성실한 답변 시 경고가 누적될 수 있습니다</li>
+                  <li>추후 멘토 등록 조건이 변경될 수 있습니다</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 소개글 */}
@@ -259,7 +300,7 @@ export default function MentorRegisterPage() {
         <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 12, padding: "14px 16px", marginBottom: 28, fontSize: 13, color: "#0c4a6e", lineHeight: 2 }}>
           💰 <strong>건별 멘토링 가격은 플랫폼 고정가</strong>로 운영됩니다.<br />
           <span style={{ paddingLeft: 22, display: "block" }}>
-            이미지 검토 <strong>3,000원</strong> &nbsp;·&nbsp; 파일 검토 <strong>5,000원</strong> &nbsp;·&nbsp; 파일 수정 <strong>15,000원</strong>
+            이미지 검토 <strong>3,000원</strong> &nbsp;·&nbsp; 파일 검토 <strong>5,000원</strong> &nbsp;·&nbsp; 파일 수정 <strong>10,000원</strong>
           </span>
           <span style={{ paddingLeft: 22, display: "block", fontSize: 11, color: "#0369a1", marginTop: 2 }}>
             멘토 수익의 80%가 멘토에게 지급됩니다.

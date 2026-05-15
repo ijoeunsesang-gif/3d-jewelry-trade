@@ -11,7 +11,14 @@ import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
 
-type AdminTab = "mentors" | "warnings";
+type AdminTab = "mentors" | "warnings" | "delete-requests" | "point-configs";
+
+type PointConfig = {
+  key: string;
+  value: number;
+  description: string;
+  updated_at: string;
+};
 
 type Mentor = {
   id: string;
@@ -38,6 +45,16 @@ type Warning = {
   mentor_name?: string;
 };
 
+type DeleteRequest = {
+  id: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  admin_note: string | null;
+  created_at: string;
+  mission: { id: string; title: string } | null;
+  requester: { nickname: string | null; email: string | null } | null;
+};
+
 export default function AdminCadSchoolPage() {
   const router = useRouter();
   const [tab, setTab] = useState<AdminTab>("mentors");
@@ -46,6 +63,10 @@ export default function AdminCadSchoolPage() {
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const [acting, setActing] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [deleteRequests, setDeleteRequests] = useState<DeleteRequest[]>([]);
+  const [pointConfigs, setPointConfigs] = useState<PointConfig[]>([]);
+  const [editingConfig, setEditingConfig] = useState<Record<string, string>>({});
+  const [savingConfig, setSavingConfig] = useState<string | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -63,8 +84,38 @@ export default function AdminCadSchoolPage() {
 
   const loadAll = async () => {
     setLoading(true);
-    await Promise.all([loadMentors(), loadWarnings()]);
+    await Promise.all([loadMentors(), loadWarnings(), loadDeleteRequests(), loadPointConfigs()]);
     setLoading(false);
+  };
+
+  const loadPointConfigs = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    const res = await fetch("/api/admin/cad-school/point-configs", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    const configs: PointConfig[] = d.configs ?? [];
+    setPointConfigs(configs);
+    setEditingConfig(Object.fromEntries(configs.map((c) => [c.key, String(c.value)])));
+  };
+
+  const savePointConfig = async (key: string) => {
+    const token = getAccessToken();
+    if (!token) return;
+    const value = parseInt(editingConfig[key] ?? "0", 10);
+    if (isNaN(value) || value < 0) { showError("올바른 포인트 값을 입력해주세요."); return; }
+    setSavingConfig(key);
+    const res = await fetch("/api/admin/cad-school/point-configs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ key, value }),
+    });
+    const d = await res.json();
+    if (!res.ok) showError(d.error ?? "저장 실패");
+    else { showSuccess("저장되었습니다."); await loadPointConfigs(); }
+    setSavingConfig(null);
   };
 
   const loadMentors = async () => {
@@ -100,6 +151,34 @@ export default function AdminCadSchoolPage() {
         mentor_name: w.mentor?.profiles?.nickname ?? "멘토",
       }))
     );
+  };
+
+  const loadDeleteRequests = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    const res = await fetch("/api/admin/cad-school/mission-delete-requests", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const d = await res.json();
+    setDeleteRequests(d.requests ?? []);
+  };
+
+  const handleDeleteRequestAction = async (requestId: string, action: "approve" | "reject") => {
+    const token = getAccessToken();
+    if (!token) return;
+    const confirmMsg = action === "approve" ? "삭제를 승인하시겠습니까? 미션이 즉시 삭제됩니다." : "요청을 거절하시겠습니까?";
+    if (!confirm(confirmMsg)) return;
+    setActing(requestId);
+    const res = await fetch("/api/admin/cad-school/mission-delete-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ request_id: requestId, action }),
+    });
+    const d = await res.json();
+    if (!res.ok) showError(d.error ?? "오류 발생");
+    else { showSuccess("처리 완료"); loadAll(); }
+    setActing(null);
   };
 
   const doAction = async (mentorId: string, action: string, warningId?: string) => {
@@ -143,7 +222,7 @@ export default function AdminCadSchoolPage() {
 
       {/* 탭 */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24, background: "white", borderRadius: 14, padding: 5, border: "1px solid #e5e7eb", width: "fit-content" }}>
-        {([["mentors", "멘토 목록"], ["warnings", "경고 내역"]] as const).map(([key, label]) => (
+        {([["mentors", "멘토 목록"], ["warnings", "경고 내역"], ["delete-requests", "삭제 요청"], ["point-configs", "포인트 설정"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{
             padding: "9px 20px", borderRadius: 10, border: "none",
             background: tab === key ? "#111827" : "transparent",
@@ -261,6 +340,95 @@ export default function AdminCadSchoolPage() {
                 />
               </div>
             ))}
+          </div>
+        </div>
+      )}
+      {tab === "delete-requests" && (
+        <div>
+          <div style={{ marginBottom: 16, fontSize: 13, color: "#6b7280" }}>
+            총 {deleteRequests.length}건
+            <span style={{ marginLeft: 12, color: "#d97706", fontWeight: 700 }}>
+              대기 {deleteRequests.filter((r) => r.status === "pending").length}건
+            </span>
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {deleteRequests.length === 0 && (
+              <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "40px 20px", textAlign: "center", color: "#9ca3af" }}>
+                삭제 요청이 없습니다.
+              </div>
+            )}
+            {deleteRequests.map((r) => (
+              <div key={r.id} style={{ background: "white", border: `1px solid ${r.status === "pending" ? "#fde68a" : "#e5e7eb"}`, borderRadius: 14, padding: "16px 20px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 800, fontSize: 14, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 300 }}>
+                        {r.mission?.title ?? "(삭제된 미션)"}
+                      </span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 4,
+                        color: r.status === "pending" ? "#d97706" : r.status === "approved" ? "#16a34a" : "#dc2626",
+                        background: r.status === "pending" ? "#fef3c7" : r.status === "approved" ? "#dcfce7" : "#fee2e2",
+                      }}>
+                        {r.status === "pending" ? "대기중" : r.status === "approved" ? "승인됨" : "거절됨"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                      요청자: <strong>{r.requester?.nickname ?? "—"}</strong>
+                      {r.requester?.email && <span style={{ marginLeft: 6 }}>({r.requester.email})</span>}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#374151", marginBottom: 4 }}>사유: {r.reason}</div>
+                    {r.admin_note && <div style={{ fontSize: 12, color: "#6b7280" }}>관리자 메모: {r.admin_note}</div>}
+                    <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 4 }}>{new Date(r.created_at).toLocaleString("ko-KR")}</div>
+                  </div>
+                  {r.status === "pending" && (
+                    <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                      <ActionBtn label="삭제 승인" color="#dc2626" disabled={acting === r.id} onClick={() => handleDeleteRequestAction(r.id, "approve")} />
+                      <ActionBtn label="요청 거절" color="#6b7280" disabled={acting === r.id} onClick={() => handleDeleteRequestAction(r.id, "reject")} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "point-configs" && (
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 900, color: "#111827", marginBottom: 16 }}>포인트 지급 설정</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
+            멘토 활동에 따른 자동 포인트 지급량을 설정합니다. 0으로 설정하면 포인트가 지급되지 않습니다.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 500 }}>
+            {pointConfigs.map((config) => (
+              <div key={config.key} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 20px" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 4 }}>{config.description || config.key}</div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 10 }}>
+                  키: {config.key} · 마지막 수정: {new Date(config.updated_at).toLocaleString("ko-KR")}
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingConfig[config.key] ?? String(config.value)}
+                    onChange={(e) => setEditingConfig((prev) => ({ ...prev, [config.key]: e.target.value }))}
+                    style={{ width: 120, padding: "8px 12px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, fontWeight: 700, outline: "none" }}
+                  />
+                  <span style={{ fontSize: 13, color: "#6b7280" }}>P</span>
+                  <button
+                    onClick={() => savePointConfig(config.key)}
+                    disabled={savingConfig === config.key}
+                    style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: savingConfig === config.key ? "#d1d5db" : "#111827", color: "white", fontWeight: 700, fontSize: 13, cursor: savingConfig === config.key ? "not-allowed" : "pointer" }}
+                  >
+                    {savingConfig === config.key ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </div>
+            ))}
+            {pointConfigs.length === 0 && (
+              <div style={{ padding: "30px 0", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>설정 항목이 없습니다. 마이그레이션을 먼저 실행해주세요.</div>
+            )}
           </div>
         </div>
       )}

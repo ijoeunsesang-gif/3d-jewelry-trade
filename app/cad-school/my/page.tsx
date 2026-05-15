@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
+import MentorNickname from "../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
+const PER_PAGE = 10;
 
-type MyTab = "posts" | "sessions" | "subscriptions";
+type Tab = "mentoring" | "posts";
 
 type Post = { id: string; title: string; status: string; created_at: string; comment_count?: number };
 type Session = {
   id: string; title: string; status: string; price: number; created_at: string;
   role: "mentor" | "mentee";
   other_name: string;
+  mentor_cad_id?: string;
 };
 type Subscription = {
   id: string;
@@ -27,6 +30,7 @@ type Subscription = {
   mentor_change_count: number;
   checklist_count: number;
   review_count: number;
+  post_review_cad_count: number;
   role: "mentor" | "subscriber";
   other_name: string;
   mentor_id: string;
@@ -34,21 +38,38 @@ type Subscription = {
 };
 
 const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
-const PLAN_LIMITS: Record<string, { checklist: number; review: number; mentorChanges: number }> = {
-  basic:  { checklist: 2,  review: 2,  mentorChanges: 1 },
-  pro:    { checklist: 5,  review: 5,  mentorChanges: 2 },
-  master: { checklist: 10, review: 10, mentorChanges: 3 },
+const PLAN_LIMITS: Record<string, { checklist: number; review: number; postReviewCad: number; mentorChanges: number }> = {
+  basic:  { checklist: 1, review: 1, postReviewCad: 1, mentorChanges: 1 },
+  pro:    { checklist: 2, review: 2, postReviewCad: 2, mentorChanges: 2 },
+  master: { checklist: 3, review: 3, postReviewCad: 3, mentorChanges: 3 },
 };
 
-export default function MyActivityPage() {
+function daysUntil(dateStr: string): number {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+export default function MyActivityPageWrapper() {
+  return (
+    <Suspense fallback={<main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>}>
+      <MyActivityPage />
+    </Suspense>
+  );
+}
+
+function MyActivityPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<MyTab>("posts");
+  const searchParams = useSearchParams();
+  const tab = (searchParams.get("tab") as Tab | null) ?? "mentoring";
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [isMentor, setIsMentor] = useState(false);
+  const [subExpanded, setSubExpanded] = useState(false);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -62,6 +83,8 @@ export default function MyActivityPage() {
 
   const loadAll = async (uid: string) => {
     setLoading(true);
+    const { data: mentorRow } = await supabase.from("cad_mentors").select("id").eq("user_id", uid).maybeSingle();
+    setIsMentor(!!mentorRow);
     await Promise.all([loadPosts(uid), loadSessions(uid), loadSubscriptions(uid)]);
     setLoading(false);
   };
@@ -72,15 +95,19 @@ export default function MyActivityPage() {
       .select("id, title, status, created_at")
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
-
     if (!data) return;
-    const withCount = await Promise.all(
-      data.map(async (p) => {
-        const { count } = await supabase.from("cad_post_comments").select("*", { count: "exact", head: true }).eq("post_id", p.id);
-        return { ...p, comment_count: count ?? 0 };
-      })
-    );
-    setPosts(withCount);
+
+    const postIds = data.map((p) => p.id);
+    const { data: commentData } = await supabase
+      .from("cad_post_comments")
+      .select("post_id")
+      .in("post_id", postIds)
+      .is("parent_id", null);
+    const countMap: Record<string, number> = {};
+    (commentData ?? []).forEach((c: { post_id: string }) => {
+      countMap[c.post_id] = (countMap[c.post_id] ?? 0) + 1;
+    });
+    setPosts(data.map((p) => ({ ...p, comment_count: countMap[p.id] ?? 0 })));
   };
 
   const loadSessions = async (uid: string) => {
@@ -89,13 +116,13 @@ export default function MyActivityPage() {
 
     const { data: asMentee } = await supabase
       .from("cad_mentoring_sessions")
-      .select("id, title, status, price, created_at, mentor:cad_mentors(profiles(nickname))")
+      .select("id, title, status, price, created_at, mentor:cad_mentors(id, profiles(nickname))")
       .eq("mentee_id", uid)
       .order("created_at", { ascending: false });
 
     const mentee: Session[] = (asMentee ?? []).map((s: unknown) => {
-      const sess = s as { id: string; title: string; status: string; price: number; created_at: string; mentor: { profiles: { nickname: string } | null } | null };
-      return { id: sess.id, title: sess.title, status: sess.status, price: sess.price, created_at: sess.created_at, role: "mentee", other_name: sess.mentor?.profiles?.nickname ?? "멘토" };
+      const sess = s as { id: string; title: string; status: string; price: number; created_at: string; mentor: { id: string; profiles: { nickname: string } | null } | null };
+      return { id: sess.id, title: sess.title, status: sess.status, price: sess.price, created_at: sess.created_at, role: "mentee", other_name: sess.mentor?.profiles?.nickname ?? "멘토", mentor_cad_id: sess.mentor?.id };
     });
 
     let mentor: Session[] = [];
@@ -120,19 +147,20 @@ export default function MyActivityPage() {
 
     const { data: asSubscriber } = await supabase
       .from("cad_subscriptions")
-      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, mentor_id, mentor:cad_mentors(user_id, is_suspended, profiles(nickname))")
+      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, post_review_cad_count, mentor_id, mentor:cad_mentors(user_id, is_suspended, profiles(nickname))")
       .eq("subscriber_id", uid)
       .order("created_at", { ascending: false });
 
     const subscriber: Subscription[] = (asSubscriber ?? []).map((s: unknown) => {
       const sub = s as {
         id: string; plan_type: string; status: string; expires_at: string; price: number;
-        mentor_change_count: number; checklist_count: number; review_count: number; mentor_id: string;
+        mentor_change_count: number; checklist_count: number; review_count: number; post_review_cad_count: number; mentor_id: string;
         mentor: { user_id: string; is_suspended: boolean; profiles: { nickname: string } | null } | null;
       };
       return {
         id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
-        mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, mentor_id: sub.mentor_id,
+        mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count,
+        post_review_cad_count: sub.post_review_cad_count ?? 0, mentor_id: sub.mentor_id,
         role: "subscriber", other_name: sub.mentor?.profiles?.nickname ?? "멘토", is_mentor_suspended: sub.mentor?.is_suspended ?? false,
       };
     });
@@ -141,18 +169,19 @@ export default function MyActivityPage() {
     if (mentorId) {
       const { data: asMentor } = await supabase
         .from("cad_subscriptions")
-        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, mentor_id, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
+        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, post_review_cad_count, mentor_id, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
         .eq("mentor_id", mentorId)
         .order("created_at", { ascending: false });
       mentorSubs = (asMentor ?? []).map((s: unknown) => {
         const sub = s as {
           id: string; plan_type: string; status: string; expires_at: string; price: number;
-          mentor_change_count: number; checklist_count: number; review_count: number; mentor_id: string;
+          mentor_change_count: number; checklist_count: number; review_count: number; post_review_cad_count: number; mentor_id: string;
           subscriber_profile: { nickname: string } | null;
         };
         return {
           id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
-          mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count, mentor_id: sub.mentor_id,
+          mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count,
+          post_review_cad_count: sub.post_review_cad_count ?? 0, mentor_id: sub.mentor_id,
           role: "mentor", other_name: sub.subscriber_profile?.nickname ?? "수강생", is_mentor_suspended: false,
         };
       });
@@ -177,45 +206,146 @@ export default function MyActivityPage() {
     setCancelling(null);
   };
 
-  const TABS: { key: MyTab; label: string; count: number }[] = [
-    { key: "posts", label: "내 질문", count: posts.length },
-    { key: "sessions", label: "건별 세션", count: sessions.length },
-    { key: "subscriptions", label: "수강 패키지", count: subscriptions.length },
-  ];
+  const goTab = (t: Tab) => router.push(`?tab=${t}&page=1`);
+  const goPage = (p: number) => router.replace(`?tab=${tab}&page=${p}`);
+
+  const pagedSessions = sessions.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const pagedPosts = posts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
   if (loading) return <main style={{ padding: "60px 20px", textAlign: "center", color: "#6b7280" }}>불러오는 중...</main>;
+
+  const activeSub = subscriptions.find((s) => s.role === "subscriber" && s.status === "active");
+  const otherSubs = subscriptions.filter((s) => !(s.role === "subscriber" && s.status === "active"));
 
   return (
     <main style={{ maxWidth: 760, margin: "0 auto", padding: "32px 20px 96px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
         <Link href="/cad-school" style={{ color: "#6b7280", textDecoration: "none", fontSize: 14 }}>← 캐드스쿨</Link>
         <span style={{ color: "#d1d5db" }}>/</span>
-        <span style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>내 활동</span>
+        <span style={{ fontSize: 14, color: "#111827", fontWeight: 700 }}>내 강의실</span>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb" }}>
-        {TABS.map((t) => (
-          <button key={t.key} type="button" onClick={() => setTab(t.key)} style={{
-            flex: 1, padding: "10px 8px", borderRadius: 12, border: "none",
-            background: tab === t.key ? "#111827" : "transparent",
-            color: tab === t.key ? "white" : "#6b7280",
-            fontWeight: tab === t.key ? 800 : 600, fontSize: 13, cursor: "pointer",
-          }}>
-            {t.label} {t.count > 0 && <span style={{ fontSize: 11, opacity: 0.7 }}>({t.count})</span>}
+      {/* ── 수강 패키지 (탭 밖 고정) ── */}
+      <section style={{ marginBottom: 32 }}>
+        {isMentor ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "#111827" }}>수강 패키지</h2>
+            <button
+              type="button"
+              onClick={() => setSubExpanded((prev) => !prev)}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#6b7280", padding: "2px 6px", borderRadius: 6, lineHeight: 1 }}
+            >
+              {subExpanded ? "▲ 접기" : "▼ 펼치기"}
+            </button>
+          </div>
+        ) : (
+          <SectionTitle>수강 패키지</SectionTitle>
+        )}
+
+        {activeSub && (
+          <ActiveSubscriptionCard sub={activeSub} cancelling={cancelling} onCancel={handleCancel} />
+        )}
+
+        {!activeSub && (!isMentor || subExpanded) && (
+          <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "48px 20px", textAlign: "center" }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>수강 중인 패키지가 없습니다</div>
+            <Link href="/cad-school" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 24px", borderRadius: 12, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 13 }}>
+              패키지 보기
+            </Link>
+          </div>
+        )}
+
+        {otherSubs.length > 0 && (
+          <div style={{ marginTop: activeSub ? 16 : !isMentor || subExpanded ? 16 : 0, display: "grid", gap: 10 }}>
+            {otherSubs.map((sub) => <OtherSubscriptionCard key={sub.id} sub={sub} />)}
+          </div>
+        )}
+      </section>
+
+      {/* ── 탭 내비게이션 ── */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "white", borderRadius: 14, padding: 5, border: "1px solid #e5e7eb" }}>
+        {([["mentoring", "건별 멘토링"], ["posts", "내 질문"]] as [Tab, string][]).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => goTab(key)}
+            style={{ flex: 1, padding: "10px 8px", borderRadius: 10, border: "none", background: tab === key ? "#111827" : "transparent", color: tab === key ? "white" : "#6b7280", fontWeight: tab === key ? 800 : 600, fontSize: 13, cursor: "pointer", transition: "all 0.15s" }}
+          >
+            {label}
+            {key === "mentoring" && sessions.length > 0 && (
+              <span style={{ marginLeft: 6, fontSize: 11, background: tab === key ? "rgba(255,255,255,0.2)" : "#f3f4f6", color: tab === key ? "white" : "#6b7280", borderRadius: 10, padding: "1px 6px" }}>
+                {sessions.length}
+              </span>
+            )}
+            {key === "posts" && posts.length > 0 && (
+              <span style={{ marginLeft: 6, fontSize: 11, background: tab === key ? "rgba(255,255,255,0.2)" : "#f3f4f6", color: tab === key ? "white" : "#6b7280", borderRadius: 10, padding: "1px 6px" }}>
+                {posts.length}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {tab === "posts" && (
-        <div>
-          {posts.length === 0 ? (
-            <EmptyState icon="💬" title="등록한 질문이 없습니다" action={{ href: "/cad-school/new", label: "질문하기" }} />
-          ) : (
+      {/* ── 탭 콘텐츠: 건별 멘토링 ── */}
+      {tab === "mentoring" && (
+        sessions.length === 0 ? (
+          <EmptyBox icon="💬" title="진행한 건별 멘토링이 없습니다" desc="유료 피드백 탭에서 멘토에게 질문해보세요." />
+        ) : (
+          <>
             <div style={{ display: "grid", gap: 12 }}>
-              {posts.map((p) => (
+              {pagedSessions.map((s) => (
+                <Link key={s.id} href={`/cad-school/session/${s.id}`} style={{ textDecoration: "none" }}>
+                  <div
+                    style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", cursor: "pointer" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.07)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                          <SessionStatusBadge status={s.status} />
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", background: "#dbeafe", padding: "2px 6px", borderRadius: 4 }}>
+                            {s.role === "mentor" ? "멘토" : "멘티"}
+                          </span>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{s.title}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                          {s.role === "mentee" && s.mentor_cad_id ? (
+                            <MentorNickname mentorId={s.mentor_cad_id} nickname={s.other_name} isMentor={true} />
+                          ) : (
+                            s.other_name
+                          )} · {timeAgo(s.created_at)}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 900, color: "#111827", whiteSpace: "nowrap" }}>
+                        {s.price.toLocaleString("ko-KR")}원
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <Pagination page={page} total={sessions.length} perPage={PER_PAGE} onPage={goPage} />
+          </>
+        )
+      )}
+
+      {/* ── 탭 콘텐츠: 내 질문 ── */}
+      {tab === "posts" && (
+        posts.length === 0 ? (
+          <EmptyBox icon="📝" title="등록한 질문이 없습니다" desc="자유 피드백 탭에서 첫 번째 질문을 올려보세요." />
+        ) : (
+          <>
+            <div style={{ display: "grid", gap: 12 }}>
+              {pagedPosts.map((p) => (
                 <Link key={p.id} href={`/cad-school/${p.id}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <div
+                    style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", cursor: "pointer" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.07)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
                       <StatusBadge status={p.status === "open" ? "open" : "closed"} />
                       <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{p.title}</span>
                     </div>
@@ -224,120 +354,171 @@ export default function MyActivityPage() {
                 </Link>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {tab === "sessions" && (
-        <div>
-          {sessions.length === 0 ? (
-            <EmptyState icon="🎓" title="진행중인 세션이 없습니다" action={{ href: "/cad-school", label: "멘토 찾기" }} />
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {sessions.map((s) => (
-                <Link key={s.id} href={`/cad-school/session/${s.id}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", cursor: "pointer" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <SessionStatusBadge status={s.status} />
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb", background: "#dbeafe", padding: "2px 6px", borderRadius: 4 }}>
-                            {s.role === "mentor" ? "멘토" : "멘티"}
-                          </span>
-                          <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{s.title}</span>
-                        </div>
-                        <div style={{ fontSize: 12, color: "#9ca3af" }}>{s.other_name} · {timeAgo(s.created_at)}</div>
-                      </div>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: "#111827", whiteSpace: "nowrap" }}>{s.price.toLocaleString("ko-KR")}원</div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {tab === "subscriptions" && (
-        <div>
-          {subscriptions.length === 0 ? (
-            <EmptyState icon="📋" title="수강 내역이 없습니다" action={{ href: "/cad-school", label: "수강 패키지 보기" }} />
-          ) : (
-            <div style={{ display: "grid", gap: 16 }}>
-              {subscriptions.map((sub) => {
-                const limits = PLAN_LIMITS[sub.plan_type] ?? PLAN_LIMITS.basic;
-                const isActive = sub.status === "active";
-                const isSubscriber = sub.role === "subscriber";
-                return (
-                  <div key={sub.id} style={{ background: "white", border: `1px solid ${isActive ? "#e5e7eb" : "#f3f4f6"}`, borderRadius: 18, padding: "20px 22px", opacity: isActive ? 1 : 0.7 }}>
-                    {/* Header */}
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <SubStatusBadge status={sub.status} />
-                          <span style={{ fontSize: 11, fontWeight: 700, color: sub.role === "mentor" ? "#2563eb" : "#7c3aed", background: sub.role === "mentor" ? "#dbeafe" : "#ede9fe", padding: "2px 6px", borderRadius: 4 }}>
-                            {sub.role === "mentor" ? "멘토" : "수강생"}
-                          </span>
-                          <span style={{ fontSize: 14, fontWeight: 900, color: GOLD, background: GOLD_LIGHT, padding: "2px 8px", borderRadius: 6 }}>
-                            {PLAN_LABELS[sub.plan_type] ?? sub.plan_type}
-                          </span>
-                          {isSubscriber && sub.is_mentor_suspended && (
-                            <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", background: "#fee2e2", padding: "2px 6px", borderRadius: 4 }}>멘토 정지됨</span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 13, color: "#374151", fontWeight: 700 }}>
-                          {isSubscriber ? `멘토: ${sub.other_name}` : `구독자: ${sub.other_name}`}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                          만료일: {new Date(sub.expires_at).toLocaleDateString("ko-KR")} · {sub.price.toLocaleString("ko-KR")}원
-                        </div>
-                      </div>
-
-                      <Link href={`/cad-school/subscription/${sub.id}`} style={{ fontSize: 13, fontWeight: 800, color: "white", background: "#111827", padding: "8px 16px", borderRadius: 10, textDecoration: "none", whiteSpace: "nowrap" }}>
-                        채팅방 →
-                      </Link>
-                    </div>
-
-                    {/* 쿼터 바 (구독자 전용) */}
-                    {isSubscriber && isActive && (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 14 }}>
-                        <MiniQuotaBar label="CAD수정" used={sub.checklist_count} total={limits.checklist} color="#7c3aed" />
-                        <MiniQuotaBar label="검수" used={sub.review_count} total={limits.review} color="#b45309" />
-                      </div>
-                    )}
-
-                    {/* 액션 버튼 */}
-                    {isSubscriber && isActive && (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => handleCancel(sub.id)}
-                          disabled={cancelling === sub.id}
-                          style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", border: "none", borderRadius: 8, padding: "7px 14px", cursor: "pointer" }}>
-                          {cancelling === sub.id ? "처리 중..." : "수강 해지"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+            <Pagination page={page} total={posts.length} perPage={PER_PAGE} onPage={goPage} />
+          </>
+        )
       )}
     </main>
   );
 }
 
-function MiniQuotaBar({ label, used, total, color }: { label: string; used: number; total: number; color: string }) {
-  const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+// ── 페이지네이션 ────────────────────────────────────────────────
+function Pagination({ page, total, perPage, onPage }: { page: number; total: number; perPage: number; onPage: (p: number) => void }) {
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) return null;
+
+  const start = Math.max(1, page - 2);
+  const end = Math.min(totalPages, page + 2);
+  const pages: number[] = [];
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  const btnBase: React.CSSProperties = { minWidth: 36, height: 36, borderRadius: 8, border: "1px solid #e5e7eb", background: "white", color: "#374151", fontWeight: 600, fontSize: 13, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "0 8px" };
+  const btnActive: React.CSSProperties = { ...btnBase, background: "#111827", color: "white", border: "1px solid #111827", fontWeight: 800 };
+  const btnDisabled: React.CSSProperties = { ...btnBase, opacity: 0.35, cursor: "not-allowed" };
+
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>{label}</span>
-        <span style={{ fontSize: 10, color: used >= total ? "#dc2626" : "#374151", fontWeight: 700 }}>{used}/{total}</span>
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 4, marginTop: 24 }}>
+      <button onClick={() => onPage(page - 1)} disabled={page <= 1} style={page <= 1 ? btnDisabled : btnBase}>이전</button>
+
+      {start > 1 && (
+        <>
+          <button onClick={() => onPage(1)} style={btnBase}>1</button>
+          {start > 2 && <span style={{ color: "#9ca3af", padding: "0 2px" }}>…</span>}
+        </>
+      )}
+
+      {pages.map((p) => (
+        <button key={p} onClick={() => onPage(p)} style={p === page ? btnActive : btnBase}>{p}</button>
+      ))}
+
+      {end < totalPages && (
+        <>
+          {end < totalPages - 1 && <span style={{ color: "#9ca3af", padding: "0 2px" }}>…</span>}
+          <button onClick={() => onPage(totalPages)} style={btnBase}>{totalPages}</button>
+        </>
+      )}
+
+      <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} style={page >= totalPages ? btnDisabled : btnBase}>다음</button>
+    </div>
+  );
+}
+
+// ── 활성 구독 카드 ──────────────────────────────────────────────
+function ActiveSubscriptionCard({ sub, cancelling, onCancel }: { sub: Subscription; cancelling: string | null; onCancel: (id: string) => void }) {
+  const limits = PLAN_LIMITS[sub.plan_type] ?? PLAN_LIMITS.basic;
+  const dLeft = daysUntil(sub.expires_at);
+  const dLabel = dLeft > 0 ? `D-${dLeft}` : dLeft === 0 ? "D-Day" : "만료";
+  const dColor = dLeft <= 3 ? "#dc2626" : "#374151";
+  const dBg    = dLeft <= 3 ? "#fee2e2" : "#f3f4f6";
+
+  return (
+    <div style={{ background: GOLD_LIGHT, border: `2px solid ${GOLD}88`, borderRadius: 20, padding: "24px 26px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 15, fontWeight: 900, color: GOLD, background: "white", border: `1px solid ${GOLD}66`, padding: "3px 10px", borderRadius: 8 }}>
+              {PLAN_LABELS[sub.plan_type] ?? sub.plan_type}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: dColor, background: dBg, padding: "3px 10px", borderRadius: 8 }}>
+              {dLabel}
+            </span>
+            {sub.is_mentor_suspended && (
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", background: "#fee2e2", padding: "2px 6px", borderRadius: 4 }}>멘토 정지됨</span>
+            )}
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 900, color: "#111827", marginBottom: 2 }}>
+            멘토: {sub.role === "subscriber" ? (
+              <MentorNickname mentorId={sub.mentor_id} nickname={sub.other_name} isMentor={true} />
+            ) : sub.other_name}
+          </div>
+          <div style={{ fontSize: 12, color: "#92681a" }}>만료일: {new Date(sub.expires_at).toLocaleDateString("ko-KR")}</div>
+        </div>
+        <Link
+          href={`/cad-school/subscription/${sub.id}`}
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "12px 24px", borderRadius: 14, background: GOLD, color: "white", fontWeight: 900, fontSize: 15, textDecoration: "none", whiteSpace: "nowrap" }}
+        >
+          채팅방 바로가기 →
+        </Link>
       </div>
-      <div style={{ background: "#e5e7eb", borderRadius: 99, height: 4 }}>
-        <div style={{ height: "100%", background: pct >= 100 ? "#dc2626" : color, width: `${pct}%`, borderRadius: 99 }} />
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 18 }}>
+        <QuotaBar label="CAD수정"  remaining={sub.checklist_count}       total={limits.checklist}     color="#7c3aed" />
+        <QuotaBar label="검수"     remaining={sub.review_count}          total={limits.review}        color="#b45309" />
+        <QuotaBar label="검수+CAD" remaining={sub.post_review_cad_count} total={limits.postReviewCad} color="#0369a1" />
+      </div>
+
+      <div style={{ textAlign: "right" }}>
+        <button
+          onClick={() => onCancel(sub.id)}
+          disabled={cancelling === sub.id}
+          style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+        >
+          {cancelling === sub.id ? "처리 중..." : "수강 해지"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── 기타 구독 카드 ─────────────────────────────────────────────
+function OtherSubscriptionCard({ sub }: { sub: Subscription }) {
+  const isActive = sub.status === "active";
+  return (
+    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: "14px 18px", opacity: isActive ? 1 : 0.65 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+            <SubStatusBadge status={sub.status} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: sub.role === "mentor" ? "#2563eb" : "#7c3aed", background: sub.role === "mentor" ? "#dbeafe" : "#ede9fe", padding: "2px 6px", borderRadius: 4 }}>
+              {sub.role === "mentor" ? "멘토" : "수강생"}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: GOLD }}>{PLAN_LABELS[sub.plan_type] ?? sub.plan_type}</span>
+          </div>
+          <div style={{ fontSize: 13, color: "#374151", fontWeight: 700 }}>
+            {sub.role === "mentor" ? (
+              `수강생: ${sub.other_name}`
+            ) : (
+              <>멘토: <MentorNickname mentorId={sub.mentor_id} nickname={sub.other_name} isMentor={true} /></>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+            만료일: {new Date(sub.expires_at).toLocaleDateString("ko-KR")}
+          </div>
+        </div>
+        <Link href={`/cad-school/subscription/${sub.id}`} style={{ fontSize: 13, fontWeight: 800, color: "white", background: "#374151", padding: "8px 14px", borderRadius: 10, textDecoration: "none", whiteSpace: "nowrap" }}>
+          채팅방 →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── 공통 컴포넌트 ──────────────────────────────────────────────
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 900, color: "#111827" }}>{children}</h2>;
+}
+
+function EmptyBox({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+  return (
+    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "60px 20px", textAlign: "center" }}>
+      <div style={{ fontSize: 36, marginBottom: 12 }}>{icon}</div>
+      <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 6 }}>{title}</div>
+      <div style={{ fontSize: 13, color: "#9ca3af" }}>{desc}</div>
+    </div>
+  );
+}
+
+function QuotaBar({ label, remaining, total, color }: { label: string; remaining: number; total: number; color: string }) {
+  const pct = total > 0 ? Math.min(100, (remaining / total) * 100) : 0;
+  const isEmpty = remaining <= 0;
+  return (
+    <div style={{ background: "white", borderRadius: 12, padding: "10px 12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: isEmpty ? "#dc2626" : "#374151" }}>{remaining}/{total}</span>
+      </div>
+      <div style={{ background: "#e5e7eb", borderRadius: 99, height: 6 }}>
+        <div style={{ height: "100%", background: isEmpty ? "#dc2626" : color, width: `${pct}%`, borderRadius: 99, transition: "width 0.3s" }} />
       </div>
     </div>
   );
@@ -368,18 +549,6 @@ function SubStatusBadge({ status }: { status: string }) {
   };
   const info = map[status] ?? { label: status, color: "#6b7280", bg: "#f3f4f6" };
   return <span style={{ fontSize: 11, fontWeight: 800, color: info.color, background: info.bg, padding: "2px 7px", borderRadius: 5 }}>{info.label}</span>;
-}
-
-function EmptyState({ icon, title, action }: { icon: string; title: string; action: { href: string; label: string } }) {
-  return (
-    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "48px 20px", textAlign: "center" }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 16 }}>{title}</div>
-      <Link href={action.href} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 24px", borderRadius: 12, background: "#111827", color: "white", textDecoration: "none", fontWeight: 800, fontSize: 13 }}>
-        {action.label}
-      </Link>
-    </div>
-  );
 }
 
 function timeAgo(dateStr: string): string {

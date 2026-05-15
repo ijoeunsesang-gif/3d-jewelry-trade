@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { scrollToTop } from "@/lib/scroll";
 
@@ -30,9 +31,20 @@ const getImageUrl = (path: string | null | undefined) => {
   return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${path}`;
 };
 
-export default function CartPage() {
+function CartPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPage = Number(searchParams.get("page") ?? "1") || 1;
+
+  const goToPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page");
+    else params.set("page", String(p));
+    router.push(`?${params.toString()}`);
+    scrollToTop();
+  };
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const allCheckboxRef = useRef<HTMLInputElement>(null);
 
@@ -291,7 +303,7 @@ export default function CartPage() {
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 16 }}>
                 <button
                   type="button"
-                  onClick={() => { setCurrentPage((p) => Math.max(1, p - 1)); scrollToTop(); }}
+                  onClick={() => goToPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
                   style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === 1 ? 0.4 : 1 }}
                 >
@@ -301,7 +313,7 @@ export default function CartPage() {
                   <button
                     key={p}
                     type="button"
-                    onClick={() => { setCurrentPage(p); scrollToTop(); }}
+                    onClick={() => goToPage(p)}
                     style={{ height: 38, minWidth: 38, borderRadius: 10, border: currentPage === p ? "none" : "1px solid #d1d5db", background: currentPage === p ? "#111827" : "white", color: currentPage === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
                   >
                     {p}
@@ -309,7 +321,7 @@ export default function CartPage() {
                 ))}
                 <button
                   type="button"
-                  onClick={() => { setCurrentPage((p) => Math.min(Math.ceil(cartItems.length / ITEMS_PER_PAGE), p + 1)); scrollToTop(); }}
+                  onClick={() => goToPage(Math.min(Math.ceil(cartItems.length / ITEMS_PER_PAGE), currentPage + 1))}
                   disabled={currentPage === Math.ceil(cartItems.length / ITEMS_PER_PAGE)}
                   style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: currentPage === Math.ceil(cartItems.length / ITEMS_PER_PAGE) ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: currentPage === Math.ceil(cartItems.length / ITEMS_PER_PAGE) ? 0.4 : 1 }}
                 >
@@ -464,5 +476,13 @@ export default function CartPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <Suspense fallback={null}>
+      <CartPageInner />
+    </Suspense>
   );
 }

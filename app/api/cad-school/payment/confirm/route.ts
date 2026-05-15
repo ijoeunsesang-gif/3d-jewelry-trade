@@ -57,6 +57,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // 플랜별 초기 횟수
+  const PLAN_LIMITS: Record<string, { checklist_count: number; review_count: number; post_review_cad_count: number; mentor_change_count: number }> = {
+    basic:  { checklist_count: 1, review_count: 1, post_review_cad_count: 1, mentor_change_count: 1 },
+    pro:    { checklist_count: 2, review_count: 2, post_review_cad_count: 2, mentor_change_count: 2 },
+    master: { checklist_count: 3, review_count: 3, post_review_cad_count: 3, mentor_change_count: 3 },
+  };
+
   // 4. 타입별 DB 처리
   try {
     if (type === "subscription") {
@@ -89,7 +96,8 @@ export async function POST(req: NextRequest) {
       if (mentor.is_suspended) return NextResponse.json({ error: "활동이 중단된 멘토입니다." }, { status: 400 });
 
       // 구독 생성
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const planLimits = PLAN_LIMITS[planType] ?? PLAN_LIMITS.basic;
       const { data: subscription, error: subErr } = await adminSupabase
         .from("cad_subscriptions")
         .insert({
@@ -100,6 +108,7 @@ export async function POST(req: NextRequest) {
           payment_key: paymentKey,
           order_id: orderId,
           expires_at: expiresAt,
+          ...planLimits,
         })
         .select("id")
         .single();
@@ -153,7 +162,7 @@ export async function POST(req: NextRequest) {
           mentor_id: mentorId,
           mentee_id: menteeId,
           session_type: sessionType,
-          title: title || "건별 멘토링 의뢰",
+          title: title || "유료 피드백 질문",
           description: description || "",
           files: files || [],
           price: amount,
@@ -178,14 +187,14 @@ export async function POST(req: NextRequest) {
         {
           user_id: menteeId,
           type: "cad_session",
-          title: `${mentorName} 멘토에게 건별 의뢰가 완료되었습니다`,
+          title: `${mentorName} 멘토에게 질문이 완료되었습니다`,
           link: `/cad-school/session/${session.id}`,
           is_read: false,
         },
         {
           user_id: mentor.user_id,
           type: "cad_session",
-          title: `${menteeName}님이 건별 멘토링을 의뢰했습니다`,
+          title: `${menteeName}님이 유료 피드백 질문을 남겼습니다`,
           link: `/cad-school/session/${session.id}`,
           is_read: false,
         },
