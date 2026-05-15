@@ -954,7 +954,7 @@ function SubscriptionSection() {
       <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: "12px 16px", marginTop: 12, fontSize: 12, color: "#6b7280", lineHeight: 1.9 }}>
         <div>⚠️ 범위를 초과하는 수정은 추가 비용이 발생할 수 있습니다.</div>
         <div>⚠️ 복잡한 구조 변경은 별도 상담 후 진행됩니다.</div>
-        <div style={{ marginTop: 4 }}>* 1회성 결제이며, 만료일까지 서비스가 유지됩니다. 패키지 수익의 80%가 멘토에게 지급됩니다.</div>
+        <div style={{ marginTop: 4 }}>* 1회성 결제이며, 만료일까지 서비스가 유지됩니다.</div>
       </div>
     </div>
   );

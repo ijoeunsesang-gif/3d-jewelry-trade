@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import GradeBadge from "../components/GradeBadge";
-import { Grade, GRADE_CONFIG, gradeOrder } from "@/lib/grades";
+import { Grade, GRADE_CONFIG, gradeOrder, MentorGrade, MENTOR_GRADE_CONFIG, calcMentorGrade, mentorGradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
 type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points";
@@ -84,6 +84,7 @@ export default function ProfilePage() {
   // 내 등급
   const [grade, setGrade] = useState<Grade | null>(null);
   const [gradeInfo, setGradeInfo] = useState<{ grade: Grade; totalCount: number; totalAmount: number } | null>(null);
+  const [mentorGradeInfo, setMentorGradeInfo] = useState<{ grade: MentorGrade; completedCount: number; avgRating: number } | null>(null);
   const [gradeLoading, setGradeLoading] = useState(false);
   const gradeLoadedRef = useRef(false);
 
@@ -105,11 +106,11 @@ export default function ProfilePage() {
   }, [activeTab, userId]);
 
   useEffect(() => {
-    if (activeTab === "grade" && isSeller && userId && !gradeLoadedRef.current) {
+    if (activeTab === "grade" && (isSeller || isMentor) && userId && !gradeLoadedRef.current) {
       gradeLoadedRef.current = true;
       fetchGradeData(userId);
     }
-  }, [activeTab, isSeller, userId]);
+  }, [activeTab, isSeller, isMentor, userId]);
 
   const handleWithdraw = async () => {
     setWithdrawing(true);
@@ -240,16 +241,42 @@ export default function ProfilePage() {
   const fetchGradeData = async (uid: string) => {
     setGradeLoading(true);
     try {
-      const { data } = await supabase
-        .from("seller_stats")
-        .select("current_grade, total_sales_count, total_sales_amount")
-        .eq("user_id", uid)
-        .maybeSingle();
-      setGradeInfo({
-        grade: ((data?.current_grade) || "sprout") as Grade,
-        totalCount: data?.total_sales_count ?? 0,
-        totalAmount: data?.total_sales_amount ?? 0,
-      });
+      const fetches: Promise<void>[] = [];
+
+      if (isSeller) {
+        fetches.push((async () => {
+          const { data } = await supabase
+            .from("seller_stats")
+            .select("current_grade, total_sales_count, total_sales_amount")
+            .eq("user_id", uid)
+            .maybeSingle();
+          setGradeInfo({
+            grade: ((data?.current_grade) || "sprout") as Grade,
+            totalCount: data?.total_sales_count ?? 0,
+            totalAmount: data?.total_sales_amount ?? 0,
+          });
+        })());
+      }
+
+      if (isMentor) {
+        fetches.push((async () => {
+          const { data } = await supabase
+            .from("cad_mentors")
+            .select("mentor_grade, completed_count, avg_rating")
+            .eq("user_id", uid)
+            .maybeSingle();
+          const completedCount = data?.completed_count ?? 0;
+          const avgRating = data?.avg_rating ?? 0;
+          const grade = calcMentorGrade(completedCount, avgRating);
+          setMentorGradeInfo({
+            grade: ((data?.mentor_grade) || grade) as MentorGrade,
+            completedCount,
+            avgRating,
+          });
+        })());
+      }
+
+      await Promise.all(fetches);
     } finally {
       setGradeLoading(false);
     }
@@ -461,9 +488,9 @@ export default function ProfilePage() {
 
   const handleBizUpload = handleBizLicenseUpload;
 
-  const tabs: { id: TabId; label: string; sellerOnly?: boolean }[] = [
+  const tabs: { id: TabId; label: string; sellerOnly?: boolean; mentorOrSeller?: boolean }[] = [
     { id: "basic", label: "기본 정보" },
-    { id: "grade", label: "내 등급", sellerOnly: true },
+    { id: "grade", label: "내 등급", mentorOrSeller: true },
     { id: "follow", label: "팔로우" },
     { id: "seller", label: isSeller ? "판매자 정보" : "판매자 등록" },
     { id: "mentor", label: isMentor ? "멘토 정보" : "멘토 등록" },
@@ -533,7 +560,7 @@ export default function ProfilePage() {
 
           {/* 탭 버튼 목록 */}
           <nav className="profile-tabs-nav" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {tabs.filter((t) => !t.sellerOnly || isSeller).map((tab) => (
+            {tabs.filter((t) => (!t.sellerOnly || isSeller) && (!t.mentorOrSeller || isSeller || isMentor)).map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -973,9 +1000,15 @@ export default function ProfilePage() {
             <MentorTab userId={userId} isSeller={isSeller} isMentor={isMentor} setIsMentor={setIsMentor} />
           )}
 
-          {/* 내 등급 탭 (seller 전용) */}
-          {activeTab === "grade" && isSeller && (
-            <GradeTab gradeInfo={gradeInfo} gradeLoading={gradeLoading} />
+          {/* 내 등급 탭 */}
+          {activeTab === "grade" && (isSeller || isMentor) && (
+            <GradeTab
+              gradeInfo={gradeInfo}
+              gradeLoading={gradeLoading}
+              isSeller={isSeller}
+              isMentor={isMentor}
+              mentorGradeInfo={mentorGradeInfo}
+            />
           )}
 
           {/* 판매 통계 탭 (seller 전용) */}
@@ -1195,6 +1228,7 @@ export default function ProfilePage() {
 
 /* ── 내 등급 탭 ── */
 const GRADE_KEYS: Grade[] = ["sprout", "skilled", "pro", "master"];
+const MENTOR_GRADE_KEYS: MentorGrade[] = ["normal", "certified", "pro", "master"];
 
 const GRADE_STYLE: Record<Grade, { color: string; bg: string; border: string; label: string }> = {
   sprout:  { color: "#374151", bg: "#f9fafb", border: "#d1d5db", label: "셀러" },
@@ -1206,23 +1240,16 @@ const GRADE_STYLE: Record<Grade, { color: string; bg: string; border: string; la
 function GradeTab({
   gradeInfo,
   gradeLoading,
+  isSeller,
+  isMentor,
+  mentorGradeInfo,
 }: {
   gradeInfo: { grade: Grade; totalCount: number; totalAmount: number } | null;
   gradeLoading: boolean;
+  isSeller: boolean;
+  isMentor: boolean;
+  mentorGradeInfo: { grade: MentorGrade; completedCount: number; avgRating: number } | null;
 }) {
-  const grade     = gradeInfo?.grade      ?? "sprout";
-  const count     = gradeInfo?.totalCount  ?? 0;
-  const amount    = gradeInfo?.totalAmount ?? 0;
-  const cfg       = GRADE_CONFIG[grade];
-  const orderIdx  = gradeOrder(grade);
-  const nextGrade = orderIdx < 3 ? GRADE_KEYS[orderIdx + 1] : null;
-  const nextCfg   = nextGrade ? GRADE_CONFIG[nextGrade] : null;
-
-  const countPct  = nextCfg ? Math.min((count  / nextCfg.minSales)  * 100, 100) : 100;
-  const amountPct = nextCfg ? Math.min((amount / nextCfg.minAmount) * 100, 100) : 100;
-  const countLeft  = nextCfg ? Math.max(0, nextCfg.minSales  - count)  : 0;
-  const amountLeft = nextCfg ? Math.max(0, nextCfg.minAmount - amount) : 0;
-
   if (gradeLoading) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -1233,19 +1260,46 @@ function GradeTab({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
       <h2 className="pf-section-title" style={sectionTitle}>내 등급</h2>
 
-      {/* 1. 현재 등급 */}
+      {/* ── 판매자 등급 섹션 ── */}
+      {isSeller && <SellerGradeSection gradeInfo={gradeInfo} />}
+
+      {/* ── 멘토 등급 섹션 ── */}
+      {isMentor && <MentorGradeSection mentorGradeInfo={mentorGradeInfo} />}
+    </div>
+  );
+}
+
+/* ── 판매자 등급 섹션 ── */
+function SellerGradeSection({
+  gradeInfo,
+}: {
+  gradeInfo: { grade: Grade; totalCount: number; totalAmount: number } | null;
+}) {
+  const grade     = gradeInfo?.grade      ?? "sprout";
+  const count     = gradeInfo?.totalCount  ?? 0;
+  const amount    = gradeInfo?.totalAmount ?? 0;
+  const cfg       = GRADE_CONFIG[grade];
+  const orderIdx  = gradeOrder(grade);
+  const nextGrade = orderIdx < 3 ? GRADE_KEYS[orderIdx + 1] : null;
+  const nextCfg   = nextGrade ? GRADE_CONFIG[nextGrade] : null;
+
+  const countPct   = nextCfg ? Math.min((count  / nextCfg.minSales)  * 100, 100) : 100;
+  const amountPct  = nextCfg ? Math.min((amount / nextCfg.minAmount) * 100, 100) : 100;
+  const countLeft  = nextCfg ? Math.max(0, nextCfg.minSales  - count)  : 0;
+  const amountLeft = nextCfg ? Math.max(0, nextCfg.minAmount - amount) : 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ fontSize: 16, fontWeight: 900, color: "#111827", borderLeft: "3px solid #111827", paddingLeft: 10 }}>판매자 등급</div>
+
+      {/* 현재 등급 카드 */}
       <div style={{
         border: `1px solid ${cfg.bg === "#dcfce7" ? "#bbf7d0" : cfg.bg}`,
-        borderRadius: 16,
-        padding: "24px 24px",
-        background: cfg.bg,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 14,
+        borderRadius: 16, padding: "24px", background: cfg.bg,
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 14,
       }}>
         <GradeBadge grade={grade} size="xl" />
         <div className="grade-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4, width: "100%" }}>
@@ -1254,13 +1308,7 @@ function GradeTab({
             { label: "총 판매 건수", value: `${count.toLocaleString("ko-KR")}건` },
             { label: "누적 판매 금액", value: `${amount.toLocaleString("ko-KR")}원` },
           ].map(({ label, value }) => (
-            <div key={label} style={{
-              background: "white",
-              borderRadius: 12,
-              padding: "14px 16px",
-              border: "1px solid rgba(0,0,0,0.06)",
-              textAlign: "center",
-            }}>
+            <div key={label} style={{ background: "white", borderRadius: 12, padding: "14px 16px", border: "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</div>
               <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{value}</div>
             </div>
@@ -1268,104 +1316,141 @@ function GradeTab({
         </div>
       </div>
 
-      {/* 2. 다음 등급 진행도 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>다음 등급 진행도</div>
-
+      {/* 다음 등급 진행도 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#374151" }}>다음 등급 진행도</div>
         {nextGrade && nextCfg ? (
           <>
-            <div style={{
-              fontSize: 13,
-              color: "#374151",
-              background: "#f9fafb",
-              border: "1px solid #e5e7eb",
-              borderRadius: 10,
-              padding: "10px 14px",
-              fontWeight: 600,
-            }}>
+            <div style={{ fontSize: 13, color: "#374151", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", fontWeight: 600 }}>
               {GRADE_STYLE[nextGrade].label}까지{" "}
               {countLeft > 0 && <strong>{countLeft.toLocaleString("ko-KR")}건</strong>}
               {countLeft > 0 && amountLeft > 0 && ", "}
               {amountLeft > 0 && <strong>{Math.ceil(amountLeft / 10000).toLocaleString("ko-KR")}만원</strong>}
-              {countLeft === 0 && amountLeft === 0
-                ? " 달성 완료! (등급 갱신 대기 중)"
-                : " 남았어요"}
+              {countLeft === 0 && amountLeft === 0 ? " 달성 완료! (등급 갱신 대기 중)" : " 남았어요"}
             </div>
-
             <ProgressBar label="판매 건수" current={count} target={nextCfg.minSales} pct={countPct} color={cfg.color} />
             <ProgressBar label="판매 금액" current={Math.ceil(amount / 10000)} target={Math.ceil(nextCfg.minAmount / 10000)} unit="만원" pct={amountPct} color={cfg.color} />
           </>
         ) : (
-          <div style={{
-            textAlign: "center",
-            padding: "28px 20px",
-            background: "#fffbeb",
-            border: "1px solid #fde68a",
-            borderRadius: 14,
-            color: "#b45309",
-            fontWeight: 800,
-            fontSize: 16,
-            letterSpacing: "-0.01em",
-          }}>
+          <div style={{ textAlign: "center", padding: "28px 20px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 14, color: "#b45309", fontWeight: 800, fontSize: 16 }}>
             최고 등급 달성!
           </div>
         )}
       </div>
 
-      {/* 3. 전체 등급 안내표 */}
+      {/* 전체 등급 안내 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>전체 등급 안내</div>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#374151" }}>전체 등급 안내</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
           {GRADE_KEYS.map((g) => {
             const s = GRADE_STYLE[g];
             const c = GRADE_CONFIG[g];
             const isCurrent = g === grade;
             return (
-              <div
-                key={g}
-                style={{
-                  border: `1.5px solid ${isCurrent ? s.color : s.border}`,
-                  borderRadius: 14,
-                  padding: "16px 18px",
-                  background: isCurrent ? s.bg : "white",
-                  boxShadow: isCurrent ? `0 0 0 3px ${s.border}` : "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
-                }}
-              >
+              <div key={g} style={{ border: `1.5px solid ${isCurrent ? s.color : s.border}`, borderRadius: 14, padding: "16px 18px", background: isCurrent ? s.bg : "white", boxShadow: isCurrent ? `0 0 0 3px ${s.border}` : "none", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{
-                    fontWeight: 900,
-                    fontSize: 15,
-                    color: s.color,
-                    letterSpacing: "-0.01em",
-                  }}>
-                    {s.label}
-                  </span>
-                  {isCurrent && (
-                    <span style={{
-                      fontSize: 10,
-                      fontWeight: 800,
-                      color: s.color,
-                      background: "white",
-                      border: `1px solid ${s.border}`,
-                      borderRadius: 999,
-                      padding: "2px 8px",
-                      letterSpacing: "0.04em",
-                    }}>
-                      현재
-                    </span>
-                  )}
+                  <span style={{ fontWeight: 900, fontSize: 15, color: s.color }}>{s.label}</span>
+                  {isCurrent && <span style={{ fontSize: 10, fontWeight: 800, color: s.color, background: "white", border: `1px solid ${s.border}`, borderRadius: 999, padding: "2px 8px" }}>현재</span>}
                 </div>
                 <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
-                  {c.minSales === 0
+                  {c.minSales === 0 ? "기본 등급" : `판매 ${c.minSales.toLocaleString()}건 + ${Math.ceil(c.minAmount / 10000).toLocaleString()}만원`}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>수수료 {Math.round(c.commission * 100)}%</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── 멘토 등급 섹션 ── */
+function MentorGradeSection({
+  mentorGradeInfo,
+}: {
+  mentorGradeInfo: { grade: MentorGrade; completedCount: number; avgRating: number } | null;
+}) {
+  const grade         = mentorGradeInfo?.grade         ?? "normal";
+  const completedCount = mentorGradeInfo?.completedCount ?? 0;
+  const avgRating      = mentorGradeInfo?.avgRating      ?? 0;
+  const cfg            = MENTOR_GRADE_CONFIG[grade];
+  const orderIdx       = mentorGradeOrder(grade);
+  const nextGrade      = orderIdx < 3 ? MENTOR_GRADE_KEYS[orderIdx + 1] : null;
+  const nextCfg        = nextGrade ? MENTOR_GRADE_CONFIG[nextGrade] : null;
+
+  const completedPct  = nextCfg ? Math.min((completedCount / nextCfg.minCompleted) * 100, 100) : 100;
+  const completedLeft = nextCfg ? Math.max(0, nextCfg.minCompleted - completedCount) : 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ fontSize: 16, fontWeight: 900, color: "#111827", borderLeft: "3px solid #c9a84c", paddingLeft: 10 }}>멘토 등급</div>
+
+      {/* 현재 멘토 등급 카드 */}
+      <div style={{ border: `1px solid ${cfg.border}`, borderRadius: 16, padding: "24px", background: cfg.bg, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
+        <div style={{ fontSize: 26, fontWeight: 900, color: cfg.color, letterSpacing: "-0.02em" }}>{cfg.label}</div>
+        <div className="grade-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginTop: 4, width: "100%" }}>
+          {[
+            { label: "수수료율", value: `${Math.round(cfg.commission * 100)}%` },
+            { label: "완료 건수", value: `${completedCount.toLocaleString("ko-KR")}건` },
+            { label: "평균 평점", value: avgRating > 0 ? `★ ${avgRating.toFixed(1)}` : "-" },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: "white", borderRadius: 12, padding: "14px 16px", border: "1px solid rgba(0,0,0,0.06)", textAlign: "center" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", marginBottom: 6, letterSpacing: "0.04em" }}>{label}</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 다음 등급 진행도 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#374151" }}>다음 등급 진행도</div>
+        {nextGrade && nextCfg ? (
+          <>
+            <div style={{ fontSize: 13, color: "#374151", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: "10px 14px", fontWeight: 600 }}>
+              {nextCfg.label}까지{" "}
+              {completedLeft > 0
+                ? <><strong>완료 {completedLeft}건</strong> + <strong>평점 {nextCfg.minRating} 이상</strong> 남았어요</>
+                : " 완료 건수 달성! (평점 조건 확인 중)"}
+            </div>
+            <ProgressBar label="완료 건수" current={completedCount} target={nextCfg.minCompleted} pct={completedPct} color={cfg.color} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>평균 평점</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#6b7280" }}>{avgRating > 0 ? avgRating.toFixed(1) : "0"} / {nextCfg.minRating}</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${nextCfg.minRating > 0 ? Math.min((avgRating / nextCfg.minRating) * 100, 100) : 0}%`, borderRadius: 999, background: cfg.color, transition: "width 0.5s ease" }} />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: "center", padding: "28px 20px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 14, color: "#b45309", fontWeight: 800, fontSize: 16 }}>
+            최고 멘토 등급 달성!
+          </div>
+        )}
+      </div>
+
+      {/* 전체 멘토 등급 안내 */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#374151" }}>전체 멘토 등급 안내</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+          {MENTOR_GRADE_KEYS.map((g) => {
+            const c = MENTOR_GRADE_CONFIG[g];
+            const isCurrent = g === grade;
+            return (
+              <div key={g} style={{ border: `1.5px solid ${isCurrent ? c.color : c.border}`, borderRadius: 14, padding: "16px 18px", background: isCurrent ? c.bg : "white", boxShadow: isCurrent ? `0 0 0 3px ${c.border}` : "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontWeight: 900, fontSize: 15, color: c.color }}>{c.label}</span>
+                  {isCurrent && <span style={{ fontSize: 10, fontWeight: 800, color: c.color, background: "white", border: `1px solid ${c.border}`, borderRadius: 999, padding: "2px 8px" }}>현재</span>}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                  {c.minCompleted === 0
                     ? "기본 등급"
-                    : `판매 ${c.minSales.toLocaleString()}건 + ${Math.ceil(c.minAmount / 10000).toLocaleString()}만원`}
+                    : `완료 ${c.minCompleted}건 이상 + 평점 ${c.minRating} 이상`}
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: s.color }}>
-                  수수료 {Math.round(c.commission * 100)}%
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: c.color }}>수수료 {Math.round(c.commission * 100)}%</div>
               </div>
             );
           })}
@@ -1728,10 +1813,10 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>수익 구조</div>
-              <ul style={{ margin: 0, padding: "0 0 0 16px", fontSize: 13, color: "#6b7280", lineHeight: 2 }}>
-                <li>수강 패키지 구독료의 80%가 멘토에게 지급됩니다</li>
-                <li>건별 멘토링 수익의 80%가 멘토에게 지급됩니다</li>
-              </ul>
+              <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.8 }}>
+                수익은 멘토 등급에 따라 차등 지급됩니다.{" "}
+                <a href="/profile?tab=grade" style={{ color: "#2563eb", fontWeight: 700, textDecoration: "none" }}>내 등급 페이지에서 확인하세요.</a>
+              </p>
             </div>
             <div style={{ borderTop: "1px solid #e5e7eb" }} />
             <div>
@@ -1769,7 +1854,7 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
         멘토는 캐드스쿨에서 수강생들의 질문에 답변하고 멘토링을 제공하는 전문가입니다.
         <strong> CAD수정</strong>은 수강생의 파일을 멘토가 직접 수정 후 반환하는 방식이며,
         <strong> 실무 검수</strong>는 판매/출력 가능 여부를 컨펌해주는 방식입니다.
-        멘토 활동을 통해 구독료의 <strong>80%</strong>를 수익으로 받을 수 있습니다.
+        수익은 멘토 등급에 따라 차등 지급됩니다.
       </div>
 
       <div style={{ background: "#fdf6e3", border: "1px solid #c9a84c66", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#92681a", lineHeight: 1.8 }}>

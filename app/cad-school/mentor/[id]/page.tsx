@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import GradeBadge from "../../../components/GradeBadge";
-import { Grade } from "@/lib/grades";
+import { Grade, MentorGrade, MENTOR_GRADE_CONFIG, mentorGradeOrder } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
 
@@ -40,6 +40,9 @@ type Mentor = {
   programs: SkillItem[];
   work_types: SkillItem[];
   can_cpx: boolean;
+  mentor_grade: MentorGrade | null;
+  completed_count: number | null;
+  avg_rating: number | null;
   profiles: { nickname: string | null; avatar_url: string | null; grade: string | null } | null;
 };
 
@@ -72,7 +75,7 @@ export default function MentorDetailPage() {
   const loadMentor = async () => {
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, intro, user_id, career_start_year, programs, work_types, can_cpx, profiles(nickname, avatar_url, grade)")
+      .select("id, intro, user_id, career_start_year, programs, work_types, can_cpx, mentor_grade, completed_count, avg_rating, profiles(nickname, avatar_url, grade)")
       .eq("id", id)
       .eq("is_active", true)
       .single();
@@ -225,6 +228,34 @@ export default function MentorDetailPage() {
             {mentor.can_cpx && (
               <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>✅ CPX 금주물 모델링 가능</div>
             )}
+
+            {/* 멘토 등급 */}
+            {(() => {
+              const mg = (mentor.mentor_grade ?? "normal") as MentorGrade;
+              const mgCfg = MENTOR_GRADE_CONFIG[mg];
+              const completed = mentor.completed_count ?? 0;
+              const orderIdx = mentorGradeOrder(mg);
+              const nextGrades: MentorGrade[] = ["normal", "certified", "pro", "master"];
+              const nextMg = orderIdx < 3 ? nextGrades[orderIdx + 1] : null;
+              const nextMgCfg = nextMg ? MENTOR_GRADE_CONFIG[nextMg] : null;
+              const remaining = nextMgCfg ? Math.max(0, nextMgCfg.minCompleted - completed) : 0;
+              return (
+                <div style={{ marginTop: 8, padding: "10px 14px", background: mgCfg.bg, border: `1px solid ${mgCfg.border}`, borderRadius: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: mgCfg.color }}>{mgCfg.label}</span>
+                    <span style={{ fontSize: 12, color: "#6b7280" }}>수수료 {Math.round(mgCfg.commission * 100)}%</span>
+                    <span style={{ fontSize: 12, color: "#9ca3af" }}>· 완료 {completed}건</span>
+                  </div>
+                  {nextMgCfg && (
+                    <div style={{ fontSize: 11, color: "#6b7280" }}>
+                      {remaining > 0
+                        ? `${nextMgCfg.label}까지 ${remaining}건 남음`
+                        : `${nextMgCfg.label} 승급 조건 충족 중`}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           {isMyMentor && (
             <Link
