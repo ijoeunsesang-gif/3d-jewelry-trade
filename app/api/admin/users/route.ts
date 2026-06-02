@@ -27,6 +27,19 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // profiles.created_at이 NULL인 경우 auth.users.created_at으로 보완
+  const hasNullDate = (data ?? []).some((u: any) => !u.created_at);
+  if (hasNullDate) {
+    const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers({ perPage: 1000 });
+    const authMap = new Map(authUsers.map((u) => [u.id, u.created_at]));
+    const merged = (data ?? []).map((u: any) => ({
+      ...u,
+      created_at: u.created_at ?? authMap.get(u.id) ?? null,
+    }));
+    return NextResponse.json({ data: merged });
+  }
+
   return NextResponse.json({ data });
 }
 
