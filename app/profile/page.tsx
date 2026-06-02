@@ -339,6 +339,18 @@ export default function ProfilePage() {
       const { url } = await avatarRes.json();
       setAvatarUrl(url);
       setPreviewUrl(url);
+
+      // 즉시 DB 반영 — 저장 버튼 없이도 이미지 변경 적용
+      const { error: dbErr } = await supabase
+        .from("profiles")
+        .update({ avatar_url: url })
+        .eq("id", userId);
+      if (dbErr) {
+        console.error("avatar_url DB 저장 실패:", dbErr);
+        showError("이미지 업로드 완료, DB 저장 실패");
+        return;
+      }
+      showSuccess("프로필 이미지가 변경되었습니다.");
     } catch (err) {
       console.error("프로필 이미지 처리 오류:", err);
       showError("프로필 이미지 처리 중 오류가 발생했습니다.");
