@@ -9,7 +9,9 @@ import GradeBadge from "../components/GradeBadge";
 import { Grade, GRADE_CONFIG, gradeOrder, MentorGrade, MENTOR_GRADE_CONFIG, calcMentorGrade, mentorGradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
-type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points";
+type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users";
+type UserListSubTab = "sellers" | "mentors" | "all";
+type UserListItem = { id: string; nickname: string | null; avatar_url: string | null; grade: Grade | null; mentor_grade?: string };
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
 type PurchaseRow = { id: string; model_id: string; price: number; created_at: string };
 type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
@@ -52,6 +54,14 @@ export default function ProfilePage() {
   const [accountError, setAccountError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
+
+  // 유저 목록 탭
+  const [userListSubTab, setUserListSubTab] = useState<UserListSubTab>("sellers");
+  const [userListSearch, setUserListSearch] = useState("");
+  const [userListLoading, setUserListLoading] = useState(false);
+  const [sellersList, setSellersList] = useState<UserListItem[]>([]);
+  const [mentorsList, setMentorsList] = useState<UserListItem[]>([]);
+  const [allUsersList, setAllUsersList] = useState<UserListItem[]>([]);
 
   // 판매자 정보
   const [isSeller, setIsSeller] = useState(false);
@@ -517,6 +527,53 @@ export default function ProfilePage() {
     }
   };
 
+  // 유저 목록 로드
+  useEffect(() => {
+    if (activeTab !== "users") return;
+    fetchUserList(userListSubTab);
+  }, [activeTab, userListSubTab]);
+
+  const fetchUserList = async (sub: UserListSubTab) => {
+    setUserListLoading(true);
+    try {
+      if (sub === "sellers") {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, nickname, avatar_url, grade")
+          .eq("role", "seller")
+          .is("deleted_at", null)
+          .eq("is_seller_banned", false)
+          .order("created_at", { ascending: false });
+        setSellersList((data || []).map((u: any) => ({ ...u, grade: u.grade as Grade | null })));
+      } else if (sub === "mentors") {
+        const { data } = await supabase
+          .from("cad_mentors")
+          .select("user_id, mentor_grade, profiles(id, nickname, avatar_url)")
+          .eq("is_active", true)
+          .eq("is_suspended", false);
+        setMentorsList((data || []).map((m: any) => ({
+          id: m.user_id,
+          nickname: (m.profiles as any)?.nickname ?? "—",
+          avatar_url: (m.profiles as any)?.avatar_url ?? null,
+          grade: null,
+          mentor_grade: m.mentor_grade ?? "normal",
+        })));
+      } else {
+        const { data } = await supabase
+          .from("profiles")
+          .select("id, nickname, avatar_url, grade")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        setAllUsersList((data || []).map((u: any) => ({ ...u, grade: u.grade as Grade | null })));
+      }
+    } catch (e) {
+      console.error("유저 목록 조회 실패:", e);
+    } finally {
+      setUserListLoading(false);
+    }
+  };
+
   const handleBizUpload = handleBizLicenseUpload;
 
   const tabs: { id: TabId; label: string; sellerOnly?: boolean; mentorOrSeller?: boolean }[] = [
@@ -527,6 +584,7 @@ export default function ProfilePage() {
     { id: "mentor", label: isMentor ? "멘토 정보" : "멘토 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
     { id: "points", label: "포인트" },
+    { id: "users", label: "유저 목록" },
   ];
 
   if (loading) {
@@ -1051,6 +1109,107 @@ export default function ProfilePage() {
           {activeTab === "points" && (
             <PointsTab userId={userId} isSeller={isSeller} isAdmin={isAdmin} />
           )}
+
+          {/* 유저 목록 탭 */}
+          {activeTab === "users" && (() => {
+            const SUB_TABS: { id: UserListSubTab; label: string }[] = [
+              { id: "sellers", label: "판매자" },
+              { id: "mentors", label: "멘토" },
+              { id: "all",     label: "유저" },
+            ];
+            const currentList =
+              userListSubTab === "sellers" ? sellersList :
+              userListSubTab === "mentors" ? mentorsList : allUsersList;
+            const q = userListSearch.trim().toLowerCase();
+            const filtered = q
+              ? currentList.filter(u => (u.nickname || "").toLowerCase().includes(q))
+              : currentList;
+
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <h2 style={sectionTitle}>유저 목록</h2>
+
+                {/* 서브탭 */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  {SUB_TABS.map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => { setUserListSubTab(t.id); setUserListSearch(""); }}
+                      style={{
+                        height: 36, padding: "0 16px", borderRadius: 10, border: "none",
+                        background: userListSubTab === t.id ? DARK : "#f3f4f6",
+                        color: userListSubTab === t.id ? "white" : "#374151",
+                        fontWeight: 700, fontSize: 13, cursor: "pointer",
+                      }}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 검색창 */}
+                <input
+                  value={userListSearch}
+                  onChange={e => setUserListSearch(e.target.value)}
+                  placeholder="닉네임 검색"
+                  style={{
+                    height: 42, borderRadius: 10, border: "1px solid #d1d5db",
+                    padding: "0 14px", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box",
+                  }}
+                />
+
+                {/* 목록 */}
+                {userListLoading ? (
+                  <p style={{ color: "#9ca3af", textAlign: "center", padding: "32px 0" }}>불러오는 중...</p>
+                ) : filtered.length === 0 ? (
+                  <p style={{ color: "#9ca3af", textAlign: "center", padding: "32px 0" }}>
+                    {q ? "검색 결과가 없습니다." : "목록이 없습니다."}
+                  </p>
+                ) : (
+                  <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
+                    {filtered.map((u, idx) => (
+                      <div
+                        key={u.id}
+                        onClick={() => router.push(`/seller/${u.id}`)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 12,
+                          padding: "12px 16px", cursor: "pointer",
+                          borderBottom: idx < filtered.length - 1 ? "1px solid #f3f4f6" : "none",
+                          background: "white", transition: "background 0.1s",
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "white")}
+                      >
+                        <img
+                          src={u.avatar_url || "/default-avatar.png"}
+                          alt={u.nickname || ""}
+                          style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "1px solid #e5e7eb", flexShrink: 0 }}
+                          onError={e => { (e.currentTarget as HTMLImageElement).src = "/default-avatar.png"; }}
+                        />
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: DARK }}>{u.nickname || "—"}</span>
+                          {u.grade && <GradeBadge grade={u.grade} size="sm" />}
+                          {u.mentor_grade && (() => {
+                            const cfg = MENTOR_GRADE_CONFIG[u.mentor_grade as MentorGrade];
+                            if (!cfg) return null;
+                            return (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "2px 8px", borderRadius: 999, border: `1px solid ${cfg.border}` }}>
+                                {cfg.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+                  {filtered.length}명 표시 중{userListSubTab === "all" && currentList.length >= 200 ? " (최대 200명)" : ""}
+                </p>
+              </div>
+            );
+          })()}
 
         </section>
       </div>
