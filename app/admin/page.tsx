@@ -390,15 +390,9 @@ export default function AdminPage() {
         body: JSON.stringify({ id, answer }),
       });
       if (!res.ok) { showError("답변 저장 실패"); return; }
-      const { answer: saved } = await res.json();
       showSuccess("답변이 저장되고 사용자에게 알림이 발송되었습니다.");
-      const newAnswer: InquiryAnswer = saved ?? { id: crypto.randomUUID(), content: answer, created_at: new Date().toISOString() };
-      setInquiries(prev => prev.map(inq =>
-        inq.id === id
-          ? { ...inq, status: "answered", inquiry_answers: [...(inq.inquiry_answers || []), newAnswer] }
-          : inq
-      ));
       setInqAnswerText(prev => { const n = { ...prev }; delete n[id]; return n; });
+      await fetchInquiries(); // 낙관적 업데이트 대신 서버에서 재조회해 기존 답변 유실 방지
     } catch { showError("오류가 발생했습니다."); }
     finally { setInqAnswering(null); }
   };
