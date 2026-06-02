@@ -1,9 +1,16 @@
 import { startProgress, updateProgress, completeProgress, errorProgress } from "@/app/lib/progressStore";
+import { getAccessToken } from "@/lib/supabase-fetch";
 
 export const uploadToR2 = async (file: File, bucket: string, path: string): Promise<string> => {
+  const token = getAccessToken();
+  if (!token) throw new Error("인증이 필요합니다.");
+
   const presignRes = await fetch("/api/presign", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       fileName: file.name,
       fileType: "application/octet-stream",
