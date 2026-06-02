@@ -87,6 +87,12 @@ interface DeletionRequest {
   requester: { nickname: string; email: string } | null;
 }
 
+interface InquiryAnswer {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
 interface Inquiry {
   id: string;
   user_id: string;
@@ -94,8 +100,7 @@ interface Inquiry {
   title: string;
   content: string;
   status: "pending" | "answered";
-  answer: string | null;
-  answered_at: string | null;
+  inquiry_answers: InquiryAnswer[];
   created_at: string;
 }
 
@@ -385,12 +390,15 @@ export default function AdminPage() {
         body: JSON.stringify({ id, answer }),
       });
       if (!res.ok) { showError("답변 저장 실패"); return; }
+      const { answer: saved } = await res.json();
       showSuccess("답변이 저장되고 사용자에게 알림이 발송되었습니다.");
+      const newAnswer: InquiryAnswer = saved ?? { id: crypto.randomUUID(), content: answer, created_at: new Date().toISOString() };
       setInquiries(prev => prev.map(inq =>
-        inq.id === id ? { ...inq, status: "answered", answer, answered_at: new Date().toISOString() } : inq
+        inq.id === id
+          ? { ...inq, status: "answered", inquiry_answers: [...(inq.inquiry_answers || []), newAnswer] }
+          : inq
       ));
       setInqAnswerText(prev => { const n = { ...prev }; delete n[id]; return n; });
-      setInqExpanded(null);
     } catch { showError("오류가 발생했습니다."); }
     finally { setInqAnswering(null); }
   };
@@ -1806,44 +1814,50 @@ export default function AdminPage() {
 
                       {inqExpanded === inq.id && (
                         <div style={{ padding: "0 20px 20px", borderTop: "1px solid #f3f4f6" }}>
+                          {/* 문의 내용 */}
                           <div style={{ background: "#f9fafb", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 }}>
                             {inq.content}
                           </div>
 
-                          {inq.answer && (
-                            <div style={{ marginTop: 12 }}>
-                              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>
-                                관리자 답변 · {inq.answered_at ? formatDate(inq.answered_at) : ""}
+                          {/* 기존 답변 목록 */}
+                          {(inq.inquiry_answers || []).length > 0 && (
+                            <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>
+                                관리자 답변 {inq.inquiry_answers.length}건
                               </div>
-                              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
-                                {inq.answer}
-                              </div>
+                              {inq.inquiry_answers.map(ans => (
+                                <div key={ans.id}>
+                                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>{formatDate(ans.created_at)}</div>
+                                  <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                                    {ans.content}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           )}
 
-                          {inq.status !== "answered" && (
-                            <div style={{ marginTop: 14 }}>
-                              <textarea
-                                value={inqAnswerText[inq.id] || ""}
-                                onChange={e => setInqAnswerText(prev => ({ ...prev, [inq.id]: e.target.value }))}
-                                placeholder="답변을 입력하세요"
-                                rows={4}
-                                style={{
-                                  width: "100%", borderRadius: 12, border: "1px solid #d1d5db",
-                                  padding: "12px 14px", fontSize: 14, outline: "none",
-                                  resize: "vertical", boxSizing: "border-box", fontFamily: "inherit",
-                                }}
-                              />
-                              <button
-                                type="button"
-                                disabled={inqAnswering === inq.id}
-                                onClick={() => handleAnswerInquiry(inq.id)}
-                                style={{ ...btnStyle("outline", inqAnswering === inq.id), marginTop: 8, background: "#111827", color: "white", border: "none" }}
-                              >
-                                {inqAnswering === inq.id ? "저장 중..." : "답변 저장"}
-                              </button>
-                            </div>
-                          )}
+                          {/* 새 답변 입력 (항상 표시) */}
+                          <div style={{ marginTop: 14 }}>
+                            <textarea
+                              value={inqAnswerText[inq.id] || ""}
+                              onChange={e => setInqAnswerText(prev => ({ ...prev, [inq.id]: e.target.value }))}
+                              placeholder="답변을 입력하세요"
+                              rows={4}
+                              style={{
+                                width: "100%", borderRadius: 12, border: "1px solid #d1d5db",
+                                padding: "12px 14px", fontSize: 14, outline: "none",
+                                resize: "vertical", boxSizing: "border-box", fontFamily: "inherit",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              disabled={inqAnswering === inq.id}
+                              onClick={() => handleAnswerInquiry(inq.id)}
+                              style={{ ...btnStyle("outline", inqAnswering === inq.id), marginTop: 8, background: "#111827", color: "white", border: "none" }}
+                            >
+                              {inqAnswering === inq.id ? "저장 중..." : "답변 추가"}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

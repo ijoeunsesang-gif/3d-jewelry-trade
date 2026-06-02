@@ -50,7 +50,8 @@ export default function CustomerServicePage() {
   const [userEmail, setUserEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [myInquiries, setMyInquiries] = useState<{
-    id: string; title: string; status: string; created_at: string; answer: string | null;
+    id: string; title: string; status: string; created_at: string;
+    inquiry_answers: { id: string; content: string; created_at: string }[];
   }[]>([]);
   const [myInqExpanded, setMyInqExpanded] = useState<string | null>(null);
 
@@ -62,10 +63,13 @@ export default function CustomerServicePage() {
   const fetchMyInquiries = async (uid: string) => {
     const { data } = await supabase
       .from("inquiries")
-      .select("id, title, status, created_at, answer")
+      .select("id, title, status, created_at, inquiry_answers(id, content, created_at)")
       .eq("user_id", uid)
       .order("created_at", { ascending: false });
-    setMyInquiries(data || []);
+    setMyInquiries((data || []).map((inq: any) => ({
+      ...inq,
+      inquiry_answers: inq.inquiry_answers || [],
+    })));
   };
 
   const fetchNotices = async () => {
@@ -326,18 +330,31 @@ export default function CustomerServicePage() {
                   </span>
                 </button>
 
-                {myInqExpanded === inq.id && inq.answer && (
+                {myInqExpanded === inq.id && (
                   <div style={{ padding: "0 20px 20px", borderTop: "1px solid #f3f4f6" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 8, marginTop: 12 }}>
-                      관리자 답변
-                    </div>
-                    <div style={{
-                      background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12,
-                      padding: "14px 16px", fontSize: 14, color: "#374151",
-                      lineHeight: 1.7, whiteSpace: "pre-wrap",
-                    }}>
-                      {inq.answer}
-                    </div>
+                    {inq.inquiry_answers.length === 0 ? (
+                      <p style={{ margin: "12px 0 0", fontSize: 14, color: "#9ca3af" }}>아직 답변이 없습니다.</p>
+                    ) : (
+                      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a" }}>
+                          관리자 답변 {inq.inquiry_answers.length}건
+                        </div>
+                        {inq.inquiry_answers.map(ans => (
+                          <div key={ans.id}>
+                            <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>
+                              {new Date(ans.created_at).toLocaleString("ko-KR")}
+                            </div>
+                            <div style={{
+                              background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12,
+                              padding: "14px 16px", fontSize: 14, color: "#374151",
+                              lineHeight: 1.7, whiteSpace: "pre-wrap",
+                            }}>
+                              {ans.content}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

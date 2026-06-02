@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await adminSupabase
     .from("inquiries")
-    .select("id, user_id, user_email, title, content, status, answer, answered_at, created_at")
+    .select("id, user_id, user_email, title, content, status, created_at, inquiry_answers(id, content, created_at)")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -31,9 +31,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!(await verifyAdmin(req))) {
-    return NextResponse.json({ error: "권한 없음" }, { status: 403 });
-  }
+  const admin = await verifyAdmin(req);
+  if (!admin) return NextResponse.json({ error: "권한 없음" }, { status: 403 });
 
   const { id, answer } = await req.json();
   if (!id || !answer?.trim()) {
@@ -50,16 +49,17 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "문의를 찾을 수 없습니다." }, { status: 404 });
   }
 
-  const { error } = await adminSupabase
-    .from("inquiries")
-    .update({
-      answer: answer.trim(),
-      answered_at: new Date().toISOString(),
-      status: "answered",
-    })
-    .eq("id", id);
+  // inquiry_answers 테이블에 답변 추가
+  const { data: inserted, error: insertErr } = await adminSupabase
+    .from("inquiry_answers")
+    .insert({ inquiry_id: id, admin_id: admin.id, content: answer.trim() })
+    .select("id, content, created_at")
+    .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+
+  // inquiries.status를 answered로 변경
+  await adminSupabase.from("inquiries").update({ status: "answered" }).eq("id", id);
 
   // 문의자에게 답변 알림
   await adminSupabase.from("notifications").insert({
@@ -70,5 +70,5 @@ export async function PATCH(req: NextRequest) {
     is_read: false,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, answer: inserted });
 }
