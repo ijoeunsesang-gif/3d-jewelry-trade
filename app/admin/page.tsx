@@ -9,10 +9,9 @@ import { scrollToTop } from "@/lib/scroll";
 import { showError, showSuccess } from "../lib/toast";
 
 const GOLD = "#c9a84c";
-const GOLD_LIGHT = "#fdf6e3";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries";
 
 interface UserProfile {
   id: string;
@@ -88,6 +87,18 @@ interface DeletionRequest {
   requester: { nickname: string; email: string } | null;
 }
 
+interface Inquiry {
+  id: string;
+  user_id: string;
+  user_email: string | null;
+  title: string;
+  content: string;
+  status: "pending" | "answered";
+  answer: string | null;
+  answered_at: string | null;
+  created_at: string;
+}
+
 interface Commission {
   id: string;
   title: string;
@@ -136,6 +147,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "notices",        label: "공지사항",     icon: "📢" },
   { key: "modelReports",      label: "모델 신고",      icon: "🚨" },
   { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
+  { key: "inquiries",         label: "문의 관리",       icon: "💬" },
 ];
 
 export default function AdminPage() {
@@ -206,6 +218,14 @@ export default function AdminPage() {
   const [addingBannedWord, setAddingBannedWord] = useState(false);
   const [removingBannedWordId, setRemovingBannedWordId] = useState<string | null>(null);
 
+  /* ── Inquiries ── */
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [inqLoading, setInqLoading] = useState(false);
+  const [inqStatusFilter, setInqStatusFilter] = useState("");
+  const [inqExpanded, setInqExpanded] = useState<string | null>(null);
+  const [inqAnswerText, setInqAnswerText] = useState<Record<string, string>>({});
+  const [inqAnswering, setInqAnswering] = useState<string | null>(null);
+
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [commLoading, setCommLoading] = useState(false);
@@ -272,6 +292,7 @@ export default function AdminPage() {
     if (tab === "notices"        && notices.length === 0)        fetchNotices();
     if (tab === "modelReports"     && modelReports.length === 0)     fetchModelReports();
     if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
+    if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -341,6 +362,37 @@ export default function AdminPage() {
       setSellerProfiles(s || []);
     } catch { showError("통계 불러오기 실패"); }
     finally { setStatsLoading(false); }
+  };
+
+  const fetchInquiries = async () => {
+    setInqLoading(true);
+    try {
+      const res = await fetch("/api/admin/inquiries", { headers: await authHeader() });
+      const { data } = await res.json();
+      setInquiries(data || []);
+    } catch { showError("문의 목록 불러오기 실패"); }
+    finally { setInqLoading(false); }
+  };
+
+  const handleAnswerInquiry = async (id: string) => {
+    const answer = inqAnswerText[id]?.trim();
+    if (!answer) { showError("답변 내용을 입력하세요."); return; }
+    setInqAnswering(id);
+    try {
+      const res = await fetch("/api/admin/inquiries", {
+        method: "PATCH",
+        headers: await authHeader(),
+        body: JSON.stringify({ id, answer }),
+      });
+      if (!res.ok) { showError("답변 저장 실패"); return; }
+      showSuccess("답변이 저장되고 사용자에게 알림이 발송되었습니다.");
+      setInquiries(prev => prev.map(inq =>
+        inq.id === id ? { ...inq, status: "answered", answer, answered_at: new Date().toISOString() } : inq
+      ));
+      setInqAnswerText(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setInqExpanded(null);
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setInqAnswering(null); }
   };
 
   const fetchCommissions = async () => {
@@ -702,6 +754,10 @@ export default function AdminPage() {
     if (commTypeFilter === "미지정의뢰" && (!c.is_private || c.target_seller_id)) return false;
     return true;
   });
+
+  const filteredInquiries = inquiries.filter(inq =>
+    !inqStatusFilter || inq.status === inqStatusFilter
+  );
 
   /* ── Render ────────────────────────────────────────────── */
   if (loading) return (
@@ -1684,6 +1740,114 @@ export default function AdminPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              문의 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "inquiries" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>문의 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {inquiries.length}건</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <select
+                    value={inqStatusFilter}
+                    onChange={e => setInqStatusFilter(e.target.value)}
+                    style={{ height: 38, padding: "0 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }}
+                  >
+                    <option value="">전체</option>
+                    <option value="pending">대기중</option>
+                    <option value="answered">답변완료</option>
+                  </select>
+                  <button type="button" onClick={fetchInquiries} style={btnStyle("outline")}>새로고침</button>
+                </div>
+              </div>
+
+              {inqLoading ? <LoadingSpinner /> : filteredInquiries.length === 0 ? (
+                <Empty text="문의가 없습니다." />
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {filteredInquiries.map(inq => (
+                    <div key={inq.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, overflow: "hidden" }}>
+                      <button
+                        type="button"
+                        onClick={() => setInqExpanded(prev => prev === inq.id ? null : inq.id)}
+                        style={{
+                          width: "100%", display: "flex", alignItems: "center",
+                          justifyContent: "space-between", gap: 12,
+                          padding: "16px 20px", background: "none", border: "none",
+                          cursor: "pointer", textAlign: "left",
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                            <span style={{ fontWeight: 800, fontSize: 15, color: "#111827" }}>{inq.title}</span>
+                            <span style={badgeStyle(
+                              inq.status === "answered" ? "#16a34a" : "#d97706",
+                              inq.status === "answered" ? "#dcfce7" : "#fef3c7",
+                            )}>
+                              {inq.status === "answered" ? "답변완료" : "대기중"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+                            {inq.user_email || "—"} · {formatDate(inq.created_at)}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 18, color: "#9ca3af", flexShrink: 0 }}>
+                          {inqExpanded === inq.id ? "−" : "+"}
+                        </span>
+                      </button>
+
+                      {inqExpanded === inq.id && (
+                        <div style={{ padding: "0 20px 20px", borderTop: "1px solid #f3f4f6" }}>
+                          <div style={{ background: "#f9fafb", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 }}>
+                            {inq.content}
+                          </div>
+
+                          {inq.answer && (
+                            <div style={{ marginTop: 12 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 6 }}>
+                                관리자 답변 · {inq.answered_at ? formatDate(inq.answered_at) : ""}
+                              </div>
+                              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "14px 16px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                                {inq.answer}
+                              </div>
+                            </div>
+                          )}
+
+                          {inq.status !== "answered" && (
+                            <div style={{ marginTop: 14 }}>
+                              <textarea
+                                value={inqAnswerText[inq.id] || ""}
+                                onChange={e => setInqAnswerText(prev => ({ ...prev, [inq.id]: e.target.value }))}
+                                placeholder="답변을 입력하세요"
+                                rows={4}
+                                style={{
+                                  width: "100%", borderRadius: 12, border: "1px solid #d1d5db",
+                                  padding: "12px 14px", fontSize: 14, outline: "none",
+                                  resize: "vertical", boxSizing: "border-box", fontFamily: "inherit",
+                                }}
+                              />
+                              <button
+                                type="button"
+                                disabled={inqAnswering === inq.id}
+                                onClick={() => handleAnswerInquiry(inq.id)}
+                                style={{ ...btnStyle("outline", inqAnswering === inq.id), marginTop: 8, background: "#111827", color: "white", border: "none" }}
+                              >
+                                {inqAnswering === inq.id ? "저장 중..." : "답변 저장"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </section>

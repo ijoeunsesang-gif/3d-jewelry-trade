@@ -49,11 +49,24 @@ export default function CustomerServicePage() {
   const [submitting, setSubmitting] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [userId, setUserId] = useState("");
+  const [myInquiries, setMyInquiries] = useState<{
+    id: string; title: string; status: string; created_at: string; answer: string | null;
+  }[]>([]);
+  const [myInqExpanded, setMyInqExpanded] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNotices();
     fetchUser();
   }, []);
+
+  const fetchMyInquiries = async (uid: string) => {
+    const { data } = await supabase
+      .from("inquiries")
+      .select("id, title, status, created_at, answer")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false });
+    setMyInquiries(data || []);
+  };
 
   const fetchNotices = async () => {
     const { data } = await sbFetch("notices", "?select=id,title,content,created_at&is_published=eq.true&order=created_at.desc&limit=20");
@@ -64,8 +77,10 @@ export default function CustomerServicePage() {
     const token = getAccessToken();
     if (!token) return;
     const payload = decodeJwt(token) as any;
+    const uid = payload?.sub || "";
     setUserEmail(payload?.email || "");
-    setUserId(payload?.sub || "");
+    setUserId(uid);
+    if (uid) fetchMyInquiries(uid);
   };
 
   const handleInquirySubmit = async (e: FormEvent) => {
@@ -76,19 +91,25 @@ export default function CustomerServicePage() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("inquiries").insert({
-        user_id: userId,
-        user_email: userEmail,
-        title: inqTitle.trim(),
-        content: inqContent.trim(),
-        status: "pending",
+      const token = getAccessToken();
+      const res = await fetch("/api/inquiries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ title: inqTitle.trim(), content: inqContent.trim() }),
       });
-      if (error) throw error;
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || "전송 실패");
+      }
       showSuccess("문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.");
       setInqTitle("");
       setInqContent("");
-    } catch {
-      showError("문의 전송 중 오류가 발생했습니다.");
+      fetchMyInquiries(userId);
+    } catch (err: any) {
+      showError(err.message || "문의 전송 중 오류가 발생했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -264,6 +285,66 @@ export default function CustomerServicePage() {
           </form>
         )}
       </Section>
+
+      {/* ── 내 문의 목록 ── */}
+      {userId && myInquiries.length > 0 && (
+        <Section title="내 문의 목록">
+          <div style={{ display: "grid", gap: 10 }}>
+            {myInquiries.map((inq) => (
+              <div
+                key={inq.id}
+                style={{ border: "1px solid #e5e7eb", borderRadius: 16, overflow: "hidden", background: "white" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setMyInqExpanded(prev => prev === inq.id ? null : inq.id)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center",
+                    justifyContent: "space-between", gap: 12,
+                    padding: "16px 20px", background: "none", border: "none",
+                    cursor: "pointer", textAlign: "left",
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>{inq.title}</span>
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", height: 20,
+                        padding: "0 8px", borderRadius: 999, fontSize: 11, fontWeight: 700,
+                        color: inq.status === "answered" ? "#16a34a" : "#d97706",
+                        background: inq.status === "answered" ? "#dcfce7" : "#fef3c7",
+                      }}>
+                        {inq.status === "answered" ? "답변완료" : "대기중"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
+                      {formatDate(inq.created_at)}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 18, color: "#9ca3af", flexShrink: 0 }}>
+                    {myInqExpanded === inq.id ? "−" : "+"}
+                  </span>
+                </button>
+
+                {myInqExpanded === inq.id && inq.answer && (
+                  <div style={{ padding: "0 20px 20px", borderTop: "1px solid #f3f4f6" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", marginBottom: 8, marginTop: 12 }}>
+                      관리자 답변
+                    </div>
+                    <div style={{
+                      background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12,
+                      padding: "14px 16px", fontSize: 14, color: "#374151",
+                      lineHeight: 1.7, whiteSpace: "pre-wrap",
+                    }}>
+                      {inq.answer}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
     </main>
   );
 }
