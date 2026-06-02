@@ -285,28 +285,47 @@ export default function ProfilePage() {
   const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
+
+    // 클라이언트 검증
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      showError("JPG, PNG, WEBP, GIF 이미지만 업로드 가능합니다.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showError("이미지 파일은 5MB 이하만 업로드 가능합니다.");
+      return;
+    }
+
     setUploading(true);
     try {
       setPreviewUrl(URL.createObjectURL(file));
-      const token = getAccessToken();
+
+      // getAccessToken()은 만료 토큰을 그대로 반환하므로 getSession() 사용
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       if (!token) { showError("로그인이 필요합니다."); return; }
+
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `avatars/${userId}-${Date.now()}.${ext}`;
       const avatarForm = new FormData();
       avatarForm.append("file", file);
       avatarForm.append("bucket", "thumbnails");
       avatarForm.append("path", path);
+
       const avatarRes = await fetch("/api/upload", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: avatarForm,
       });
+
       if (!avatarRes.ok) {
         const errJson = await avatarRes.json().catch(() => ({}));
         console.error("프로필 이미지 업로드 실패:", avatarRes.status, errJson);
         showError(`이미지 업로드 실패: ${errJson.error || avatarRes.status}`);
         return;
       }
+
       const { url } = await avatarRes.json();
       setAvatarUrl(url);
       setPreviewUrl(url);
