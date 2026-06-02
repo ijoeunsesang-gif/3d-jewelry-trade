@@ -227,8 +227,17 @@ export default function UploadPage() {
       thumbForm.append("file", thumbnailFile);
       thumbForm.append("bucket", "thumbnails");
       thumbForm.append("path", thumbPath);
-      const thumbRes = await fetch("/api/upload", { method: "POST", body: thumbForm });
-      if (!thumbRes.ok) { showError("썸네일 업로드 실패"); return; }
+      const thumbRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: thumbForm,
+      });
+      if (!thumbRes.ok) {
+        const errJson = await thumbRes.json().catch(() => ({}));
+        console.error("썸네일 업로드 실패:", thumbRes.status, errJson);
+        showError(`썸네일 업로드 실패: ${errJson.error || thumbRes.status}`);
+        return;
+      }
       const { url: thumbnailUrl } = await thumbRes.json();
 
       // 대표 모델 파일 업로드 (presigned URL → R2 직접 PUT, Vercel 크기 제한 없음)
@@ -277,8 +286,16 @@ export default function UploadPage() {
           imgForm.append("file", file);
           imgForm.append("bucket", "thumbnails");
           imgForm.append("path", path);
-          const imgRes = await fetch("/api/upload", { method: "POST", body: imgForm });
-          if (!imgRes.ok) { console.error("추가 이미지 업로드 실패"); continue; }
+          const imgRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: imgForm,
+          });
+          if (!imgRes.ok) {
+            const errJson = await imgRes.json().catch(() => ({}));
+            console.error("추가 이미지 업로드 실패:", imgRes.status, errJson);
+            continue;
+          }
           const { url } = await imgRes.json();
 
           imageRows.push({ model_id: insertedModel.id, image_url: url, image_path: path, sort_order: i + 1 });
