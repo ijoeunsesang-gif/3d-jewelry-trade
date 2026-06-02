@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 import { showError, showSuccess } from "../lib/toast";
+import AvatarImage from "./AvatarImage";
 
 type CommentProfile = { nickname: string | null; avatar_url: string | null };
 
@@ -242,11 +243,7 @@ export default function ModelComments({ modelId, currentUserId, isAdmin, onCount
         >
           {/* 헤더 */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <img
-              src={c.profiles?.avatar_url || "/default-avatar.png"}
-              alt="avatar"
-              style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid #e5e7eb", flexShrink: 0 }}
-            />
+            <AvatarImage avatarUrl={c.profiles?.avatar_url} nickname={c.profiles?.nickname} size={32} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>
                 {c.profiles?.nickname || "익명"}

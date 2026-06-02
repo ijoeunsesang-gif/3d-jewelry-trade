@@ -8,6 +8,7 @@ import type { ProfileItem } from "../lib/getProfile";
 import ErrorBoundary from "./ErrorBoundary";
 import GradeBadge from "./GradeBadge";
 import { Grade } from "@/lib/grades";
+import AvatarImage from "./AvatarImage";
 
 const ModelViewer = dynamic(() => import("./ModelViewer"), { ssr: false });
 
@@ -90,18 +91,7 @@ export default function QuickViewModal({
                   color: "#111827",
                 }}
               >
-                <img
-                  src={seller.avatar_url || "/default-avatar.png"}
-                  alt={seller.nickname || "seller"}
-                  style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    border: "1px solid #e5e7eb",
-                    flexShrink: 0,
-                  }}
-                />
+                <AvatarImage avatarUrl={seller.avatar_url} nickname={seller.nickname} size={52} />
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 800, fontSize: 16 }}>
                     {seller.nickname || "판매자"}

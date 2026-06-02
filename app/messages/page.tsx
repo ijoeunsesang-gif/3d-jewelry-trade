@@ -7,6 +7,7 @@ import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-
 import { showError, showSuccess } from "../lib/toast";
 import type { ProfileItem } from "../lib/getProfile";
 import GradeBadge from "../components/GradeBadge";
+import AvatarImage from "../components/AvatarImage";
 import { Grade } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
@@ -512,18 +513,7 @@ function MessagesContent() {
                       textAlign: "left",
                     }}
                   >
-                    <img
-                      src={otherProfile?.avatar_url || "/default-avatar.png"}
-                      alt="profile"
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: "1px solid #e5e7eb",
-                        flexShrink: 0,
-                      }}
-                    />
+                    <AvatarImage avatarUrl={otherProfile?.avatar_url} nickname={otherProfile?.nickname} size={44} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 15, fontWeight: 900, color: "#111827" }}>
                         {otherProfile?.nickname || "사용자"}
@@ -603,17 +593,7 @@ function MessagesContent() {
                   >
                     ← 목록
                   </button>
-                  <img
-                    src={targetProfile.avatar_url || "/default-avatar.png"}
-                    alt="target"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "1px solid #e5e7eb",
-                    }}
-                  />
+                  <AvatarImage avatarUrl={targetProfile.avatar_url} nickname={targetProfile.nickname} size={40} />
 
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 900, color: "#111827" }}>

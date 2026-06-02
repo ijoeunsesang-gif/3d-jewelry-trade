@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import GradeBadge from "../components/GradeBadge";
+import AvatarImage from "../components/AvatarImage";
 import { Grade, GRADE_CONFIG, gradeOrder, MentorGrade, MENTOR_GRADE_CONFIG, calcMentorGrade, mentorGradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
@@ -621,11 +622,7 @@ export default function ProfilePage() {
           {/* 프로필 이미지 + 닉네임 + 업로드 */}
           <div className="profile-avatar-section" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginBottom: 20 }}>
             <div className="profile-avatar-img-wrap" style={{ position: "relative", flexShrink: 0 }}>
-              <img
-                src={previewUrl || "/default-avatar.png"}
-                alt="profile"
-                style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "2px solid #e5e7eb", display: "block" }}
-              />
+              <AvatarImage avatarUrl={previewUrl} nickname={nickname} size={96} border="2px solid #e5e7eb" />
             </div>
             <div className="profile-avatar-right" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               <div className="profile-avatar-name" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
@@ -752,11 +749,7 @@ export default function ProfilePage() {
                     ) : (
                       following.map((p) => (
                         <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6" }}>
-                          <img
-                            src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
-                            onClick={() => router.push(`/seller/${p.id}`)}
-                            style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb", cursor: "pointer" }}
-                          />
+                          <AvatarImage avatarUrl={p.avatar_url} nickname={p.nickname} size={40} onClick={() => router.push(`/seller/${p.id}`)} />
                           <div
                             style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
                             onClick={() => router.push(`/seller/${p.id}`)}
@@ -801,8 +794,7 @@ export default function ProfilePage() {
                           onClick={() => router.push(`/seller/${p.id}`)}
                           style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
                         >
-                          <img src={p.avatar_url || "/default-avatar.png"} alt={p.nickname}
-                            style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+                          <AvatarImage avatarUrl={p.avatar_url} nickname={p.nickname} size={40} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 14, color: "#111827" }}>
                               {p.nickname}
@@ -1193,12 +1185,7 @@ export default function ProfilePage() {
                         onMouseEnter={e => (e.currentTarget.style.background = "#f9fafb")}
                         onMouseLeave={e => (e.currentTarget.style.background = "white")}
                       >
-                        <img
-                          src={u.avatar_url || "/default-avatar.png"}
-                          alt={u.nickname || ""}
-                          style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "1px solid #e5e7eb", flexShrink: 0 }}
-                          onError={e => { (e.currentTarget as HTMLImageElement).src = "/default-avatar.png"; }}
-                        />
+                        <AvatarImage avatarUrl={u.avatar_url} nickname={u.nickname} size={40} />
                         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                           <span style={{ fontWeight: 700, fontSize: 14, color: DARK }}>{u.nickname || "—"}</span>
                           {u.grade && <GradeBadge grade={u.grade} size="sm" />}

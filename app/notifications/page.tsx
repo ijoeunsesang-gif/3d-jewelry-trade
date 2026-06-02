@@ -6,6 +6,7 @@ import Link from "next/link";
 import { MessageCircle, CreditCard, CheckCircle, AlertTriangle, UserPlus, Bell, Settings } from "lucide-react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
+import AvatarImage from "@/app/components/AvatarImage";
 import type { ProfileItem } from "../lib/getProfile";
 
 type NotificationItem = {
@@ -321,18 +322,7 @@ export default function NotificationsPage() {
                         }}
                       />
                     )}
-                    <img
-                      src={profile?.avatar_url || "/default-avatar.png"}
-                      alt="follower"
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: "1px solid #e5e7eb",
-                        flexShrink: 0,
-                      }}
-                    />
+                    <AvatarImage avatarUrl={profile?.avatar_url} nickname={profile?.nickname} size={42} />
                     <div>
                       <div style={{ fontWeight: isUnread ? 700 : 400, color: "#111827" }}>
                         {profile?.nickname || "사용자"} 님이 회원님을 팔로우했습니다.
@@ -408,18 +398,7 @@ export default function NotificationsPage() {
                         }}
                       />
                     )}
-                    <img
-                      src={profile?.avatar_url || "/default-avatar.png"}
-                      alt="conv"
-                      style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: "1px solid #e5e7eb",
-                        flexShrink: 0,
-                      }}
-                    />
+                    <AvatarImage avatarUrl={profile?.avatar_url} nickname={profile?.nickname} size={42} />
                     <div>
                       <div style={{ fontWeight: isUnread ? 700 : 400, color: "#111827" }}>
                         {item.model_title

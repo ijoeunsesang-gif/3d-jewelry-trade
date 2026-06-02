@@ -6,6 +6,7 @@ import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../../lib/toast";
 import GradeBadge from "@/app/components/GradeBadge";
+import AvatarImage from "@/app/components/AvatarImage";
 import { Grade } from "@/lib/grades";
 
 const GOLD = "#c9a84c";
@@ -413,11 +414,7 @@ function CommissionNewInner() {
                   padding: "10px 14px", borderRadius: 10, marginBottom: 14,
                   background: "#f0fdf4", border: "1.5px solid #16a34a",
                 }}>
-                  <img
-                    src={selectedSeller.avatar_url || "/default-avatar.png"}
-                    alt={selectedSeller.nickname}
-                    style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-                  />
+                  <AvatarImage avatarUrl={selectedSeller.avatar_url} nickname={selectedSeller.nickname} size={36} border="none" />
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{selectedSeller.nickname}</span>
                     <GradeBadge grade={selectedSeller.grade} size="sm" />
@@ -500,11 +497,7 @@ function CommissionNewInner() {
                           transition: "all 0.12s",
                         }}
                       >
-                        <img
-                          src={s.avatar_url || "/default-avatar.png"}
-                          alt={s.nickname}
-                          style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-                        />
+                        <AvatarImage avatarUrl={s.avatar_url} nickname={s.nickname} size={40} border="none" />
                         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                           <span style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>{s.nickname}</span>
                           <GradeBadge grade={s.grade} size="sm" />

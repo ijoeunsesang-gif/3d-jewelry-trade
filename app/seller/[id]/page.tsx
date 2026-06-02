@@ -8,6 +8,7 @@ import { supabase } from "../../lib/supabase-browser";
 import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
+import AvatarImage from "../../components/AvatarImage";
 import { Grade } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
@@ -557,18 +558,11 @@ export default function SellerPage() {
               } : {};
               return (
                 <div style={ringStyle}>
-                  <img
-                    src={seller?.avatar_url || "/default-avatar.png"}
-                    alt={seller?.nickname || "seller"}
-                    style={{
-                      width: 108,
-                      height: 108,
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: hasRing ? "3px solid white" : "1px solid #e5e7eb",
-                      background: "#f8fafc",
-                      display: "block",
-                    }}
+                  <AvatarImage
+                    avatarUrl={seller?.avatar_url}
+                    nickname={seller?.nickname}
+                    size={108}
+                    border={hasRing ? "3px solid white" : "1px solid #e5e7eb"}
                   />
                 </div>
               );

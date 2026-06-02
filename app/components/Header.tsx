@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
+import AvatarImage from "./AvatarImage";
 
 const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
@@ -328,10 +329,7 @@ export default function Header() {
       >
         {/* 프로필 헤더 */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0ead8", display: "flex", alignItems: "center", gap: 10 }}>
-          <img
-            src={avatarUrl || "/default-avatar.png"} alt="me"
-            style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: `2px solid ${GOLD}`, flexShrink: 0 }}
-          />
+          <AvatarImage avatarUrl={avatarUrl} nickname={nickname} size={38} border={`2px solid ${GOLD}`} />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700, color: "#111827", fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {nickname || "사용자"}
@@ -404,21 +402,12 @@ export default function Header() {
   /* ── MY 버튼 내용 (아바타 + MY 텍스트) ───────────────────── */
   const MyButtonInner = () => (
     <>
-      {avatarUrl ? (
-        <img
-          src={avatarUrl} alt="프로필"
-          style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}` }}
-        />
-      ) : (
-        <div style={{
-          width: 32, height: 32, borderRadius: "50%",
-          border: `2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          background: isMyPage || myOpen ? GOLD_LIGHT : "white",
-        }}>
-          <IconUser active={isMyPage || myOpen} />
-        </div>
-      )}
+      <AvatarImage
+        avatarUrl={avatarUrl}
+        nickname={nickname}
+        size={32}
+        border={`2px solid ${isMyPage || myOpen ? GOLD : "#d4c49a"}`}
+      />
       <span style={{ fontSize: 11, fontWeight: 700, color: isMyPage || myOpen ? GOLD : "#9ca3af", letterSpacing: "0.02em" }}>MY</span>
     </>
   );
@@ -915,9 +904,6 @@ function IconHeadphones({ active = false, size = 22, inactiveColor = "#5a5a5a", 
 function IconHelp({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
   return <svg {...svgProps(active, size, inactiveColor, activeColor)}><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" strokeWidth="2.5" /></svg>;
 }
-function IconUser({ active = false }: { active?: boolean }) {
-  return <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke={active ? GOLD : "#b0a89a"} strokeWidth={active ? 2 : 1.6} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
-}
 
 /* ── 드롭다운 전용 소형 아이콘 (15×15) ─────────────────── */
 function dropSvg(active: boolean) {
@@ -934,9 +920,6 @@ function IconDropUpload({ active = false }: { active?: boolean }) {
 }
 function IconDropDownload({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
-}
-function IconDropChart({ active = false }: { active?: boolean }) {
-  return <svg {...dropSvg(active)}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>;
 }
 function IconDropHeart({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>;
@@ -961,9 +944,6 @@ function IconClipboard({ active = false, size = 22, inactiveColor = "#5a5a5a", a
 }
 function IconDropClipboard({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><rect x="8" y="2" width="8" height="4" rx="1" ry="1" /><line x1="9" y1="12" x2="15" y2="12" /><line x1="9" y1="16" x2="15" y2="16" /></svg>;
-}
-function IconDropAsk({ active = false }: { active?: boolean }) {
-  return <svg {...dropSvg(active)}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /><line x1="9" y1="10" x2="15" y2="10" /><line x1="12" y1="7" x2="12" y2="13" /></svg>;
 }
 function IconDropCadSchool({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M22 10L12 5 2 10l10 5 10-5z" /><path d="M6 12.5v4.5c3.5 2.5 8.5 2.5 12 0v-4.5" /><line x1="22" y1="10" x2="22" y2="16" /></svg>;
