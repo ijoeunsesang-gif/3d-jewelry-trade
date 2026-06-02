@@ -113,7 +113,8 @@ export default function UploadPage() {
 
   const handleDetailImages = (files: FileList | null) => {
     if (!files) return;
-    setDetailImageFiles(Array.from(files).slice(0, 10));
+    const newFiles = Array.from(files);
+    setDetailImageFiles((prev) => [...prev, ...newFiles].slice(0, 10));
   };
 
   const handleExtraFiles = (files: FileList | null) => {
@@ -150,7 +151,7 @@ export default function UploadPage() {
       showError("이미지 파일만 업로드 가능합니다.");
       return;
     }
-    setDetailImageFiles(valid.slice(0, 10));
+    setDetailImageFiles((prev) => [...prev, ...valid].slice(0, 10));
   };
 
   const onDropModelFile = (e: React.DragEvent) => {
