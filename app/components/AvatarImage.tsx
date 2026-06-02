@@ -42,11 +42,12 @@ export default function AvatarImage({
         className={className}
         style={{
           ...shared,
-          background: "linear-gradient(135deg, #b8960c, #d4af37)",
+          background: "white",
+          border: "2px solid #b8960c",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "white",
+          color: "#b8960c",
           fontWeight: 800,
           fontSize: Math.round(size * 0.4),
           userSelect: "none",
