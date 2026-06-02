@@ -288,18 +288,30 @@ export default function ProfilePage() {
     setUploading(true);
     try {
       setPreviewUrl(URL.createObjectURL(file));
+      const token = getAccessToken();
+      if (!token) { showError("로그인이 필요합니다."); return; }
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `avatars/${userId}-${Date.now()}.${ext}`;
       const avatarForm = new FormData();
       avatarForm.append("file", file);
       avatarForm.append("bucket", "thumbnails");
       avatarForm.append("path", path);
-      const avatarRes = await fetch("/api/upload", { method: "POST", body: avatarForm });
-      if (!avatarRes.ok) { showError("이미지 업로드 실패"); return; }
+      const avatarRes = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: avatarForm,
+      });
+      if (!avatarRes.ok) {
+        const errJson = await avatarRes.json().catch(() => ({}));
+        console.error("프로필 이미지 업로드 실패:", avatarRes.status, errJson);
+        showError(`이미지 업로드 실패: ${errJson.error || avatarRes.status}`);
+        return;
+      }
       const { url } = await avatarRes.json();
       setAvatarUrl(url);
       setPreviewUrl(url);
-    } catch {
+    } catch (err) {
+      console.error("프로필 이미지 처리 오류:", err);
       showError("프로필 이미지 처리 중 오류가 발생했습니다.");
     } finally {
       setUploading(false);
