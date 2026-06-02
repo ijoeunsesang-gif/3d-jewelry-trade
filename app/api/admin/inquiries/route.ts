@@ -72,3 +72,19 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ success: true, answer: inserted });
 }
+
+export async function DELETE(req: NextRequest) {
+  const admin = await verifyAdmin(req);
+  if (!admin) return NextResponse.json({ error: "권한 없음" }, { status: 403 });
+
+  const { answerId } = await req.json();
+  if (!answerId) return NextResponse.json({ error: "answerId가 필요합니다." }, { status: 400 });
+
+  const { error } = await adminSupabase
+    .from("inquiry_answers")
+    .delete()
+    .eq("id", answerId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

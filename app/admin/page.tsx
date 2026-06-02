@@ -379,6 +379,20 @@ export default function AdminPage() {
     finally { setInqLoading(false); }
   };
 
+  const handleDeleteAnswer = async (answerId: string, inquiryId: string) => {
+    if (!confirm("답변을 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch("/api/admin/inquiries", {
+        method: "DELETE",
+        headers: await authHeader(),
+        body: JSON.stringify({ answerId }),
+      });
+      if (!res.ok) { showError("답변 삭제 실패"); return; }
+      showSuccess("답변이 삭제되었습니다.");
+      await fetchInquiries();
+    } catch { showError("오류가 발생했습니다."); }
+  };
+
   const handleAnswerInquiry = async (id: string) => {
     const answer = inqAnswerText[id]?.trim();
     if (!answer) { showError("답변 내용을 입력하세요."); return; }
@@ -1821,7 +1835,16 @@ export default function AdminPage() {
                               </div>
                               {inq.inquiry_answers.map(ans => (
                                 <div key={ans.id}>
-                                  <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 4 }}>{formatDate(ans.created_at)}</div>
+                                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                                    <span style={{ fontSize: 11, color: "#9ca3af" }}>{formatDate(ans.created_at)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteAnswer(ans.id, inq.id)}
+                                      style={{ fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "0 4px" }}
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
                                   <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
                                     {ans.content}
                                   </div>
