@@ -274,6 +274,18 @@ export default function UploadPage() {
         return;
       }
 
+      // 팔로워 알림 (비동기 fire-and-forget — 업로드 결과에 영향 없음)
+      fetch("/api/models/notify-followers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          modelId: insertedModel.id,
+          sellerId,
+          modelTitle: title,
+          thumbnailUrl: thumbnailUrl,
+        }),
+      }).catch((e) => console.error("[upload] 팔로워 알림 실패:", e));
+
       // 추가 이미지 업로드
       if (detailImageFiles.length > 0) {
         const imageRows: any[] = [];

@@ -31,6 +31,9 @@ export default function SellerPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
+  const [notifyEnabled, setNotifyEnabled] = useState(true);
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
+  const [notifyToggling, setNotifyToggling] = useState(false);
 
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortType>("latest");
@@ -140,7 +143,7 @@ export default function SellerPage() {
       if (currentUserId_ && currentUserId_ !== id) {
         const { data: followRow, error: followCheckError } = await supabase
           .from("follows")
-          .select("id")
+          .select("id, notify_enabled")
           .eq("follower_id", currentUserId_)
           .eq("following_id", id)
           .maybeSingle();
@@ -149,6 +152,7 @@ export default function SellerPage() {
           console.error("팔로우 여부 확인 실패:", followCheckError);
         } else {
           setIsFollowing(!!followRow);
+          setNotifyEnabled(followRow?.notify_enabled ?? true);
         }
       } else {
         setIsFollowing(false);
@@ -180,73 +184,76 @@ export default function SellerPage() {
   };
 
   const handleFollowToggle = async () => {
+    if (!currentUserId) { showError("로그인 후 이용할 수 있습니다."); return; }
+    if (currentUserId === id) { showError("본인은 팔로우할 수 없습니다."); return; }
+
+    if (!isFollowing) {
+      setNotifModalOpen(true);
+      return;
+    }
+
+    setFollowLoading(true);
     try {
-      if (!currentUserId) {
-        showError("로그인 후 이용할 수 있습니다.");
-        return;
-      }
-
-      if (currentUserId === id) {
-        showError("본인은 팔로우할 수 없습니다.");
-        return;
-      }
-
-      setFollowLoading(true);
-
-      if (isFollowing) {
-        const { error } = await supabase
-          .from("follows")
-          .delete()
-          .eq("follower_id", currentUserId)
-          .eq("following_id", id);
-
-        if (error) {
-          console.error("언팔로우 실패:", error);
-          showError("언팔로우에 실패했습니다.");
-          return;
-        }
-
-        setIsFollowing(false);
-        setFollowersCount((prev) => Math.max(prev - 1, 0));
-
-        } else {
-          const { error: followError } = await supabase.from("follows").insert({
-            follower_id: currentUserId,
-            following_id: id,
-          });
-
-          if (followError) {
-            console.error("팔로우 실패:", followError);
-            showError("팔로우에 실패했습니다.");
-            return;
-          }
-
-          setIsFollowing(true);
-          setFollowersCount((prev) => prev + 1);
-
-          try {
-            const { error: notifError } = await supabase.from("notifications").insert({
-              user_id: id,
-              type: "follow",
-              title: "새 팔로우",
-              link: `/seller/${currentUserId}`,
-              is_read: false,
-            });
-            if (notifError) {
-              console.error("팔로우 알림 전송 실패:", notifError);
-            } else {
-              window.dispatchEvent(new Event("notifications-updated"));
-            }
-          } catch (notifErr) {
-            console.error("팔로우 알림 예외:", notifErr);
-          }
-        }
-
-    } catch (error) {
-      console.error("팔로우 처리 오류:", error);
+      const { error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", currentUserId)
+        .eq("following_id", id);
+      if (error) { showError("언팔로우에 실패했습니다."); return; }
+      setIsFollowing(false);
+      setFollowersCount((prev) => Math.max(prev - 1, 0));
+    } catch (e) {
+      console.error("언팔로우 오류:", e);
     } finally {
       setFollowLoading(false);
     }
+  };
+
+  const confirmFollow = async (withNotify: boolean) => {
+    setNotifModalOpen(false);
+    setFollowLoading(true);
+    try {
+      const { error } = await supabase.from("follows").insert({
+        follower_id: currentUserId,
+        following_id: id,
+        notify_enabled: withNotify,
+      });
+      if (error) { showError("팔로우에 실패했습니다."); return; }
+      setIsFollowing(true);
+      setNotifyEnabled(withNotify);
+      setFollowersCount((prev) => prev + 1);
+      try {
+        await supabase.from("notifications").insert({
+          user_id: id,
+          type: "follow",
+          title: "새 팔로우",
+          link: `/seller/${currentUserId}`,
+          is_read: false,
+        });
+        window.dispatchEvent(new Event("notifications-updated"));
+      } catch {}
+    } catch (e) {
+      console.error("팔로우 오류:", e);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleNotifyToggle = async () => {
+    if (!currentUserId || !isFollowing || notifyToggling) return;
+    const newVal = !notifyEnabled;
+    setNotifyToggling(true);
+    setNotifyEnabled(newVal);
+    const { error } = await supabase
+      .from("follows")
+      .update({ notify_enabled: newVal })
+      .eq("follower_id", currentUserId)
+      .eq("following_id", id);
+    if (error) {
+      setNotifyEnabled(!newVal);
+      showError("설정 저장에 실패했습니다.");
+    }
+    setNotifyToggling(false);
   };
 
   const handleMessageSeller = async () => {
@@ -607,24 +614,106 @@ export default function SellerPage() {
 
           {currentUserId && currentUserId !== id && (
             <>
-              <button
-                type="button"
-                onClick={handleFollowToggle}
-                disabled={followLoading}
-                style={{
-                  marginTop: 18,
-                  width: "100%",
-                  height: 48,
-                  borderRadius: 14,
-                  border: isFollowing ? "1px solid #d1d5db" : "none",
-                  background: isFollowing ? "white" : "#111827",
-                  color: isFollowing ? "#111827" : "white",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                {followLoading ? "처리 중..." : isFollowing ? "팔로우 취소" : "팔로우"}
-              </button>
+              <div style={{ marginTop: 18, display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={followLoading}
+                  style={{
+                    flex: 1,
+                    height: 48,
+                    borderRadius: 14,
+                    border: isFollowing ? "1px solid #d1d5db" : "none",
+                    background: isFollowing ? "white" : "#111827",
+                    color: isFollowing ? "#111827" : "white",
+                    fontWeight: 900,
+                    cursor: followLoading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {followLoading ? "처리 중..." : isFollowing ? "팔로우 취소" : "팔로우"}
+                </button>
+                {isFollowing && (
+                  <button
+                    type="button"
+                    onClick={handleNotifyToggle}
+                    disabled={notifyToggling}
+                    title={notifyEnabled ? "새 작품 알림 켜짐 (클릭하여 끄기)" : "새 작품 알림 꺼짐 (클릭하여 켜기)"}
+                    style={{
+                      width: 48, height: 48, borderRadius: 14,
+                      border: "1px solid #d1d5db",
+                      background: notifyEnabled ? "#fffbeb" : "white",
+                      color: notifyEnabled ? "#f59e0b" : "#9ca3af",
+                      fontSize: 20, cursor: notifyToggling ? "not-allowed" : "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    {notifyEnabled ? "🔔" : "🔕"}
+                  </button>
+                )}
+              </div>
+
+              {/* 팔로우 알림 동의 모달 */}
+              {notifModalOpen && (
+                <div
+                  onClick={() => setNotifModalOpen(false)}
+                  style={{
+                    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    zIndex: 9999,
+                  }}
+                >
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: "white", borderRadius: 20, padding: "28px 24px",
+                      width: 320, boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+                    }}
+                  >
+                    <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>🔔</div>
+                    <h3 style={{ fontSize: 17, fontWeight: 900, color: "#111827", margin: "0 0 8px", textAlign: "center" }}>
+                      새 작품 알림
+                    </h3>
+                    <p style={{ fontSize: 14, color: "#6b7280", textAlign: "center", margin: "0 0 24px", lineHeight: 1.6 }}>
+                      이 판매자가 새 작품을 업로드하면<br />알림을 받으시겠습니까?
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => confirmFollow(true)}
+                        style={{
+                          height: 44, borderRadius: 12, border: "none",
+                          background: "#111827", color: "white",
+                          fontWeight: 900, fontSize: 14, cursor: "pointer",
+                        }}
+                      >
+                        알림 받기
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmFollow(false)}
+                        style={{
+                          height: 44, borderRadius: 12,
+                          border: "1px solid #d1d5db", background: "white",
+                          color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer",
+                        }}
+                      >
+                        알림 없이 팔로우
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNotifModalOpen(false)}
+                        style={{
+                          height: 36, borderRadius: 12, border: "none",
+                          background: "transparent", color: "#9ca3af",
+                          fontSize: 13, cursor: "pointer",
+                        }}
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <button
                 type="button"

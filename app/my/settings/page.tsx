@@ -12,6 +12,7 @@ type Settings = {
   push_payment: boolean;
   push_wishlist: boolean;
   push_notice: boolean;
+  push_new_product: boolean;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -20,14 +21,16 @@ const DEFAULT_SETTINGS: Settings = {
   push_payment: true,
   push_wishlist: true,
   push_notice: true,
+  push_new_product: true,
 };
 
 const CATEGORIES = [
-  { key: "push_inquiry" as const, label: "의뢰 알림", desc: "새 입찰, 상태 변경, 낙찰", emoji: "🔔" },
-  { key: "push_chat" as const, label: "채팅 알림", desc: "새 메시지 수신 시", emoji: "💬" },
-  { key: "push_payment" as const, label: "구매/결제 알림", desc: "결제 완료, 다운로드 가능", emoji: "💳" },
-  { key: "push_wishlist" as const, label: "찜 알림", desc: "찜한 모델 가격 변경 시", emoji: "❤️" },
-  { key: "push_notice" as const, label: "공지 알림", desc: "플랫폼 공지사항", emoji: "📢" },
+  { key: "push_inquiry" as const,     label: "의뢰 알림",             desc: "새 입찰, 상태 변경, 낙찰",           emoji: "🔔" },
+  { key: "push_chat" as const,        label: "채팅 알림",             desc: "새 메시지 수신 시",                  emoji: "💬" },
+  { key: "push_payment" as const,     label: "구매/결제 알림",         desc: "결제 완료, 다운로드 가능",            emoji: "💳" },
+  { key: "push_wishlist" as const,    label: "찜 알림",               desc: "찜한 모델 가격 변경 시",              emoji: "❤️" },
+  { key: "push_notice" as const,      label: "공지 알림",             desc: "플랫폼 공지사항",                    emoji: "📢" },
+  { key: "push_new_product" as const, label: "팔로우 판매자 새 작품", desc: "팔로우한 판매자가 작품 업로드 시", emoji: "🛍️" },
 ];
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -70,7 +73,7 @@ export default function NotificationSettingsPage() {
 
       const { data } = await supabase
         .from("notification_settings")
-        .select("push_inquiry, push_chat, push_payment, push_wishlist, push_notice")
+        .select("push_inquiry, push_chat, push_payment, push_wishlist, push_notice, push_new_product")
         .eq("user_id", user.id)
         .maybeSingle();
 
