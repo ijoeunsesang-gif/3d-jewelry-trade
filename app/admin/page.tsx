@@ -23,6 +23,7 @@ interface UserProfile {
   is_point_blocked: boolean;
   warning_count: number;
   deleted_at: string | null;
+  last_login_at: string | null;
 }
 
 interface DeletedConv {
@@ -898,7 +899,7 @@ export default function AdminPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "#f3f4f6", textAlign: "left" }}>
-                        {["닉네임", "이메일", "역할", "포인트", "상태", "가입일", "관리"].map(h => (
+                        {["닉네임", "이메일", "역할", "포인트", "상태", "가입일", "마지막 접속", "관리"].map(h => (
                           <th key={h} style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", whiteSpace: "nowrap", borderBottom: "1px solid #e5e7eb" }}>{h}</th>
                         ))}
                       </tr>
@@ -940,6 +941,17 @@ export default function AdminPage() {
                             </td>
                             <td style={{ padding: "10px 12px", color: "#9ca3af", whiteSpace: "nowrap" }}>
                               {u.created_at ? new Date(u.created_at).toLocaleDateString("ko-KR") : "-"}
+                            </td>
+                            <td style={{ padding: "10px 12px", color: "#9ca3af", whiteSpace: "nowrap" }}>
+                              {u.last_login_at ? (() => {
+                                const dt = new Date(u.last_login_at);
+                                const y = dt.getFullYear();
+                                const m = String(dt.getMonth() + 1).padStart(2, "0");
+                                const d = String(dt.getDate()).padStart(2, "0");
+                                const h = String(dt.getHours()).padStart(2, "0");
+                                const min = String(dt.getMinutes()).padStart(2, "0");
+                                return `${y}.${m}.${d} ${h}:${min}`;
+                              })() : "-"}
                             </td>
                             <td style={{ padding: "10px 12px" }}>
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

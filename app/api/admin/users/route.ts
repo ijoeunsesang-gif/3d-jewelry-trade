@@ -21,26 +21,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "권한 없음" }, { status: 403 });
   }
 
-  const { data, error } = await adminSupabase
-    .from("profiles")
-    .select("id, nickname, email, role, created_at, points, is_point_blocked, warning_count, deleted_at")
-    .order("created_at", { ascending: false });
+  const [profilesRes, authRes] = await Promise.all([
+    adminSupabase
+      .from("profiles")
+      .select("id, nickname, email, role, created_at, points, is_point_blocked, warning_count, deleted_at")
+      .order("created_at", { ascending: false }),
+    adminSupabase.auth.admin.listUsers({ perPage: 1000 }),
+  ]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (profilesRes.error) return NextResponse.json({ error: profilesRes.error.message }, { status: 500 });
 
-  // profiles.created_at이 NULL인 경우 auth.users.created_at으로 보완
-  const hasNullDate = (data ?? []).some((u: any) => !u.created_at);
-  if (hasNullDate) {
-    const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers({ perPage: 1000 });
-    const authMap = new Map(authUsers.map((u) => [u.id, u.created_at]));
-    const merged = (data ?? []).map((u: any) => ({
-      ...u,
-      created_at: u.created_at ?? authMap.get(u.id) ?? null,
-    }));
-    return NextResponse.json({ data: merged });
-  }
+  const authMap = new Map(
+    (authRes.data?.users ?? []).map((u) => [u.id, { created_at: u.created_at, last_sign_in_at: u.last_sign_in_at }])
+  );
 
-  return NextResponse.json({ data });
+  const merged = (profilesRes.data ?? []).map((u: any) => ({
+    ...u,
+    created_at: u.created_at ?? authMap.get(u.id)?.created_at ?? null,
+    last_login_at: authMap.get(u.id)?.last_sign_in_at ?? null,
+  }));
+
+  return NextResponse.json({ data: merged });
 }
 
 // 관리자가 수정 가능한 필드만 허용 (role 변경 등 민감 필드 차단)
