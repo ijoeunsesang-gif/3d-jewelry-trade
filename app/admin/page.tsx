@@ -379,7 +379,7 @@ export default function AdminPage() {
     finally { setInqLoading(false); }
   };
 
-  const handleDeleteAnswer = async (answerId: string, inquiryId: string) => {
+  const handleDeleteInquiryAnswer = async (answerId: string) => {
     if (!confirm("답변을 삭제하시겠습니까?")) return;
     try {
       const res = await fetch("/api/admin/inquiries", {
@@ -1839,7 +1839,7 @@ export default function AdminPage() {
                                     <span style={{ fontSize: 11, color: "#9ca3af" }}>{formatDate(ans.created_at)}</span>
                                     <button
                                       type="button"
-                                      onClick={() => handleDeleteAnswer(ans.id, inq.id)}
+                                      onClick={() => handleDeleteInquiryAnswer(ans.id)}
                                       style={{ fontSize: 11, color: "#ef4444", background: "none", border: "none", cursor: "pointer", fontWeight: 700, padding: "0 4px" }}
                                     >
                                       삭제

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAdminUser } from "@/lib/isAdminCheck";
+import { Resend } from "resend";
 
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+const resend = new Resend(process.env.RESEND_API_KEY!);
 
 async function verifyAdmin(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -41,7 +44,7 @@ export async function PATCH(req: NextRequest) {
 
   const { data: inquiry, error: fetchErr } = await adminSupabase
     .from("inquiries")
-    .select("user_id, title")
+    .select("user_id, user_email, title, content")
     .eq("id", id)
     .single();
 
@@ -69,6 +72,49 @@ export async function PATCH(req: NextRequest) {
     link: "/customer-service",
     is_read: false,
   });
+
+  // 문의자에게 이메일 발송 (실패해도 답변 저장에 영향 없음)
+  if (inquiry.user_email) {
+    try {
+      const fromAddress = process.env.RESEND_FROM_EMAIL;
+      if (fromAddress) {
+        await resend.emails.send({
+          from: `3D Jewelry Trade <${fromAddress}>`,
+          to: inquiry.user_email,
+          subject: "[주얼리 플랫폼] 문의하신 내용에 답변이 등록되었습니다",
+          html: `
+            <table width="100%" cellpadding="0" cellspacing="0" style="font-family: system-ui, sans-serif; background: #ffffff;">
+              <tr>
+                <td style="padding: 32px 24px; color: #111827; max-width: 580px;">
+                  <h2 style="font-size: 20px; font-weight: 900; margin: 0 0 8px;">문의 답변 안내</h2>
+                  <p style="color: #6b7280; margin: 0 0 24px; font-size: 14px;">안녕하세요. 문의하신 내용에 답변이 등록되었습니다.</p>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 20px;">
+                    <tr><td style="padding: 10px 14px; background: #f9fafb; font-size: 13px; font-weight: 700; color: #374151; border-radius: 8px 8px 0 0;">문의 제목</td></tr>
+                    <tr><td style="padding: 10px 14px; font-size: 14px; color: #111827;">${inquiry.title}</td></tr>
+                  </table>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 20px;">
+                    <tr><td style="padding: 10px 14px; background: #f9fafb; font-size: 13px; font-weight: 700; color: #374151; border-radius: 8px 8px 0 0;">문의 내용</td></tr>
+                    <tr><td style="padding: 10px 14px; font-size: 14px; color: #374151; white-space: pre-wrap; line-height: 1.6;">${inquiry.content}</td></tr>
+                  </table>
+
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 24px;">
+                    <tr><td style="padding: 10px 14px; background: #f0fdf4; font-size: 13px; font-weight: 700; color: #15803d; border-radius: 8px 8px 0 0;">관리자 답변</td></tr>
+                    <tr><td style="padding: 10px 14px; font-size: 14px; color: #111827; white-space: pre-wrap; line-height: 1.6;">${answer.trim()}</td></tr>
+                  </table>
+
+                  <p style="font-size: 12px; color: #9ca3af; margin: 0;">본 메일은 3D 주얼리 플랫폼에서 자동 발송된 메일입니다.</p>
+                </td>
+              </tr>
+            </table>
+          `,
+        });
+      }
+    } catch (emailErr) {
+      console.error("문의 답변 이메일 발송 실패:", emailErr);
+    }
+  }
 
   return NextResponse.json({ success: true, answer: inserted });
 }
