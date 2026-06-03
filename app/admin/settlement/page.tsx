@@ -7,7 +7,6 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { GRADE_CONFIG, Grade, MentorGrade, MENTOR_GRADE_CONFIG } from "@/lib/grades";
 import GradeBadge from "@/app/components/GradeBadge";
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "";
 const GOLD = "#c9a84c";
 
 const RATE_COMMISSION = 0.2;  // 의뢰 수수료율 20% (고정)
@@ -80,20 +79,23 @@ export default function SettlementPage() {
   /* ── 관리자 인증 ── */
   useEffect(() => {
     (async () => {
-      let email = "";
       const token = getAccessToken();
-      if (token) {
-        const p = decodeJwt(token) as any;
-        email = (p?.email || p?.user_metadata?.email || p?.user_metadata?.kakao_account?.email || "").trim().toLowerCase();
-      }
-      if (!email) {
-        const { data } = await supabase.auth.getUser();
-        email = (data?.user?.email || "").trim().toLowerCase();
-      }
-      if (!email || email !== ADMIN_EMAIL.trim().toLowerCase()) {
-        router.push("/admin");
-        return;
-      }
+      if (!token) { router.replace("/"); return; }
+      const uid = (decodeJwt(token) as any)?.sub as string;
+      if (!uid) { router.replace("/"); return; }
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}&select=role&limit=1`,
+        {
+          headers: {
+            "apikey": process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      const profileArr = await res.json();
+      if (profileArr?.[0]?.role !== "admin") { router.replace("/"); return; }
+
       setAuthorized(true);
       setLoading(false);
     })();
