@@ -37,8 +37,8 @@ export async function GET(req: NextRequest) {
 
   const merged = (profilesRes.data ?? []).map((u: any) => ({
     ...u,
-    created_at: u.created_at ?? authMap.get(u.id)?.created_at ?? null,
-    last_login_at: authMap.get(u.id)?.last_sign_in_at ?? null,
+    created_at: authMap.get(u.id)?.created_at ?? u.created_at ?? null,
+    last_sign_in_at: authMap.get(u.id)?.last_sign_in_at ?? null,
   }));
 
   return NextResponse.json({ data: merged });

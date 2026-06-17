@@ -23,7 +23,7 @@ interface UserProfile {
   is_point_blocked: boolean;
   warning_count: number;
   deleted_at: string | null;
-  last_login_at: string | null;
+  last_sign_in_at: string | null;
 }
 
 interface DeletedConv {
@@ -943,15 +943,15 @@ export default function AdminPage() {
                               {u.created_at ? new Date(u.created_at).toLocaleDateString("ko-KR") : "-"}
                             </td>
                             <td style={{ padding: "10px 12px", color: "#9ca3af", whiteSpace: "nowrap" }}>
-                              {u.last_login_at ? (() => {
-                                const dt = new Date(u.last_login_at);
+                              {u.last_sign_in_at ? (() => {
+                                const dt = new Date(u.last_sign_in_at);
                                 const y = dt.getFullYear();
                                 const m = String(dt.getMonth() + 1).padStart(2, "0");
                                 const d = String(dt.getDate()).padStart(2, "0");
                                 const h = String(dt.getHours()).padStart(2, "0");
                                 const min = String(dt.getMinutes()).padStart(2, "0");
                                 return `${y}.${m}.${d} ${h}:${min}`;
-                              })() : "-"}
+                              })() : "접속 기록 없음"}
                             </td>
                             <td style={{ padding: "10px 12px" }}>
                               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
