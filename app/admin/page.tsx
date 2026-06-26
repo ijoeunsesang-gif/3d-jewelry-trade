@@ -11,7 +11,7 @@ import { showError, showSuccess } from "../lib/toast";
 const GOLD = "#c9a84c";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "printShops";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "printShops" | "finishingWorkers";
 
 interface UserProfile {
   id: string;
@@ -155,6 +155,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
   { key: "inquiries",         label: "문의 관리",       icon: "💬" },
   { key: "printShops",        label: "출력소 관리",      icon: "🖨" },
+  { key: "finishingWorkers",  label: "마무리 작업자",    icon: "🔧" },
 ];
 
 export default function AdminPage() {
@@ -245,6 +246,19 @@ export default function AdminPage() {
   const [psSaving, setPsSaving] = useState(false);
   const [psShowForm, setPsShowForm] = useState(false);
 
+  /* ── Finishing Workers ── */
+  const WORK_SCOPE_OPTIONS = ["시야기까지", "원본까지", "고무가다까지"] as const;
+  const [finishingWorkers, setFinishingWorkers] = useState<{
+    id: string; name: string; email: string; phone: string;
+    work_scope: string[]; location: string | null; description: string | null;
+    is_active: boolean; created_at: string;
+  }[]>([]);
+  const [fwLoading, setFwLoading] = useState(false);
+  const [fwForm, setFwForm] = useState({ name: "", email: "", phone: "", location: "", work_scope: [] as string[], description: "", is_active: true });
+  const [fwEditId, setFwEditId] = useState<string | null>(null);
+  const [fwSaving, setFwSaving] = useState(false);
+  const [fwShowForm, setFwShowForm] = useState(false);
+
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [commLoading, setCommLoading] = useState(false);
@@ -313,6 +327,7 @@ export default function AdminPage() {
     if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
     if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
     if (tab === "printShops"       && printShops.length === 0)       fetchPrintShops();
+    if (tab === "finishingWorkers" && finishingWorkers.length === 0) fetchFinishingWorkers();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -520,6 +535,66 @@ export default function AdminPage() {
       setPrintShops(data || []);
     } catch { showError("출력소 목록 불러오기 실패"); }
     finally { setPrintShopsLoading(false); }
+  };
+
+  const fetchFinishingWorkers = async () => {
+    setFwLoading(true);
+    try {
+      const { data, error } = await supabase.from("finishing_workers").select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      setFinishingWorkers(data || []);
+    } catch { showError("마무리 작업자 목록 불러오기 실패"); }
+    finally { setFwLoading(false); }
+  };
+
+  const handleSaveFinishingWorker = async () => {
+    if (!fwForm.name.trim()) { showError("이름을 입력하세요."); return; }
+    if (!fwForm.email.trim()) { showError("이메일을 입력하세요."); return; }
+    if (!fwForm.phone.trim()) { showError("연락처를 입력하세요."); return; }
+    setFwSaving(true);
+    try {
+      const payload = {
+        name: fwForm.name.trim(), email: fwForm.email.trim(), phone: fwForm.phone.trim(),
+        location: fwForm.location.trim() || null, work_scope: fwForm.work_scope,
+        description: fwForm.description.trim() || null, is_active: fwForm.is_active,
+      };
+      if (fwEditId) {
+        const { error } = await supabase.from("finishing_workers").update(payload).eq("id", fwEditId);
+        if (error) throw error;
+        showSuccess("작업자 정보를 수정했습니다.");
+      } else {
+        const { error } = await supabase.from("finishing_workers").insert(payload);
+        if (error) throw error;
+        showSuccess("작업자를 추가했습니다.");
+      }
+      setFwShowForm(false); setFwEditId(null);
+      setFwForm({ name: "", email: "", phone: "", location: "", work_scope: [], description: "", is_active: true });
+      await fetchFinishingWorkers();
+    } catch { showError("저장에 실패했습니다."); }
+    finally { setFwSaving(false); }
+  };
+
+  const handleDeleteFinishingWorker = async (id: string) => {
+    if (!confirm("작업자를 삭제할까요?")) return;
+    const { error } = await supabase.from("finishing_workers").delete().eq("id", id);
+    if (error) { showError("삭제 실패"); return; }
+    setFinishingWorkers(prev => prev.filter(w => w.id !== id));
+    showSuccess("삭제했습니다.");
+  };
+
+  const startEditFinishingWorker = (w: typeof finishingWorkers[0]) => {
+    setFwEditId(w.id);
+    setFwForm({ name: w.name, email: w.email, phone: w.phone, location: w.location || "", work_scope: w.work_scope || [], description: w.description || "", is_active: w.is_active });
+    setFwShowForm(true);
+  };
+
+  const toggleFwScope = (scope: string) => {
+    setFwForm(prev => ({
+      ...prev,
+      work_scope: prev.work_scope.includes(scope)
+        ? prev.work_scope.filter(s => s !== scope)
+        : [...prev.work_scope, scope],
+    }));
   };
 
   const handleSavePrintShop = async () => {
@@ -2058,6 +2133,124 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              마무리 작업자 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "finishingWorkers" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>마무리 작업자 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {finishingWorkers.length}명</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={fetchFinishingWorkers} style={btnStyle("outline")}>새로고침</button>
+                  <button type="button" onClick={() => { setFwEditId(null); setFwForm({ name: "", email: "", phone: "", location: "", work_scope: [], description: "", is_active: true }); setFwShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                </div>
+              </div>
+
+              {/* 추가/수정 폼 */}
+              {fwShowForm && (
+                <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
+                  <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{fwEditId ? "작업자 수정" : "작업자 추가"}</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {([
+                      { label: "이름 *",   key: "name",     placeholder: "홍길동" },
+                      { label: "연락처 *", key: "phone",    placeholder: "010-0000-0000" },
+                      { label: "이메일 *", key: "email",    placeholder: "example@email.com" },
+                      { label: "위치",     key: "location", placeholder: "서울 종로구" },
+                    ] as const).map(({ label, key, placeholder }) => (
+                      <div key={key}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>{label}</label>
+                        <input value={fwForm[key]} onChange={e => setFwForm(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder}
+                          style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                      </div>
+                    ))}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 8 }}>작업 범위</label>
+                      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                        {WORK_SCOPE_OPTIONS.map(scope => (
+                          <label key={scope} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                            <input type="checkbox" checked={fwForm.work_scope.includes(scope)} onChange={() => toggleFwScope(scope)}
+                              style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#111827" }} />
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>{scope}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>설명 (선택)</label>
+                      <textarea value={fwForm.description} onChange={e => setFwForm(p => ({ ...p, description: e.target.value }))} placeholder="작업자 소개 또는 메모"
+                        rows={2} style={{ width: "100%", borderRadius: 10, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="checkbox" id="fw-active" checked={fwForm.is_active} onChange={e => setFwForm(p => ({ ...p, is_active: e.target.checked }))} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                      <label htmlFor="fw-active" style={{ fontSize: 14, fontWeight: 600, color: "#374151", cursor: "pointer" }}>활성화</label>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                    <button type="button" disabled={fwSaving} onClick={handleSaveFinishingWorker}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, fontSize: 14, cursor: fwSaving ? "default" : "pointer" }}>
+                      {fwSaving ? "저장 중..." : fwEditId ? "수정" : "추가"}
+                    </button>
+                    <button type="button" onClick={() => { setFwShowForm(false); setFwEditId(null); }}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {fwLoading ? <LoadingSpinner /> : finishingWorkers.length === 0 ? (
+                <Empty text="등록된 마무리 작업자가 없습니다." />
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "#f3f4f6", textAlign: "left" }}>
+                        {["이름", "이메일", "연락처", "위치", "작업 범위", "상태", "관리"].map(h => (
+                          <th key={h} style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", whiteSpace: "nowrap", borderBottom: "1px solid #e5e7eb" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {finishingWorkers.map(w => (
+                        <tr key={w.id} className="adm-row" style={{ borderBottom: "1px solid #f3f4f6" }}>
+                          <td style={{ padding: "10px 12px", fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>{w.name}</td>
+                          <td style={{ padding: "10px 12px", color: "#374151" }}>{w.email}</td>
+                          <td style={{ padding: "10px 12px", color: "#374151", whiteSpace: "nowrap" }}>{w.phone}</td>
+                          <td style={{ padding: "10px 12px", color: "#6b7280" }}>{w.location || "—"}</td>
+                          <td style={{ padding: "10px 12px" }}>
+                            {(w.work_scope || []).length === 0 ? (
+                              <span style={{ color: "#9ca3af" }}>—</span>
+                            ) : (
+                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                {(w.work_scope || []).map(s => (
+                                  <span key={s} style={badgeStyle("#374151", "#f3f4f6")}>{s}</span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: "10px 12px" }}>
+                            <span style={badgeStyle(w.is_active ? "#16a34a" : "#6b7280", w.is_active ? "#dcfce7" : "#f3f4f6")}>
+                              {w.is_active ? "활성" : "비활성"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "10px 12px" }}>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button type="button" onClick={() => startEditFinishingWorker(w)} style={miniBtn("#374151")}>수정</button>
+                              <button type="button" onClick={() => handleDeleteFinishingWorker(w.id)} style={miniBtn("#dc2626")}>삭제</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </section>
