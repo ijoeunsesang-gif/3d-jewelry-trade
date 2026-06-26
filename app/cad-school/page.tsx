@@ -263,7 +263,7 @@ function CadSchoolPage() {
       {/* 탭 */}
       <style>{`
         .cad-tabs::-webkit-scrollbar { display: none; }
-        .cad-tabs { scrollbar-width: none; -ms-overflow-style: none; }
+        .cad-tabs { scrollbar-width: none; -ms-overflow-style: none; overflow-x: auto; }
         .cad-tabs-wrapper::after {
           content: '';
           position: absolute;
@@ -274,27 +274,46 @@ function CadSchoolPage() {
           pointer-events: none;
           z-index: 1;
         }
+        @media (min-width: 769px) {
+          .cad-tab-row { display: contents; }
+        }
         @media (max-width: 768px) {
+          .cad-tabs { flex-direction: column; overflow-x: visible !important; gap: 4px !important; }
+          .cad-tab-row { display: flex; justify-content: center; gap: 8px; }
+          .cad-tabs-wrapper::after { display: none; }
           .cad-svc-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
       <div className="cad-tabs-wrapper" style={{ position: "relative", marginBottom: 24 }}>
-        <div className="cad-tabs" style={{ display: "flex", gap: 8, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb", overflowX: "auto" }}>
-          {TABS.map((t) =>
-            t.href ? (
-              <Link
-                key={t.key}
-                href={t.href}
-                style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, background: "transparent", color: "#6b7280", fontWeight: 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}
-              >
-                {t.label}
-              </Link>
-            ) : (
-              <button key={t.key} type="button" onClick={() => router.push(`?tab=${t.key}&page=1`)} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, border: "none", background: tab === t.key ? "#111827" : "transparent", color: tab === t.key ? "white" : "#6b7280", fontWeight: tab === t.key ? 800 : 600, fontSize: 13, cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}>
-                {t.label}
-              </button>
-            )
-          )}
+        <div className="cad-tabs" style={{ display: "flex", gap: 8, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb" }}>
+          {/* 1행: 자유 피드백 / 미션 게시판 / 멘토 팁/노하우 */}
+          <div className="cad-tab-row">
+            {TABS.filter(t => ["feedback", "mission", "tips"].includes(t.key)).map((t) =>
+              t.href ? (
+                <Link key={t.key} href={t.href} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, background: "transparent", color: "#6b7280", fontWeight: 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}>
+                  {t.label}
+                </Link>
+              ) : (
+                <button key={t.key} type="button" onClick={() => router.push(`?tab=${t.key}&page=1`)} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, border: "none", background: tab === t.key ? "#111827" : "transparent", color: tab === t.key ? "white" : "#6b7280", fontWeight: tab === t.key ? 800 : 600, fontSize: 13, cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                  {t.label}
+                </button>
+              )
+            )}
+          </div>
+          {/* 2행: 유료 피드백 / 1:1 멘토(유료) */}
+          <div className="cad-tab-row">
+            {TABS.filter(t => ["paid-feedback", "subscription"].includes(t.key)).map((t) =>
+              t.href ? (
+                <Link key={t.key} href={t.href} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, background: "transparent", color: "#6b7280", fontWeight: 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}>
+                  {t.label}
+                </Link>
+              ) : (
+                <button key={t.key} type="button" onClick={() => router.push(`?tab=${t.key}&page=1`)} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, border: "none", background: tab === t.key ? "#111827" : "transparent", color: tab === t.key ? "white" : "#6b7280", fontWeight: tab === t.key ? 800 : 600, fontSize: 13, cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                  {t.label}
+                </button>
+              )
+            )}
+          </div>
         </div>
       </div>
 
