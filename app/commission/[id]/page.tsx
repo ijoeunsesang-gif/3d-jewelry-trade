@@ -8,6 +8,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ImagePlus } from "lucide-react";
+import Image from "next/image";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 
@@ -1474,8 +1475,8 @@ export default function CommissionDetailPage() {
       {/* 이미지 갤러리 */}
       {commission.images && commission.images.length > 0 ? (
         <div style={{ marginBottom: 28 }}>
-          <div style={{ width: "100%", aspectRatio: "16/9", borderRadius: 14, overflow: "hidden", background: "#f8fafc", marginBottom: 10 }}>
-            <img src={commission.images[selectedImage]} alt={commission.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ width: "100%", aspectRatio: "16/9", borderRadius: 14, overflow: "hidden", background: "#f8fafc", marginBottom: 10, position: "relative" }}>
+            <Image src={commission.images[selectedImage]} alt={commission.title} fill style={{ objectFit: "cover" }} />
           </div>
           {commission.images.length > 1 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1484,7 +1485,7 @@ export default function CommissionDetailPage() {
                   width: 64, height: 64, borderRadius: 8, overflow: "hidden", cursor: "pointer", flexShrink: 0,
                   border: selectedImage === i ? `2px solid ${GOLD}` : "2px solid transparent",
                 }}>
-                  <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <Image src={img} alt="" width={64} height={64} style={{ objectFit: "cover", display: "block" }} />
                 </div>
               ))}
             </div>
@@ -1894,7 +1895,7 @@ export default function CommissionDetailPage() {
                                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
                                   {revisionImages.map((url, i) => (
                                     <div key={i} style={{ position: "relative" }}>
-                                      <img src={url} alt="" style={{ width: 60, height: 60, objectFit: "cover", borderRadius: 6 }} />
+                                      <Image src={url} alt="" width={60} height={60} style={{ objectFit: "cover", borderRadius: 6 }} />
                                       <button onClick={() => setRevisionImages((prev) => prev.filter((_, j) => j !== i))} style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "#ef4444", border: "none", color: "white", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>✕</button>
                                     </div>
                                   ))}
@@ -1995,7 +1996,7 @@ export default function CommissionDetailPage() {
                   {activeRevision.images && activeRevision.images.length > 0 && (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {activeRevision.images.map((url, i) => (
-                        <img key={i} src={url} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #e5e7eb" }} />
+                        <Image key={i} src={url} alt="" width={72} height={72} style={{ objectFit: "cover", borderRadius: 8, border: "1px solid #e5e7eb" }} />
                       ))}
                     </div>
                   )}
@@ -2387,8 +2388,9 @@ export default function CommissionDetailPage() {
                       {time}
                     </div>
                     {msg.image_url ? (
-                      <img src={msg.image_url} alt="첨부 이미지"
-                        style={{ maxWidth: 220, maxHeight: 220, borderRadius: 10, objectFit: "cover", border: "1px solid #e5e7eb", cursor: "pointer" }}
+                      <Image src={msg.image_url} alt="첨부 이미지"
+                        width={220} height={220}
+                        style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb", cursor: "pointer" }}
                         onClick={() => window.open(msg.image_url!, "_blank")}
                       />
                     ) : (

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { scrollToTop } from "@/lib/scroll";
+import Image from "next/image";
 import { showError, showSuccess } from "../lib/toast";
 
 const GOLD = "#c9a84c";
@@ -1429,7 +1430,7 @@ export default function AdminPage() {
                       {/* Thumbnail */}
                       <a href={`/commission/${c.id}`} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, textDecoration: "none" }}>
                         {c.images?.[0] ? (
-                          <img src={c.images[0]} alt="" style={{ width: 56, height: 56, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                          <Image src={c.images[0]} alt="" width={56} height={56} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
                         ) : (
                           <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f3f4f6", flexShrink: 0 }} />
                         )}

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import Image from "next/image";
 
 const GOLD = "#c9a84c";
 const MAX_IMAGES = 5;
@@ -559,7 +560,7 @@ export default function AskDetailPage() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 18 }}>
             {post.images.map((url, i) => (
               <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                <img src={url} alt="" style={{ width: 120, height: 120, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+                <Image src={url} alt="" width={120} height={120} style={{ objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
               </a>
             ))}
           </div>
@@ -660,7 +661,7 @@ export default function AskDetailPage() {
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
                           {answer.images.map((url, i) => (
                             <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                              <img src={url} alt="" style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
+                              <Image src={url} alt="" width={100} height={100} style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
                             </a>
                           ))}
                         </div>
@@ -792,7 +793,7 @@ export default function AskDetailPage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
               {answerImages.map((url, i) => (
                 <div key={i} style={{ position: "relative" }}>
-                  <img src={url} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
+                  <Image src={url} alt="" width={72} height={72} style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb" }} />
                   <button
                     onClick={() => setAnswerImages((prev) => prev.filter((_, j) => j !== i))}
                     style={{

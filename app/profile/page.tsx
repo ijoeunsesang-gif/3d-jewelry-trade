@@ -6,9 +6,11 @@ import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import GradeBadge from "../components/GradeBadge";
+import Image from "next/image";
 import AvatarImage from "../components/AvatarImage";
 import { Grade, GRADE_CONFIG, gradeOrder, MentorGrade, MENTOR_GRADE_CONFIG, calcMentorGrade, mentorGradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
+import { compressThumbnail } from "@/lib/imageCompression";
 
 type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users";
 type UserListSubTab = "sellers" | "mentors" | "all";
@@ -317,10 +319,11 @@ export default function ProfilePage() {
       const token = session?.access_token;
       if (!token) { showError("로그인이 필요합니다."); return; }
 
-      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const compressedFile = await compressThumbnail(file);
+      const ext = compressedFile.type === "image/webp" ? "webp" : (file.name.split(".").pop()?.toLowerCase() || "png");
       const path = `avatars/${userId}-${Date.now()}.${ext}`;
       const avatarForm = new FormData();
-      avatarForm.append("file", file);
+      avatarForm.append("file", compressedFile);
       avatarForm.append("bucket", "thumbnails");
       avatarForm.append("path", path);
 
@@ -1853,7 +1856,7 @@ function SalesTab({ userId }: { userId: string }) {
                 return (
                   <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eef2f7" }}>
                     {thumb
-                      ? <img src={thumb} alt={model?.title || "thumb"} style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+                      ? <Image src={thumb} alt={model?.title || "thumb"} width={48} height={48} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
                       : <div style={{ width: 48, height: 48, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6", color: "#111827", fontWeight: 900, flexShrink: 0, fontSize: 11 }}>3D</div>
                     }
                     <div style={{ flex: 1 }}>
