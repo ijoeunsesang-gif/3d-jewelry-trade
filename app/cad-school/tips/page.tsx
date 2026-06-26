@@ -118,28 +118,47 @@ function TipsPage() {
       </Link>
 
       {/* 탭 */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb", overflowX: "auto" }}>
-        {CAD_TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={t.href}
-            style={{
-              flex: 1,
-              padding: "10px 8px",
-              borderRadius: 12,
-              background: t.key === "tips" ? "#111827" : "transparent",
-              color: t.key === "tips" ? "white" : "#6b7280",
-              fontWeight: t.key === "tips" ? 800 : 600,
-              fontSize: 13,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-              transition: "all 0.15s",
-            }}
-          >
-            {t.label}
-          </Link>
-        ))}
+      <style>{`
+        .tips-tabs::-webkit-scrollbar { display: none; }
+        .tips-tabs { scrollbar-width: none; -ms-overflow-style: none; overflow-x: auto; }
+        .tips-tabs-wrapper::after {
+          content: '';
+          position: absolute;
+          top: 0; right: 0; bottom: 0;
+          width: 48px;
+          background: linear-gradient(to right, transparent, white);
+          border-radius: 0 16px 16px 0;
+          pointer-events: none;
+          z-index: 1;
+        }
+        @media (min-width: 769px) {
+          .tips-tab-row { display: contents; }
+        }
+        @media (max-width: 768px) {
+          .tips-tabs { flex-direction: column; overflow-x: visible !important; gap: 4px !important; }
+          .tips-tab-row { display: flex; justify-content: center; gap: 8px; }
+          .tips-tabs-wrapper::after { display: none; }
+        }
+      `}</style>
+      <div className="tips-tabs-wrapper" style={{ position: "relative", marginBottom: 24 }}>
+        <div className="tips-tabs" style={{ display: "flex", gap: 8, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb" }}>
+          {/* 1행: 자유 피드백 / 미션 게시판 / 멘토 팁/노하우 */}
+          <div className="tips-tab-row">
+            {CAD_TABS.filter(t => ["feedback", "mission", "tips"].includes(t.key)).map((t) => (
+              <Link key={t.key} href={t.href} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, background: t.key === "tips" ? "#111827" : "transparent", color: t.key === "tips" ? "white" : "#6b7280", fontWeight: t.key === "tips" ? 800 : 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}>
+                {t.label}
+              </Link>
+            ))}
+          </div>
+          {/* 2행: 유료 피드백 / 1:1 멘토(유료) */}
+          <div className="tips-tab-row">
+            {CAD_TABS.filter(t => ["paid-feedback", "subscription"].includes(t.key)).map((t) => (
+              <Link key={t.key} href={t.href} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, background: "transparent", color: "#6b7280", fontWeight: 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}>
+                {t.label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* 헤더: 검색 + 글쓰기 */}

@@ -780,16 +780,22 @@ function SendToPrinterContent() {
             {finishingScope !== "없음" && (
               <div>
                 {selectedFw ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: "2px solid #111827", background: "#f8fafc" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{selectedFw.name}</div>
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{selectedFw.phone}{selectedFw.location ? ` · ${selectedFw.location}` : ""}</div>
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: "2px solid #111827", background: "#f8fafc" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{selectedFw.name}</div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{selectedFw.phone}{selectedFw.location ? ` · ${selectedFw.location}` : ""}</div>
+                      </div>
+                      <button type="button" onClick={() => { setSelectedFw(null); setShowFwPopup(true); }}
+                        style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>변경</button>
+                      <button type="button" onClick={() => setSelectedFw(null)}
+                        style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>해제</button>
                     </div>
-                    <button type="button" onClick={() => { setSelectedFw(null); setShowFwPopup(true); }}
-                      style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>변경</button>
-                    <button type="button" onClick={() => setSelectedFw(null)}
-                      style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>해제</button>
-                  </div>
+                    <p style={{ fontSize: 13, color: "#b45309", background: "#fef9c3", border: "1px solid #fde047", borderRadius: 6, padding: "10px 12px", marginTop: 8, lineHeight: 1.6, margin: "8px 0 0" }}>
+                      ※ 출력비와 마무리 비용이 합산되어 청구되오니,<br />
+                      마무리 작업자에게 함께 지급해 주세요.
+                    </p>
+                  </>
                 ) : (
                   <button type="button" onClick={() => { fetchFinishingWorkers(); setShowFwPopup(true); }}
                     style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1.5px dashed #d1d5db", background: "white", color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
