@@ -9,6 +9,7 @@ import DescriptionTemplateSelector from "../components/DescriptionTemplateSelect
 import { uploadToR2 } from "@/lib/uploadToR2";
 import { DEFAULT_BANNED_WORDS, detectBannedWords } from "@/lib/banned-words";
 import UploadProgress, { buildSteps } from "../components/UploadProgress";
+import { compressThumbnail, compressImage } from "@/lib/imageCompression";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -226,11 +227,12 @@ export default function UploadPage() {
 
       // 썸네일 업로드
       setUploadStep(0);
-      const thumbExt = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
+      const compressedThumb = await compressThumbnail(thumbnailFile);
+      const thumbExt = compressedThumb.type === "image/webp" ? "webp" : (thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg");
       const thumbPath = `${sellerId}/${now}-thumb.${thumbExt}`;
 
       const thumbForm = new FormData();
-      thumbForm.append("file", thumbnailFile);
+      thumbForm.append("file", compressedThumb);
       thumbForm.append("bucket", "thumbnails");
       thumbForm.append("path", thumbPath);
       const thumbRes = await fetch("/api/upload", {
@@ -300,8 +302,8 @@ export default function UploadPage() {
         const imageRows: any[] = [];
 
         for (let i = 0; i < detailImageFiles.length; i++) {
-          const file = detailImageFiles[i];
-          const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+          const file = await compressImage(detailImageFiles[i]);
+          const ext = file.type === "image/webp" ? "webp" : (detailImageFiles[i].name.split(".").pop()?.toLowerCase() || "jpg");
           const path = `${sellerId}/detail-${now}-${i}.${ext}`;
 
           const imgForm = new FormData();
