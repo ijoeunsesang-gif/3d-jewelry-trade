@@ -261,22 +261,41 @@ function CadSchoolPage() {
       )}
 
       {/* 탭 */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 24, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb", overflowX: "auto" }}>
-        {TABS.map((t) =>
-          t.href ? (
-            <Link
-              key={t.key}
-              href={t.href}
-              style={{ flex: 1, padding: "10px 8px", borderRadius: 12, background: "transparent", color: "#6b7280", fontWeight: 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}
-            >
-              {t.label}
-            </Link>
-          ) : (
-            <button key={t.key} type="button" onClick={() => router.push(`?tab=${t.key}&page=1`)} style={{ flex: 1, padding: "10px 8px", borderRadius: 12, border: "none", background: tab === t.key ? "#111827" : "transparent", color: tab === t.key ? "white" : "#6b7280", fontWeight: tab === t.key ? 800 : 600, fontSize: 13, cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}>
-              {t.label}
-            </button>
-          )
-        )}
+      <style>{`
+        .cad-tabs::-webkit-scrollbar { display: none; }
+        .cad-tabs { scrollbar-width: none; -ms-overflow-style: none; }
+        .cad-tabs-wrapper::after {
+          content: '';
+          position: absolute;
+          top: 0; right: 0; bottom: 0;
+          width: 48px;
+          background: linear-gradient(to right, transparent, white);
+          border-radius: 0 16px 16px 0;
+          pointer-events: none;
+          z-index: 1;
+        }
+        @media (max-width: 768px) {
+          .cad-svc-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+      <div className="cad-tabs-wrapper" style={{ position: "relative", marginBottom: 24 }}>
+        <div className="cad-tabs" style={{ display: "flex", gap: 8, background: "white", borderRadius: 16, padding: 6, border: "1px solid #e5e7eb", overflowX: "auto" }}>
+          {TABS.map((t) =>
+            t.href ? (
+              <Link
+                key={t.key}
+                href={t.href}
+                style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, background: "transparent", color: "#6b7280", fontWeight: 600, fontSize: 13, textDecoration: "none", whiteSpace: "nowrap", textAlign: "center", transition: "all 0.15s" }}
+              >
+                {t.label}
+              </Link>
+            ) : (
+              <button key={t.key} type="button" onClick={() => router.push(`?tab=${t.key}&page=1`)} style={{ flexShrink: 0, padding: "10px 8px", borderRadius: 12, border: "none", background: tab === t.key ? "#111827" : "transparent", color: tab === t.key ? "white" : "#6b7280", fontWeight: tab === t.key ? 800 : 600, fontSize: 13, cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" }}>
+                {t.label}
+              </button>
+            )
+          )}
+        </div>
       </div>
 
 {tab === "feedback"      && <FeedbackTab posts={posts} loading={loadingPosts} myUserId={myUserId} isAdmin={isAdmin} onDeleted={loadPosts} page={page} onPage={(p) => router.replace(`?tab=feedback&page=${p}`)} mentorUserIdToMentorId={mentorUserIdToMentorId} />}
@@ -594,7 +613,7 @@ function PaidFeedbackTab({ mentors, loadingMentors, myUserId }: { mentors: Mento
         <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 10 }}>
           <span style={{ background: "#f3f4f6", borderRadius: 6, padding: "2px 8px" }}>간단 피드백</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="cad-svc-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {SIMPLE_SERVICES.map((svc) => <ServiceCard key={svc.key} svc={svc} onClick={() => openModal(svc)} />)}
         </div>
       </div>
@@ -604,7 +623,7 @@ function PaidFeedbackTab({ mentors, loadingMentors, myUserId }: { mentors: Mento
         <div style={{ fontSize: 13, fontWeight: 800, color: "#374151", marginBottom: 10 }}>
           <span style={{ background: GOLD_LIGHT, color: "#92681a", borderRadius: 6, padding: "2px 8px", border: `1px solid ${GOLD}44` }}>전문 질문</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="cad-svc-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
           {EXPERT_SERVICES.map((svc) => <ServiceCard key={svc.key} svc={svc} onClick={() => openModal(svc)} />)}
         </div>
       </div>
