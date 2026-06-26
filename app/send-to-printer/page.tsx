@@ -114,6 +114,8 @@ function SendToPrinterContent() {
   >("");
   const [scaleType, setScaleType] = useState<"" | "확대" | "축소">("");
   const [scalePercent, setScalePercent] = useState("0");
+  const [printQty, setPrintQty] = useState(1);
+  const [symmetric, setSymmetric] = useState(false);
   const [extraNote, setExtraNote] = useState("");
 
   /* 파일 */
@@ -338,6 +340,7 @@ function SendToPrinterContent() {
           phoneNumber: phoneNumber.trim(), printType,
           castingType: effectiveCastingType, scaleType,
           scalePercent: scaleType ? scalePercent : "",
+          printQty, symmetric,
           extraNote: extraNote.trim(),
           selectedFilePaths: Array.from(selectedPaths),
         }),
@@ -442,16 +445,18 @@ function SendToPrinterContent() {
               <div style={{ fontSize: 13, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>메일 내용</div>
               <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
                 {[
-                  { label: "출력형태",      value: printType || "-" },
-                  { label: "주물여부",      value: castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType || "-" },
-                  { label: "확대축소",      value: !scaleType ? "없음" : `${scaleType} ${scalePercent}%` },
-                  { label: "전화번호",      value: phoneNumber.trim() || "-" },
-                  { label: "보내는 이메일", value: senderEmail.trim() || "-" },
-                  { label: "추가 내용",     value: extraNote.trim() || "-" },
+                  { label: "출력형태",      value: printType || "-",                                                                      highlight: false },
+                  { label: "주물여부",      value: castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType || "-", highlight: false },
+                  { label: "확대축소",      value: !scaleType ? "없음" : `${scaleType} ${scalePercent}%`,                                highlight: !!scaleType },
+                  { label: "출력 수량",     value: `${printQty}개`,                                                                       highlight: printQty > 1 },
+                  { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",                                                   highlight: symmetric },
+                  { label: "전화번호",      value: phoneNumber.trim() || "-",                                                             highlight: false },
+                  { label: "보내는 이메일", value: senderEmail.trim() || "-",                                                             highlight: false },
+                  { label: "추가 내용",     value: extraNote.trim() || "-",                                                               highlight: false },
                 ].map((row, i, arr) => (
-                  <div key={row.label} style={{ display: "flex", borderBottom: i < arr.length - 1 ? "1px solid #f3f4f6" : "none" }}>
-                    <div style={{ width: 90, flexShrink: 0, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "#6b7280", background: "#f8fafc" }}>{row.label}</div>
-                    <div style={{ flex: 1, padding: "10px 14px", fontSize: 14, fontWeight: 600, color: "#111827" }}>{row.value}</div>
+                  <div key={row.label} style={{ display: "flex", borderBottom: i < arr.length - 1 ? "1px solid #f3f4f6" : "none", background: row.highlight ? "#fef9c3" : "transparent" }}>
+                    <div style={{ width: 100, flexShrink: 0, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "#6b7280", background: row.highlight ? "#fef9c3" : "#f8fafc" }}>{row.label}</div>
+                    <div style={{ flex: 1, padding: "10px 14px", fontSize: 14, fontWeight: row.highlight ? 800 : 600, color: row.highlight ? "#b45309" : "#111827" }}>{row.value}</div>
                   </div>
                 ))}
               </div>
@@ -667,7 +672,7 @@ function SendToPrinterContent() {
                 </select>
               )}
             </div>
-            <div style={{ ...fieldWrap, marginBottom: 0 }}>
+            <div style={fieldWrap}>
               <label style={labelStyle}>확대축소여부</label>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 {(["", "확대", "축소"] as const).map((v) => (
@@ -688,6 +693,35 @@ function SendToPrinterContent() {
                   </select>
                 )}
               </div>
+            </div>
+            <div style={fieldWrap}>
+              <label style={labelStyle}>출력 수량</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                <button type="button"
+                  onClick={() => { const next = Math.max(1, printQty - 1); setPrintQty(next); if (next < 2) setSymmetric(false); }}
+                  style={{ width: 40, height: 40, borderRadius: "10px 0 0 10px", border: "1.5px solid #d1d5db", borderRight: "none", background: "white", fontSize: 20, fontWeight: 700, color: "#374151", cursor: "pointer", lineHeight: 1 }}>−</button>
+                <div style={{ width: 52, height: 40, display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #d1d5db", borderLeft: "none", borderRight: "none", fontSize: 15, fontWeight: 800, color: "#111827", background: printQty > 1 ? "#fef9c3" : "white" }}>
+                  {printQty}개
+                </div>
+                <button type="button"
+                  onClick={() => setPrintQty(prev => prev + 1)}
+                  style={{ width: 40, height: 40, borderRadius: "0 10px 10px 0", border: "1.5px solid #d1d5db", borderLeft: "none", background: "white", fontSize: 20, fontWeight: 700, color: "#374151", cursor: "pointer", lineHeight: 1 }}>+</button>
+              </div>
+            </div>
+            <div style={{ ...fieldWrap, marginBottom: 0 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={symmetric}
+                  onChange={(e) => { setSymmetric(e.target.checked); if (e.target.checked) setPrintQty(prev => Math.max(2, prev)); }}
+                  style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: symmetric ? "#b45309" : "#374151" }}>
+                  대칭 출력 <span style={{ fontWeight: 500, color: "#6b7280" }}>(귀걸이 좌우 1쌍)</span>
+                </span>
+              </label>
+              {symmetric && (
+                <p style={{ margin: "6px 0 0 26px", fontSize: 12, color: "#b45309", fontWeight: 600 }}>
+                  좌우 반전 파일을 1쌍으로 출력합니다. 수량이 자동으로 2개 이상으로 설정됩니다.
+                </p>
+              )}
             </div>
           </div>
 

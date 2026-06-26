@@ -29,6 +29,8 @@ export async function POST(req: NextRequest) {
       castingType,
       scaleType,
       scalePercent,
+      printQty,
+      symmetric,
       extraNote,
       selectedFilePaths,
     } = body as {
@@ -41,6 +43,8 @@ export async function POST(req: NextRequest) {
       castingType?: string;
       scaleType?: string;
       scalePercent?: string;
+      printQty?: number;
+      symmetric?: boolean;
       extraNote?: string;
       selectedFilePaths?: string[];
     };
@@ -162,13 +166,16 @@ export async function POST(req: NextRequest) {
     const scaleText = !scaleType ? "없음" : scalePercent ? `${scaleType} ${scalePercent}%` : scaleType;
     const hasScale = !!scaleType && scaleText !== "없음";
 
+    const qty = printQty ?? 1;
     const infoRows = [
-      { label: "출력형태",      value: printType || "-",                    highlight: false },
-      { label: "주물여부",      value: castingType || "-",                  highlight: false },
-      { label: "확대축소",      value: scaleText,                           highlight: hasScale },
-      { label: "전화번호",      value: phoneNumber || "-",                  highlight: false },
-      { label: "보내는 이메일", value: senderEmail || user.email || "-",    highlight: false },
-      { label: "추가 내용",     value: extraNote || "-",                    highlight: false },
+      { label: "출력형태",      value: printType || "-",                          highlight: false },
+      { label: "주물여부",      value: castingType || "-",                        highlight: false },
+      { label: "확대축소",      value: scaleText,                                 highlight: hasScale },
+      { label: "출력 수량",     value: `${qty}개`,                                highlight: qty > 1 },
+      { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",       highlight: !!symmetric },
+      { label: "전화번호",      value: phoneNumber || "-",                        highlight: false },
+      { label: "보내는 이메일", value: senderEmail || user.email || "-",          highlight: false },
+      { label: "추가 내용",     value: extraNote || "-",                          highlight: false },
     ];
 
     const infoHtml = infoRows.map((r) => `
