@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
+import UploadProgress, { buildSteps } from "../components/UploadProgress";
 
 /* ── 타입 ─────────────────────────────────────────────────── */
 type PrinterContact = { id: string; name: string; email: string };
@@ -138,6 +139,9 @@ function SendToPrinterContent() {
 
   /* 전송 상태 */
   const [sending, setSending] = useState(false);
+  const [sendStep, setSendStep] = useState(-1);
+  const SEND_LABELS = ["파일 준비 중", "메일 전송 중"];
+  const sendSteps = buildSteps(SEND_LABELS, sendStep);
   const [step, setStep] = useState<"form" | "confirm">("form");
 
   /* ── 초기화 ───────────────────────────────────────────── */
@@ -359,10 +363,12 @@ function SendToPrinterContent() {
   const handleConfirmSend = async () => {
     try {
       setSending(true);
+      setSendStep(0);
       savePreferencesToDB(businessName.trim(), phoneNumber.trim(), extraNote.trim());
       const token = getAccessToken();
       if (!token) { showInfo("로그인이 필요합니다."); return; }
       const effectiveCastingType = castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType;
+      setSendStep(1);
       const res = await fetch("/api/send-to-printer", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -402,12 +408,14 @@ function SendToPrinterContent() {
       showError("전송 중 오류가 발생했습니다.");
     } finally {
       setSending(false);
+      setSendStep(-1);
     }
   };
 
   /* ── 렌더 ─────────────────────────────────────────────── */
   return (
     <>
+      <UploadProgress isVisible={sending} steps={sendSteps} />
       <style>{`
         .stp-bottom {
           position: fixed; bottom: 0; left: 0; right: 0;

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/supabase-fetch";
+import UploadProgress, { buildSteps } from "@/app/components/UploadProgress";
 
 const GOLD = "#c9a84c";
 
@@ -12,6 +13,9 @@ export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const [phase, setPhase] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [payStep, setPayStep] = useState(0);
+  const PAY_LABELS = ["결제 처리 중", "정보 저장 중"];
+  const paySteps = buildSteps(PAY_LABELS, payStep);
   const called = useRef(false);
 
   useEffect(() => {
@@ -33,6 +37,7 @@ export default function PaymentSuccessPage() {
         const token = getAccessToken();
         if (!token) throw new Error("로그인이 필요합니다.");
 
+        setPayStep(0);
         const res = await fetch("/api/commission/payment/confirm", {
           method: "POST",
           headers: {
@@ -50,6 +55,8 @@ export default function PaymentSuccessPage() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "결제 처리에 실패했습니다.");
 
+        setPayStep(1);
+        await new Promise((r) => setTimeout(r, 400));
         setPhase("success");
         window.dispatchEvent(new Event("notifications-updated"));
         setTimeout(() => router.replace(`/commission/${id}`), 1800);
@@ -67,6 +74,7 @@ export default function PaymentSuccessPage() {
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
       fontFamily: 'system-ui, -apple-system, sans-serif', background: "#f9fafb",
     }}>
+      <UploadProgress isVisible={phase === "loading"} steps={paySteps} />
       <div style={{
         background: "white", borderRadius: 20, padding: "48px 40px", maxWidth: 400, width: "100%",
         textAlign: "center", boxShadow: "0 4px 24px rgba(0,0,0,0.08)",

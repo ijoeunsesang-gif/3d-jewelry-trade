@@ -8,6 +8,7 @@ import { showError, showInfo, showSuccess } from "../lib/toast";
 import DescriptionTemplateSelector from "../components/DescriptionTemplateSelector";
 import { uploadToR2 } from "@/lib/uploadToR2";
 import { DEFAULT_BANNED_WORDS, detectBannedWords } from "@/lib/banned-words";
+import UploadProgress, { buildSteps } from "../components/UploadProgress";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -25,6 +26,9 @@ export default function UploadPage() {
   const [extraFiles, setExtraFiles] = useState<File[]>([]);
 
   const [uploading, setUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState(-1);
+  const UPLOAD_LABELS = ["썸네일 업로드 중", "모델 파일 업로드 중", "정보 저장 중", "추가 이미지 업로드 중"];
+  const uploadSteps = buildSteps(UPLOAD_LABELS, uploadStep);
   const [sellerCheck, setSellerCheck] = useState<"loading" | "ok" | "blocked">("loading");
 
   // 금지어 필터
@@ -221,6 +225,7 @@ export default function UploadPage() {
       const now = Date.now();
 
       // 썸네일 업로드
+      setUploadStep(0);
       const thumbExt = thumbnailFile.name.split(".").pop()?.toLowerCase() || "jpg";
       const thumbPath = `${sellerId}/${now}-thumb.${thumbExt}`;
 
@@ -242,6 +247,7 @@ export default function UploadPage() {
       const { url: thumbnailUrl } = await thumbRes.json();
 
       // 대표 모델 파일 업로드 (presigned URL → R2 직접 PUT, Vercel 크기 제한 없음)
+      setUploadStep(1);
       const modelExt = modelFile.name.split(".").pop()?.toLowerCase() || "obj";
       const modelPath = `${sellerId}/${now}-model.${modelExt}`;
       try {
@@ -252,6 +258,7 @@ export default function UploadPage() {
       }
 
       // 모델 DB 저장
+      setUploadStep(2);
       const { data: insertedModel, error: insertModelError } = await supabase
         .from("models")
         .insert({
@@ -273,6 +280,8 @@ export default function UploadPage() {
         showError("모델 저장에 실패했습니다.");
         return;
       }
+
+      setUploadStep(3);
 
       // 팔로워 알림 (비동기 fire-and-forget — 업로드 결과에 영향 없음)
       fetch("/api/models/notify-followers", {
@@ -359,6 +368,7 @@ export default function UploadPage() {
       showError("업로드 중 오류가 발생했습니다.");
     } finally {
       setUploading(false);
+      setUploadStep(-1);
     }
   };
 
@@ -630,6 +640,7 @@ export default function UploadPage() {
           {uploading ? "업로드 중..." : "업로드"}
         </button>
       </form>
+      <UploadProgress isVisible={uploading} steps={uploadSteps} />
     </main>
   );
 }
