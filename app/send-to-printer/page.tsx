@@ -73,6 +73,7 @@ function SendToPrinterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const modelId = searchParams.get("modelId") || "";
+  const printShopId = searchParams.get("printShopId") || "";
 
   /* 모델 정보 */
   const [modelTitle, setModelTitle] = useState("");
@@ -131,11 +132,37 @@ function SendToPrinterContent() {
   }, [modelId]);
 
   const init = async () => {
-    // 템플릿 체크
+    // 로그인 유저 정보
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    const identities = userData?.user?.identities ?? [];
+    const authEmail = userData?.user?.email || identities[0]?.identity_data?.email || "";
+
+    // DB에서 기본정보 로드, 없으면 localStorage
+    let businessNameVal = "";
+    let phoneNumberVal = "";
+    let notesVal = "";
+    if (userId) {
+      const { data: pref } = await supabase.from("print_preferences").select("business_name, phone_number, notes").eq("user_id", userId).maybeSingle();
+      if (pref) {
+        businessNameVal = pref.business_name || "";
+        phoneNumberVal  = pref.phone_number || "";
+        notesVal        = pref.notes || "";
+      }
+    }
+
+    // localStorage 템플릿 체크 (기본정보가 DB에도 없고 localStorage에도 없으면 입력 페이지로)
     const existingTpls = loadTemplates();
-    if (existingTpls.length === 0) {
+    if (!businessNameVal && !phoneNumberVal && existingTpls.length === 0) {
       router.replace(`/my/info/edit?modelId=${modelId}`);
       return;
+    }
+
+    // localStorage 템플릿이 있으면 그 값을 fallback으로 사용
+    if (!businessNameVal && existingTpls.length > 0) {
+      businessNameVal = existingTpls[0].businessName || "";
+      phoneNumberVal  = existingTpls[0].phoneNumber || "";
+      notesVal        = existingTpls[0].notes || "";
     }
 
     // 모델 정보 조회
@@ -147,23 +174,26 @@ function SendToPrinterContent() {
     }
 
     // 출력소·템플릿 로드
-    setPrinters(loadAllPrinters());
+    const loadedPrinters = loadAllPrinters();
+    setPrinters(loadedPrinters);
     setTemplates(existingTpls);
-    const firstTpl = existingTpls[0];
-    setSelectedTemplateId(firstTpl.id);
-    setBusinessName(firstTpl.businessName || "");
-    setPhoneNumber(firstTpl.phoneNumber || "");
-    setExtraNote(firstTpl.notes || "");
-
-    // 로그인 유저 이메일로 발신 이메일 고정
-    const { data: userData } = await supabase.auth.getUser();
-    const identities = userData?.user?.identities ?? [];
-    const authEmail =
-      userData?.user?.email ||
-      identities[0]?.identity_data?.email ||
-      firstTpl.email ||
-      "";
+    if (existingTpls.length > 0) setSelectedTemplateId(existingTpls[0].id);
+    setBusinessName(businessNameVal);
+    setPhoneNumber(phoneNumberVal);
+    setExtraNote(notesVal);
     setSenderEmail(authEmail);
+
+    // printShopId가 있으면 DB에서 이름 조회 후 로컬 목록에서 자동 선택
+    if (printShopId) {
+      const { data: shop } = await supabase.from("print_shops").select("name").eq("id", printShopId).maybeSingle();
+      if (shop) {
+        const match = loadedPrinters.find(p => p.name === shop.name);
+        if (match) {
+          setSelectedPrinterId(match.id);
+          setPrinterEmail(match.email);
+        }
+      }
+    }
 
     // 파일 목록 조회
     setFilesLoading(true);
@@ -215,6 +245,16 @@ function SendToPrinterContent() {
     setPrinterFormMode(null);
   };
 
+  /* ── DB 기본정보 저장 ──────────────────────────────────── */
+  const savePreferencesToDB = async (bn: string, ph: string, nt: string) => {
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id;
+      if (!userId) return;
+      await supabase.from("print_preferences").upsert({ user_id: userId, business_name: bn, phone_number: ph, notes: nt, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    } catch { /* silent */ }
+  };
+
   /* ── 템플릿 핸들러 ─────────────────────────────────────── */
   const handleSelectTemplate = (t: SenderTemplate) => {
     setSelectedTemplateId(t.id);
@@ -238,6 +278,7 @@ function SendToPrinterContent() {
         setBusinessName(tplFormBusinessName.trim());
         setPhoneNumber(tplFormPhoneNumber.trim());
         setExtraNote(tplFormNotes.trim());
+        savePreferencesToDB(tplFormBusinessName.trim(), tplFormPhoneNumber.trim(), tplFormNotes.trim());
       }
       showSuccess("템플릿을 수정했습니다.");
     } else {
@@ -245,6 +286,7 @@ function SendToPrinterContent() {
       const updated = [...templates, nt];
       setTemplates(updated); saveTemplates(updated);
       handleSelectTemplate(nt);
+      savePreferencesToDB(tplFormBusinessName.trim(), tplFormPhoneNumber.trim(), tplFormNotes.trim());
       showSuccess("템플릿을 저장했습니다.");
     }
     setTemplateFormMode(null); setEditingTemplateId(null);
@@ -283,6 +325,7 @@ function SendToPrinterContent() {
   const handleConfirmSend = async () => {
     try {
       setSending(true);
+      savePreferencesToDB(businessName.trim(), phoneNumber.trim(), extraNote.trim());
       const token = getAccessToken();
       if (!token) { showInfo("로그인이 필요합니다."); return; }
       const effectiveCastingType = castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType;

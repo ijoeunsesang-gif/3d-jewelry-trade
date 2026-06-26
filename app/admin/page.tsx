@@ -11,7 +11,7 @@ import { showError, showSuccess } from "../lib/toast";
 const GOLD = "#c9a84c";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "printShops";
 
 interface UserProfile {
   id: string;
@@ -154,6 +154,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "modelReports",      label: "모델 신고",      icon: "🚨" },
   { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
   { key: "inquiries",         label: "문의 관리",       icon: "💬" },
+  { key: "printShops",        label: "출력소 관리",      icon: "🖨" },
 ];
 
 export default function AdminPage() {
@@ -232,6 +233,18 @@ export default function AdminPage() {
   const [inqAnswerText, setInqAnswerText] = useState<Record<string, string>>({});
   const [inqAnswering, setInqAnswering] = useState<string | null>(null);
 
+  /* ── Print Shops ── */
+  const [printShops, setPrintShops] = useState<{
+    id: string; name: string; address: string; phone: string;
+    hours: string | null; description: string | null; naver_map_url: string | null;
+    is_active: boolean; created_at: string;
+  }[]>([]);
+  const [printShopsLoading, setPrintShopsLoading] = useState(false);
+  const [psForm, setPsForm] = useState({ name: "", address: "", phone: "", hours: "", description: "", naver_map_url: "", is_active: true });
+  const [psEditId, setPsEditId] = useState<string | null>(null);
+  const [psSaving, setPsSaving] = useState(false);
+  const [psShowForm, setPsShowForm] = useState(false);
+
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [commLoading, setCommLoading] = useState(false);
@@ -299,6 +312,7 @@ export default function AdminPage() {
     if (tab === "modelReports"     && modelReports.length === 0)     fetchModelReports();
     if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
     if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
+    if (tab === "printShops"       && printShops.length === 0)       fetchPrintShops();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -496,6 +510,57 @@ export default function AdminPage() {
     } finally {
       setModelReportsLoading(false);
     }
+  };
+
+  const fetchPrintShops = async () => {
+    setPrintShopsLoading(true);
+    try {
+      const { data, error } = await supabase.from("print_shops").select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      setPrintShops(data || []);
+    } catch { showError("출력소 목록 불러오기 실패"); }
+    finally { setPrintShopsLoading(false); }
+  };
+
+  const handleSavePrintShop = async () => {
+    if (!psForm.name.trim()) { showError("출력소 이름을 입력하세요."); return; }
+    if (!psForm.address.trim()) { showError("주소를 입력하세요."); return; }
+    if (!psForm.phone.trim()) { showError("연락처를 입력하세요."); return; }
+    setPsSaving(true);
+    try {
+      const payload = {
+        name: psForm.name.trim(), address: psForm.address.trim(), phone: psForm.phone.trim(),
+        hours: psForm.hours.trim() || null, description: psForm.description.trim() || null,
+        naver_map_url: psForm.naver_map_url.trim() || null, is_active: psForm.is_active,
+      };
+      if (psEditId) {
+        const { error } = await supabase.from("print_shops").update(payload).eq("id", psEditId);
+        if (error) throw error;
+        showSuccess("출력소를 수정했습니다.");
+      } else {
+        const { error } = await supabase.from("print_shops").insert(payload);
+        if (error) throw error;
+        showSuccess("출력소를 추가했습니다.");
+      }
+      setPsShowForm(false); setPsEditId(null);
+      setPsForm({ name: "", address: "", phone: "", hours: "", description: "", naver_map_url: "", is_active: true });
+      await fetchPrintShops();
+    } catch { showError("저장에 실패했습니다."); }
+    finally { setPsSaving(false); }
+  };
+
+  const handleDeletePrintShop = async (id: string) => {
+    if (!confirm("출력소를 삭제할까요?")) return;
+    const { error } = await supabase.from("print_shops").delete().eq("id", id);
+    if (error) { showError("삭제 실패"); return; }
+    setPrintShops(prev => prev.filter(p => p.id !== id));
+    showSuccess("삭제했습니다.");
+  };
+
+  const startEditPrintShop = (ps: typeof printShops[0]) => {
+    setPsEditId(ps.id);
+    setPsForm({ name: ps.name, address: ps.address, phone: ps.phone, hours: ps.hours || "", description: ps.description || "", naver_map_url: ps.naver_map_url || "", is_active: ps.is_active });
+    setPsShowForm(true);
   };
 
   const handleReportStatus = async (id: string, status: "reviewed" | "dismissed") => {
@@ -1889,6 +1954,108 @@ export default function AdminPage() {
                           </div>
                         </div>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              출력소 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "printShops" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>출력소 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {printShops.length}개</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={fetchPrintShops} style={btnStyle("outline")}>새로고침</button>
+                  <button type="button" onClick={() => { setPsEditId(null); setPsForm({ name: "", address: "", phone: "", hours: "", description: "", naver_map_url: "", is_active: true }); setPsShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                </div>
+              </div>
+
+              {/* 추가/수정 폼 */}
+              {psShowForm && (
+                <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
+                  <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{psEditId ? "출력소 수정" : "출력소 추가"}</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {[
+                      { label: "출력소명 *", key: "name", placeholder: "예: 가인출력소" },
+                      { label: "연락처 *", key: "phone", placeholder: "예: 070-0000-0000" },
+                    ].map(({ label, key, placeholder }) => (
+                      <div key={key}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>{label}</label>
+                        <input value={(psForm as any)[key]} onChange={e => setPsForm(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder}
+                          style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                      </div>
+                    ))}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>주소 *</label>
+                      <input value={psForm.address} onChange={e => setPsForm(p => ({ ...p, address: e.target.value }))} placeholder="예: 서울 종로구 돈화문로6나길 36"
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>영업시간</label>
+                      <input value={psForm.hours} onChange={e => setPsForm(p => ({ ...p, hours: e.target.value }))} placeholder="예: 월~금 10:00-19:00 / 일 휴무"
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>네이버 지도 URL</label>
+                      <input value={psForm.naver_map_url} onChange={e => setPsForm(p => ({ ...p, naver_map_url: e.target.value }))} placeholder="https://map.naver.com/..."
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>설명 (선택)</label>
+                      <textarea value={psForm.description} onChange={e => setPsForm(p => ({ ...p, description: e.target.value }))} placeholder="출력소 설명"
+                        rows={2} style={{ width: "100%", borderRadius: 10, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="checkbox" id="ps-active" checked={psForm.is_active} onChange={e => setPsForm(p => ({ ...p, is_active: e.target.checked }))} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                      <label htmlFor="ps-active" style={{ fontSize: 14, fontWeight: 600, color: "#374151", cursor: "pointer" }}>활성화</label>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                    <button type="button" disabled={psSaving} onClick={handleSavePrintShop}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, fontSize: 14, cursor: psSaving ? "default" : "pointer" }}>
+                      {psSaving ? "저장 중..." : psEditId ? "수정" : "추가"}
+                    </button>
+                    <button type="button" onClick={() => { setPsShowForm(false); setPsEditId(null); }}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {printShopsLoading ? <LoadingSpinner /> : printShops.length === 0 ? (
+                <Empty text="등록된 출력소가 없습니다." />
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {printShops.map(ps => (
+                    <div key={ps.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>{ps.name}</span>
+                          <span style={badgeStyle(ps.is_active ? "#16a34a" : "#6b7280", ps.is_active ? "#dcfce7" : "#f3f4f6")}>
+                            {ps.is_active ? "활성" : "비활성"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, color: "#374151", marginBottom: 2 }}>📍 {ps.address}</div>
+                        <div style={{ fontSize: 13, color: "#374151", marginBottom: 2 }}>📞 {ps.phone}</div>
+                        {ps.hours && <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 2 }}>🕐 {ps.hours}</div>}
+                        {ps.naver_map_url && (
+                          <a href={ps.naver_map_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#2563eb", textDecoration: "underline" }}>
+                            네이버 지도 보기
+                          </a>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button type="button" onClick={() => startEditPrintShop(ps)} style={miniBtn("#374151")}>수정</button>
+                        <button type="button" onClick={() => handleDeletePrintShop(ps.id)} style={miniBtn("#dc2626")}>삭제</button>
+                      </div>
                     </div>
                   ))}
                 </div>

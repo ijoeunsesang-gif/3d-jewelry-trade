@@ -44,12 +44,18 @@ function LibraryPageInner() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "commissions" ? "commissions" : "purchases";
 
-  const [activeTab, setActiveTab] = useState<"purchases" | "commissions">(initialTab);
+  const [activeTab, setActiveTab] = useState<"purchases" | "commissions" | "printShops">(initialTab);
   const [items, setItems] = useState<PurchasedModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [commissionItems, setCommissionItems] = useState<CompletedCommission[]>([]);
   const [commissionsLoading, setCommissionsLoading] = useState(false);
+
+  const [printShops, setPrintShops] = useState<{
+    id: string; name: string; address: string; phone: string;
+    hours: string | null; naver_map_url: string | null;
+  }[]>([]);
+  const [printShopsLoading, setPrintShopsLoading] = useState(false);
 
   // 검색 / 카테고리 필터
   const [search, setSearch] = useState("");
@@ -74,7 +80,10 @@ function LibraryPageInner() {
   };
 
   useEffect(() => { fetchLibrary(); }, []);
-  useEffect(() => { if (activeTab === "commissions" && commissionItems.length === 0) fetchCompletedCommissions(); }, [activeTab]);
+  useEffect(() => {
+    if (activeTab === "commissions" && commissionItems.length === 0) fetchCompletedCommissions();
+    if (activeTab === "printShops" && printShops.length === 0) fetchPrintShops();
+  }, [activeTab]);
 
   const fetchLibrary = async () => {
     try {
@@ -132,6 +141,15 @@ function LibraryPageInner() {
       })));
     } catch (e) { console.error(e); }
     finally { setCommissionsLoading(false); }
+  };
+
+  const fetchPrintShops = async () => {
+    setPrintShopsLoading(true);
+    try {
+      const { data, error } = await supabase.from("print_shops").select("id, name, address, phone, hours, naver_map_url").eq("is_active", true).order("created_at", { ascending: true });
+      if (!error && data) setPrintShops(data);
+    } catch { /* silent */ }
+    finally { setPrintShopsLoading(false); }
   };
 
   const handleDownload = async (item: PurchasedModel) => {
@@ -230,12 +248,14 @@ function LibraryPageInner() {
 
           {/* 탭 */}
           <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #e5e7eb", marginBottom: 20 }}>
-            {(["purchases", "commissions"] as const).map((tab) => {
-              const label = tab === "purchases" ? "구매한 모델" : "의뢰 완료 파일";
-              const count = tab === "purchases" ? items.length : commissionItems.length;
-              const active = activeTab === tab;
+            {([
+              { key: "purchases",  label: "구매한 모델",    count: items.length },
+              { key: "commissions", label: "의뢰 완료 파일", count: commissionItems.length },
+              { key: "printShops",  label: "출력소 정보",    count: 0 },
+            ] as const).map(({ key, label, count }) => {
+              const active = activeTab === key;
               return (
-                <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{
+                <button key={key} type="button" onClick={() => setActiveTab(key)} style={{
                   padding: "10px 18px", fontSize: 14, fontWeight: 800, cursor: "pointer",
                   border: "none", background: "none",
                   color: active ? "#111827" : "#9ca3af",
@@ -321,6 +341,48 @@ function LibraryPageInner() {
           )
         )}
 
+        {/* ── 출력소 정보 탭 ── */}
+        {activeTab === "printShops" && (
+          printShopsLoading ? (
+            <p style={{ color: "#6b7280" }}>불러오는 중...</p>
+          ) : printShops.length === 0 ? (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
+              <p style={{ fontSize: 16, color: "#6b7280" }}>등록된 출력소가 없습니다.</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+              {printShops.map((ps) => (
+                <div key={ps.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: "20px", boxShadow: "0 2px 12px rgba(15,23,42,0.06)", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#111827" }}>{ps.name}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    <div style={{ fontSize: 13, color: "#374151" }}>📍 {ps.address}</div>
+                    <div style={{ fontSize: 13, color: "#374151" }}>📞 {ps.phone}</div>
+                    {ps.hours && <div style={{ fontSize: 12, color: "#6b7280" }}>🕐 {ps.hours}</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    {ps.naver_map_url && (
+                      <a href={ps.naver_map_url} target="_blank" rel="noopener noreferrer"
+                        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", height: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontWeight: 700, fontSize: 13 }}>
+                        네이버 지도
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sessionStorage.setItem("preferPrintShopId", ps.id);
+                        setActiveTab("purchases");
+                      }}
+                      style={{ flex: 1, height: 38, borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, fontSize: 13, cursor: "pointer" }}
+                    >
+                      출력소 전송
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
         {activeTab === "purchases" && (items.length === 0 ? (
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
             <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 16 }}>아직 구매한 상품이 없습니다.</p>
@@ -384,7 +446,11 @@ function LibraryPageInner() {
                     </button>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                       <button
-                        onClick={() => router.push(`/send-to-printer?modelId=${item.id}`)}
+                        onClick={() => {
+                          const shopId = sessionStorage.getItem("preferPrintShopId") || "";
+                          sessionStorage.removeItem("preferPrintShopId");
+                          router.push(`/send-to-printer?modelId=${item.id}${shopId ? `&printShopId=${shopId}` : ""}`);
+                        }}
                         style={{ height: 36, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 12 }}
                       >
                         출력소 전송
