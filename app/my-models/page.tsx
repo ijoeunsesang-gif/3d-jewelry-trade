@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { scrollToTop } from "@/lib/scroll";
@@ -183,7 +184,7 @@ function MyModelsPageInner() {
                   {/* 썸네일 */}
                   <Link href={`/models/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
                     <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#0b1220" }}>
-                      {thumb && <img src={thumb} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                      {thumb && <Image src={thumb} alt={item.title} fill style={{ objectFit: "cover" }} />}
                       <div style={{ position: "absolute", top: 10, left: 10, padding: "3px 9px", borderRadius: 999, background: "rgba(15,23,42,0.75)", color: "white", fontSize: 11, fontWeight: 800 }}>
                         {CATEGORY_LABEL[item.category] ?? item.category}
                       </div>

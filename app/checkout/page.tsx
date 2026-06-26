@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
@@ -316,7 +317,7 @@ function CheckoutContent() {
                 {items.map((item) => (
                   <article key={item.id} style={{ display: "grid", gridTemplateColumns: "90px minmax(0, 1fr) auto", gap: 14, alignItems: "center", border: "1px solid #f3f4f6", borderRadius: 18, padding: 12 }}>
                     {item.thumbUrl ? (
-                      <img src={item.thumbUrl} alt={item.title} style={{ width: 90, height: 70, objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+                      <Image src={item.thumbUrl} alt={item.title} width={90} height={70} style={{ objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
                     ) : (
                       <div style={{ width: 90, height: 70, borderRadius: 12, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎓</div>
                     )}

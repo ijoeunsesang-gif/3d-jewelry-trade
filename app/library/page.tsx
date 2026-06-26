@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { scrollToTop } from "@/lib/scroll";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
@@ -457,7 +458,7 @@ function LibraryPageInner() {
               return (
                 <div key={item.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 2px 12px rgba(15,23,42,0.06)" }}>
                   <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden", background: "#0b1220" }}>
-                    {thumbUrl && <img src={thumbUrl} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                    {thumbUrl && <Image src={thumbUrl} alt={item.title} fill style={{ objectFit: "cover" }} />}
                     <div style={{ position: "absolute", top: 10, left: 10, padding: "3px 9px", borderRadius: 999, background: "rgba(15,23,42,0.75)", color: "white", fontSize: 11, fontWeight: 800 }}>
                       {item.category}
                     </div>

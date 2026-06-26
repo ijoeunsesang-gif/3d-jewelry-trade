@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
 
@@ -311,7 +312,7 @@ export default function SalesPage() {
                 return (
                   <div key={row.id} style={saleRow}>
                     {thumb ? (
-                      <img src={thumb} alt={model?.title || "thumb"} style={saleThumb} />
+                      <Image src={thumb} alt={model?.title || "thumb"} width={74} height={74} style={{ borderRadius: 16, objectFit: "cover", flexShrink: 0 }} />
                     ) : (
                       <div style={saleThumbFallback}>3D</div>
                     )}
@@ -549,15 +550,6 @@ const saleRow: React.CSSProperties = {
   gap: 14,
   padding: "12px 0",
   borderBottom: "1px solid #eef2f7",
-};
-
-const saleThumb: React.CSSProperties = {
-  width: 74,
-  height: 74,
-  borderRadius: 16,
-  objectFit: "cover",
-  flexShrink: 0,
-  border: "1px solid #e5e7eb",
 };
 
 const saleThumbFallback: React.CSSProperties = {
