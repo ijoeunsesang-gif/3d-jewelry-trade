@@ -13,6 +13,9 @@ type SenderTemplate = {
   businessName: string; phoneNumber: string; notes: string;
 };
 type ModelFile = { name: string; path: string; isMain: boolean };
+type FinishingWorker = { id: string; name: string; phone: string; email: string; work_scope: string[]; location: string | null };
+
+const FINISHING_SCOPES = ["없음", "시야기까지", "원본까지", "고무가다까지"] as const;
 
 /* ── 로컬스토리지 ─────────────────────────────────────────── */
 const ALL_PRINTERS_KEY = "all_printers";
@@ -118,6 +121,16 @@ function SendToPrinterContent() {
   const [symmetric, setSymmetric] = useState(false);
   const [extraNote, setExtraNote] = useState("");
 
+  /* 마무리 작업 */
+  const [finishingScope, setFinishingScope] = useState<string>("없음");
+  const [fwList, setFwList] = useState<FinishingWorker[]>([]);
+  const [fwLoading, setFwLoading] = useState(false);
+  const [selectedFw, setSelectedFw] = useState<FinishingWorker | null>(null);
+  const [showFwPopup, setShowFwPopup] = useState(false);
+
+  /* 모델 썸네일 */
+  const [modelThumbnail, setModelThumbnail] = useState("");
+
   /* 파일 */
   const [modelFiles, setModelFiles] = useState<ModelFile[]>([]);
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
@@ -169,10 +182,12 @@ function SendToPrinterContent() {
 
     // 모델 정보 조회
     const { data: model } = await supabase
-      .from("models").select("title, model_file_path").eq("id", modelId).single();
+      .from("models").select("title, model_file_path, thumbnail_path, thumbnail").eq("id", modelId).single();
     if (model) {
       setModelTitle(model.title || "");
       setModelFilePath(model.model_file_path || null);
+      const tp = model.thumbnail_path || model.thumbnail || "";
+      if (tp) setModelThumbnail(tp.startsWith("http") ? tp : `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${tp}`);
     }
 
     // 출력소·템플릿 로드
@@ -245,6 +260,23 @@ function SendToPrinterContent() {
     setPrinters(updated); saveAllPrinters(updated);
     if (selectedPrinterId === id) { setSelectedPrinterId(null); setPrinterEmail(""); }
     setPrinterFormMode(null);
+  };
+
+  /* ── 마무리 작업자 ─────────────────────────────────────── */
+  const fetchFinishingWorkers = async () => {
+    if (fwList.length > 0) return;
+    setFwLoading(true);
+    try {
+      const { data } = await supabase.from("finishing_workers").select("id, name, phone, email, work_scope, location").eq("is_active", true).order("created_at", { ascending: true });
+      setFwList((data as FinishingWorker[]) || []);
+    } catch { /* silent */ }
+    finally { setFwLoading(false); }
+  };
+
+  const handleFinishingScopeChange = (scope: string) => {
+    setFinishingScope(scope);
+    if (scope === "없음") { setSelectedFw(null); return; }
+    fetchFinishingWorkers();
   };
 
   /* ── DB 기본정보 저장 ──────────────────────────────────── */
@@ -341,6 +373,11 @@ function SendToPrinterContent() {
           castingType: effectiveCastingType, scaleType,
           scalePercent: scaleType ? scalePercent : "",
           printQty, symmetric,
+          finishingScope: finishingScope === "없음" ? "" : finishingScope,
+          finishingWorkerName: selectedFw?.name || "",
+          finishingWorkerPhone: selectedFw?.phone || "",
+          finishingWorkerEmail: selectedFw?.email || "",
+          modelThumbnail,
           extraNote: extraNote.trim(),
           selectedFilePaths: Array.from(selectedPaths),
         }),
@@ -450,6 +487,7 @@ function SendToPrinterContent() {
                   { label: "확대축소",      value: !scaleType ? "없음" : `${scaleType} ${scalePercent}%`,                                highlight: !!scaleType },
                   { label: "출력 수량",     value: `${printQty}개`,                                                                       highlight: printQty > 1 },
                   { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",                                                   highlight: symmetric },
+                  { label: "마무리 작업",   value: finishingScope === "없음" || !finishingScope ? "없음" : `${finishingScope}${selectedFw ? ` · ${selectedFw.name}` : ""}`, highlight: !!(finishingScope && finishingScope !== "없음") },
                   { label: "전화번호",      value: phoneNumber.trim() || "-",                                                             highlight: false },
                   { label: "보내는 이메일", value: senderEmail.trim() || "-",                                                             highlight: false },
                   { label: "추가 내용",     value: extraNote.trim() || "-",                                                               highlight: false },
@@ -724,6 +762,78 @@ function SendToPrinterContent() {
               )}
             </div>
           </div>
+
+          {/* 마무리 작업 */}
+          <div style={section()}>
+            <div style={sectionTitle}>마무리 작업 <span style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af" }}>(선택사항)</span></div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: finishingScope !== "없음" ? 12 : 0 }}>
+              {FINISHING_SCOPES.map((s) => (
+                <button key={s} type="button" onClick={() => handleFinishingScopeChange(s)}
+                  style={{ height: 36, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    border: finishingScope === s ? "none" : "1.5px solid #d1d5db",
+                    background: finishingScope === s ? (s === "없음" ? "#374151" : "#111827") : "white",
+                    color: finishingScope === s ? "white" : "#374151" }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            {finishingScope !== "없음" && (
+              <div>
+                {selectedFw ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderRadius: 12, border: "2px solid #111827", background: "#f8fafc" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>{selectedFw.name}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>{selectedFw.phone}{selectedFw.location ? ` · ${selectedFw.location}` : ""}</div>
+                    </div>
+                    <button type="button" onClick={() => { setSelectedFw(null); setShowFwPopup(true); }}
+                      style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "white", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>변경</button>
+                    <button type="button" onClick={() => setSelectedFw(null)}
+                      style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff5f5", color: "#ef4444", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>해제</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => { fetchFinishingWorkers(); setShowFwPopup(true); }}
+                    style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1.5px dashed #d1d5db", background: "white", color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+                    작업자 선택
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 마무리 작업자 팝업 */}
+          {showFwPopup && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+              onClick={() => setShowFwPopup(false)}>
+              <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}
+                onClick={e => e.stopPropagation()}>
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>마무리 작업자 선택</span>
+                  <button type="button" onClick={() => setShowFwPopup(false)}
+                    style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: 16, color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                </div>
+                <div style={{ overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  {fwLoading ? (
+                    <p style={{ textAlign: "center", color: "#9ca3af", padding: "24px 0" }}>불러오는 중...</p>
+                  ) : fwList.length === 0 ? (
+                    <p style={{ textAlign: "center", color: "#9ca3af", padding: "24px 0" }}>등록된 작업자가 없습니다.</p>
+                  ) : fwList.map(fw => (
+                    <button key={fw.id} type="button" onClick={() => { setSelectedFw(fw); setShowFwPopup(false); }}
+                      style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "white", cursor: "pointer", width: "100%" }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 4 }}>{fw.name}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>{fw.phone}{fw.location ? ` · ${fw.location}` : ""}</div>
+                      {fw.work_scope?.length > 0 && (
+                        <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          {fw.work_scope.map(s => (
+                            <span key={s} style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#f3f4f6", color: "#374151" }}>{s}</span>
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 추가 내용 */}
           <div style={section("#f9fafb")}>

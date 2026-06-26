@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
       scalePercent,
       printQty,
       symmetric,
+      finishingScope,
+      finishingWorkerName,
+      finishingWorkerPhone,
+      finishingWorkerEmail,
+      modelThumbnail,
       extraNote,
       selectedFilePaths,
     } = body as {
@@ -45,6 +50,11 @@ export async function POST(req: NextRequest) {
       scalePercent?: string;
       printQty?: number;
       symmetric?: boolean;
+      finishingScope?: string;
+      finishingWorkerName?: string;
+      finishingWorkerPhone?: string;
+      finishingWorkerEmail?: string;
+      modelThumbnail?: string;
       extraNote?: string;
       selectedFilePaths?: string[];
     };
@@ -167,15 +177,20 @@ export async function POST(req: NextRequest) {
     const hasScale = !!scaleType && scaleText !== "없음";
 
     const qty = printQty ?? 1;
+    const hasFinishing = !!(finishingScope && finishingScope !== "없음" && finishingScope !== "");
     const infoRows = [
-      { label: "출력형태",      value: printType || "-",                          highlight: false },
-      { label: "주물여부",      value: castingType || "-",                        highlight: false },
-      { label: "확대축소",      value: scaleText,                                 highlight: hasScale },
-      { label: "출력 수량",     value: `${qty}개`,                                highlight: qty > 1 },
-      { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",       highlight: !!symmetric },
-      { label: "전화번호",      value: phoneNumber || "-",                        highlight: false },
-      { label: "보내는 이메일", value: senderEmail || user.email || "-",          highlight: false },
-      { label: "추가 내용",     value: extraNote || "-",                          highlight: false },
+      { label: "출력형태",      value: printType || "-",                                                           highlight: false },
+      { label: "주물여부",      value: castingType || "-",                                                         highlight: false },
+      { label: "확대축소",      value: scaleText,                                                                  highlight: hasScale },
+      { label: "출력 수량",     value: `${qty}개`,                                                                 highlight: qty > 1 },
+      { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",                                        highlight: !!symmetric },
+      { label: "마무리 작업",   value: hasFinishing ? finishingScope! : "없음",                                    highlight: hasFinishing },
+      ...(hasFinishing && finishingWorkerName ? [
+        { label: "작업자",      value: `${finishingWorkerName}${finishingWorkerPhone ? ` / ${finishingWorkerPhone}` : ""}`, highlight: true },
+      ] : []),
+      { label: "전화번호",      value: phoneNumber || "-",                                                         highlight: false },
+      { label: "보내는 이메일", value: senderEmail || user.email || "-",                                           highlight: false },
+      { label: "추가 내용",     value: extraNote || "-",                                                           highlight: false },
     ];
 
     const infoHtml = infoRows.map((r) => `
@@ -228,34 +243,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const thumbnailHtml = modelThumbnail
+      ? `<img src="${modelThumbnail}" width="200" alt="${model.title}" style="border-radius: 8px; margin-bottom: 16px; display: block; max-width: 200px;" />`
+      : "";
+
+    const printerEmailHtml = `
+      <table align="left" width="100%" cellpadding="0" cellspacing="0" style="font-family: system-ui, sans-serif; background: #ffffff;">
+        <tr>
+          <td align="left" style="text-align: left; padding: 32px 24px; color: #111827; max-width: 580px;">
+            <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">3D 출력 파일 전달</h2>
+            <p align="left" style="color: #6b7280; margin: 0 0 16px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
+            <p align="left" style="color: #16a34a; margin: 0 0 20px; font-size: 14px; text-align: left;">*신규 고객님은 출력 전 꼭 연락 후 진행해주세요.</p>
+
+            ${thumbnailHtml}
+            ${model.title ? `<p align="left" style="font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 16px; text-align: left;">${model.title}</p>` : ""}
+
+            <table align="left" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
+              ${infoHtml}
+            </table>
+
+            ${scaleComment}
+
+            ${attachedListHtml}
+            ${linkFilesHtml}
+
+            <p align="left" style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D마켓 플랫폼에서 발송되었습니다.</p>
+          </td>
+        </tr>
+      </table>
+    `;
+
     const { error: emailError } = await resend.emails.send({
       from: `3D Jewelry Trade <${fromAddress}>`,
       to: printerEmail,
       replyTo: (senderEmail || user.email) || undefined,
       subject: `<${businessName}> 출력부탁드려요`,
       attachments: emailAttachments.map((f) => ({ filename: f.filename, content: f.content })),
-      html: `
-        <table align="left" width="100%" cellpadding="0" cellspacing="0" style="font-family: system-ui, sans-serif; background: #ffffff;">
-          <tr>
-            <td align="left" style="text-align: left; padding: 32px 24px; color: #111827; max-width: 580px;">
-              <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">3D 출력 파일 전달</h2>
-              <p align="left" style="color: #6b7280; margin: 0 0 24px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 출력 부탁드립니다.</p>
-              <p align="left" style="color: #16a34a; margin: 0 0 24px; font-size: 14px; text-align: left;">*신규 고객님은 출력 전 꼭 연락 후 진행해주세요.</p>
-
-              <table align="left" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
-                ${infoHtml}
-              </table>
-
-              ${scaleComment}
-
-              ${attachedListHtml}
-              ${linkFilesHtml}
-
-              <p align="left" style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D마켓 플랫폼에서 발송되었습니다.</p>
-            </td>
-          </tr>
-        </table>
-      `,
+      html: printerEmailHtml,
     });
 
     if (emailError) {
@@ -264,6 +288,46 @@ export async function POST(req: NextRequest) {
         { error: `이메일 발송 실패: ${(emailError as any)?.message || JSON.stringify(emailError)}` },
         { status: 500 }
       );
+    }
+
+    // ── 마무리 작업자 별도 이메일 ─────────────────────────────
+    if (hasFinishing && finishingWorkerEmail) {
+      const fwHtml = `
+        <table align="left" width="100%" cellpadding="0" cellspacing="0" style="font-family: system-ui, sans-serif; background: #ffffff;">
+          <tr>
+            <td align="left" style="text-align: left; padding: 32px 24px; color: #111827; max-width: 580px;">
+              <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">마무리 작업 의뢰</h2>
+              <p align="left" style="color: #6b7280; margin: 0 0 20px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 마무리 작업 부탁드립니다.</p>
+
+              ${thumbnailHtml}
+              ${model.title ? `<p align="left" style="font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 16px; text-align: left;">${model.title}</p>` : ""}
+
+              <table align="left" width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse; border-radius: 12px; overflow: hidden; border: 1px solid #f3f4f6; margin-bottom: 24px;">
+                ${[
+                  { label: "작업 범위",     value: finishingScope || "-",                     highlight: true },
+                  { label: "의뢰자 연락처", value: phoneNumber || "-",                        highlight: false },
+                  { label: "의뢰자 이메일", value: senderEmail || user.email || "-",          highlight: false },
+                  { label: "출력소",        value: printerEmail || "-",                       highlight: false },
+                  { label: "추가 내용",     value: extraNote || "-",                          highlight: false },
+                ].map((r) => `
+                  <tr>
+                    <td align="left" style="padding: 8px 14px; font-size: 13px; color: #6b7280; font-weight: 700; white-space: nowrap; width: 1%; background: ${r.highlight ? "#fef9c3" : "#f8fafc"}; border-bottom: 1px solid #f3f4f6;">${r.label}</td>
+                    <td align="left" style="padding: 8px 14px; font-size: 13px; color: ${r.highlight ? "#b45309" : "#111827"}; font-weight: 800; border-bottom: 1px solid #f3f4f6;">${r.value}</td>
+                  </tr>`).join("")}
+              </table>
+
+              <p align="left" style="font-size: 12px; color: #9ca3af; margin: 20px 0 0; text-align: left;">본 메일은 3D마켓 플랫폼에서 발송되었습니다.</p>
+            </td>
+          </tr>
+        </table>
+      `;
+      await resend.emails.send({
+        from: `3D Jewelry Trade <${fromAddress}>`,
+        to: finishingWorkerEmail,
+        replyTo: (senderEmail || user.email) || undefined,
+        subject: `<${businessName}> 마무리 작업 의뢰`,
+        html: fwHtml,
+      }).catch((e) => console.error("마무리 작업자 이메일 발송 실패:", e));
     }
 
     return NextResponse.json({ success: true, oversizedFiles });

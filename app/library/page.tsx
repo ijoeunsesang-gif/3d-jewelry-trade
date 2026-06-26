@@ -44,7 +44,7 @@ function LibraryPageInner() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "commissions" ? "commissions" : "purchases";
 
-  const [activeTab, setActiveTab] = useState<"purchases" | "commissions" | "printShops">(initialTab);
+  const [activeTab, setActiveTab] = useState<"purchases" | "commissions" | "printShops" | "finishingWorkers">(initialTab);
   const [items, setItems] = useState<PurchasedModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -56,6 +56,11 @@ function LibraryPageInner() {
     hours: string | null; naver_map_url: string | null;
   }[]>([]);
   const [printShopsLoading, setPrintShopsLoading] = useState(false);
+
+  const [finishingWorkers, setFinishingWorkers] = useState<{
+    id: string; name: string; phone: string; location: string | null; work_scope: string[];
+  }[]>([]);
+  const [finishingWorkersLoading, setFinishingWorkersLoading] = useState(false);
 
   // 검색 / 카테고리 필터
   const [search, setSearch] = useState("");
@@ -83,6 +88,7 @@ function LibraryPageInner() {
   useEffect(() => {
     if (activeTab === "commissions" && commissionItems.length === 0) fetchCompletedCommissions();
     if (activeTab === "printShops" && printShops.length === 0) fetchPrintShops();
+    if (activeTab === "finishingWorkers" && finishingWorkers.length === 0) fetchFinishingWorkers();
   }, [activeTab]);
 
   const fetchLibrary = async () => {
@@ -150,6 +156,15 @@ function LibraryPageInner() {
       if (!error && data) setPrintShops(data);
     } catch { /* silent */ }
     finally { setPrintShopsLoading(false); }
+  };
+
+  const fetchFinishingWorkers = async () => {
+    setFinishingWorkersLoading(true);
+    try {
+      const { data, error } = await supabase.from("finishing_workers").select("id, name, phone, location, work_scope").eq("is_active", true).order("created_at", { ascending: true });
+      if (!error && data) setFinishingWorkers(data);
+    } catch { /* silent */ }
+    finally { setFinishingWorkersLoading(false); }
   };
 
   const handleDownload = async (item: PurchasedModel) => {
@@ -249,9 +264,10 @@ function LibraryPageInner() {
           {/* 탭 */}
           <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #e5e7eb", marginBottom: 20 }}>
             {([
-              { key: "purchases",  label: "구매한 모델",    count: items.length },
-              { key: "commissions", label: "의뢰 완료 파일", count: commissionItems.length },
-              { key: "printShops",  label: "출력소 정보",    count: 0 },
+              { key: "purchases",         label: "구매한 모델",    count: items.length },
+              { key: "commissions",        label: "의뢰 완료 파일", count: commissionItems.length },
+              { key: "printShops",         label: "출력소 정보",    count: 0 },
+              { key: "finishingWorkers",   label: "마무리 작업자",  count: 0 },
             ] as const).map(({ key, label, count }) => {
               const active = activeTab === key;
               return (
@@ -377,6 +393,36 @@ function LibraryPageInner() {
                       출력소 전송
                     </button>
                   </div>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* ── 마무리 작업자 탭 ── */}
+        {activeTab === "finishingWorkers" && (
+          finishingWorkersLoading ? (
+            <p style={{ color: "#6b7280" }}>불러오는 중...</p>
+          ) : finishingWorkers.length === 0 ? (
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
+              <p style={{ fontSize: 16, color: "#6b7280" }}>등록된 마무리 작업자가 없습니다.</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+              {finishingWorkers.map((w) => (
+                <div key={w.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: "20px", boxShadow: "0 2px 12px rgba(15,23,42,0.06)", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "#111827" }}>{w.name}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {w.location && <div style={{ fontSize: 13, color: "#374151" }}>📍 {w.location}</div>}
+                    <div style={{ fontSize: 13, color: "#374151" }}>📞 {w.phone}</div>
+                  </div>
+                  {(w.work_scope || []).length > 0 && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                      {(w.work_scope || []).map((s) => (
+                        <span key={s} style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: "#f3f4f6", color: "#374151" }}>{s}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
