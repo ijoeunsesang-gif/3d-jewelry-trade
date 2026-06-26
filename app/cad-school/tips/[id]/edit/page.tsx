@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../../lib/toast";
+import Image from "next/image";
 
 export default function TipEditPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
@@ -123,7 +124,7 @@ export default function TipEditPage({ params }: { params: Promise<{ id: string }
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
               {images.map((url, i) => (
                 <div key={i} style={{ position: "relative" }}>
-                  <img src={url} alt="" style={{ width: 90, height: 90, borderRadius: 10, objectFit: "cover", border: "1px solid #e5e7eb" }} />
+                  <Image src={url} alt="" width={90} height={90} style={{ borderRadius: 10, objectFit: "cover", border: "1px solid #e5e7eb" }} />
                   <button
                     onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
                     style={{ position: "absolute", top: -6, right: -6, background: "#374151", color: "white", border: "none", borderRadius: "50%", width: 20, height: 20, fontSize: 12, cursor: "pointer", lineHeight: 1 }}

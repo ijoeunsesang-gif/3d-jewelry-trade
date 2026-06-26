@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import MentorNickname from "../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import Image from "next/image";
 import { showInfo } from "../../lib/toast";
 
 const GOLD = "#c9a84c";
@@ -287,7 +288,7 @@ function TipCard({ tip }: { tip: Tip }) {
         {tip.images.length > 0 && (
           <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
             {tip.images.slice(0, 3).map((url, i) => (
-              <img key={i} src={url} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: "cover", border: "1px solid #e5e7eb" }} />
+              <Image key={i} src={url} alt="" width={56} height={56} style={{ borderRadius: 8, objectFit: "cover", border: "1px solid #e5e7eb" }} />
             ))}
             {tip.images.length > 3 && (
               <div style={{ width: 56, height: 56, borderRadius: 8, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
