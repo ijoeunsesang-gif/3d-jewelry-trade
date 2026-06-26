@@ -37,11 +37,13 @@ export async function POST(req: NextRequest) {
       finishingWorkerEmail,
       modelThumbnail,
       printShopDbId,
+      printerName,
       extraNote,
       selectedFilePaths,
     } = body as {
       modelId?: string;
       printerEmail?: string;
+      printerName?: string;
       senderEmail?: string;
       businessName?: string;
       phoneNumber?: string;
@@ -95,12 +97,14 @@ export async function POST(req: NextRequest) {
 
     // 출력소 정보 (DB 등록된 경우)
     let printShopName = "";
+    let printShopPhone = "";
     let printShopNaverUrl = "";
     if (printShopDbId) {
       const { data: shop } = await adminSupabase
-        .from("print_shops").select("name, naver_map_url").eq("id", printShopDbId).maybeSingle();
+        .from("print_shops").select("name, phone, naver_map_url").eq("id", printShopDbId).maybeSingle();
       if (shop) {
         printShopName = shop.name || "";
+        printShopPhone = shop.phone || "";
         printShopNaverUrl = shop.naver_map_url || "";
       }
     }
@@ -321,12 +325,15 @@ export async function POST(req: NextRequest) {
                   { label: "작업 범위",     value: finishingScope || "-",  highlight: true,  html: "" },
                   { label: "상호명",        value: businessName || "-",    highlight: false, html: "" },
                   { label: "의뢰자 연락처", value: phoneNumber || "-",     highlight: false, html: "" },
-                  { label: "출력소",        value: printShopName || printerEmail || "-", highlight: false, html: "" },
+                  { label: "출력소",        value: printShopName || printerName || printerEmail || "-", highlight: false, html: "" },
                   { label: "출력소 이메일", value: printerEmail || "-",    highlight: false, html: "" },
-                  ...(printShopNaverUrl ? [{
+                  { label: "출력소 연락처", value: printShopPhone || "정보 없음", highlight: false, html: "" },
+                  {
                     label: "출력소 위치", value: "", highlight: false,
-                    html: `<a href="${printShopNaverUrl}" target="_blank" style="color:#2563eb; font-weight:800; font-size:13px;">네이버 지도 바로가기</a>`,
-                  }] : []),
+                    html: printShopNaverUrl
+                      ? `<a href="${printShopNaverUrl}" target="_blank" style="color:#2563eb; font-weight:800; font-size:13px;">네이버 지도 바로가기</a>`
+                      : "정보 없음",
+                  },
                   { label: "추가 내용",     value: extraNote || "-",       highlight: false, html: "" },
                 ].map((r) => `
                   <tr>

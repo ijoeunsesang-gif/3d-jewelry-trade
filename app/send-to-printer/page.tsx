@@ -368,12 +368,14 @@ function SendToPrinterContent() {
       const token = getAccessToken();
       if (!token) { showInfo("로그인이 필요합니다."); return; }
       const effectiveCastingType = castingType === "금주물" && goldDetail ? `금주물(${goldDetail})` : castingType;
+      const selectedPrinterName = printers.find((p) => p.id === selectedPrinterId)?.name || "";
       setSendStep(1);
       const res = await fetch("/api/send-to-printer", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           modelId, printerEmail: printerEmail.trim(),
+          printerName: selectedPrinterName,
           senderEmail: senderEmail.trim(), businessName: businessName.trim(),
           phoneNumber: phoneNumber.trim(), printType,
           castingType: effectiveCastingType, scaleType,
