@@ -384,6 +384,7 @@ function SendToPrinterContent() {
           finishingWorkerPhone: selectedFw?.phone || "",
           finishingWorkerEmail: selectedFw?.email || "",
           modelThumbnail,
+          printShopDbId: printShopId || "",
           extraNote: extraNote.trim(),
           selectedFilePaths: Array.from(selectedPaths),
         }),
