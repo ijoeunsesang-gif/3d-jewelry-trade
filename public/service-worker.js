@@ -1,10 +1,20 @@
+const CACHE_VERSION = 'v2';
+const CDN_HOSTNAME = 'images.3d-jewelry-trade.com';
+
 self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(self.clients.claim());
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener('fetch', () => {});
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (url.hostname === CDN_HOSTNAME) return;
+});
 
 // Push 이벤트: 알림 표시
 self.addEventListener('push', (e) => {
