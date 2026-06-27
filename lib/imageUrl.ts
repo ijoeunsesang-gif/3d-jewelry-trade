@@ -3,21 +3,15 @@ const OLD_R2_URL = 'https://pub-5964134090c64788ac087efbbd252f4c.r2.dev';
 
 export const getCdnImageUrl = (path: string | null | undefined): string => {
   if (!path) return '/placeholder.png';
-  console.log('[imageUrl] input:', path);
-  let result: string;
-  if (path.startsWith('data:') || path.startsWith('/')) {
-    result = path;
-  } else if (path.startsWith(OLD_R2_URL)) {
-    result = path.replace(OLD_R2_URL, CDN_URL);
-  } else if (path.startsWith('http') && !path.startsWith(CDN_URL)) {
-    result = path;
-  } else if (!path.startsWith('http')) {
-    result = `${CDN_URL}/${path}`;
-  } else {
-    result = path;
-  }
-  console.log('[imageUrl] output:', result);
-  return result;
+  if (path.startsWith('data:') || path.startsWith('/')) return path;
+  // 외부 URL (Google, Kakao OAuth 등) 그대로 통과
+  if (path.startsWith('http') && !path.startsWith(OLD_R2_URL) && !path.startsWith(CDN_URL)) return path;
+  // 구 R2 URL → CDN URL
+  if (path.startsWith(OLD_R2_URL)) return path.replace(OLD_R2_URL, CDN_URL);
+  // 이미 CDN URL
+  if (path.startsWith(CDN_URL)) return path;
+  // 파일명만 있거나 상대경로 → CDN URL 붙이기
+  return `${CDN_URL}/${path}`;
 };
 
 export const getThumbnailUrl = getCdnImageUrl;
