@@ -348,6 +348,10 @@ body { overflow-x: hidden; }
   }
 }
 
+@keyframes viewer-spin {
+  to { transform: rotate(360deg); }
+}
+
 .scrollbar-hide {
   scrollbar-width: none;
   -ms-overflow-style: none;

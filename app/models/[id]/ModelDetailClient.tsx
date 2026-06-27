@@ -12,8 +12,28 @@ import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import ModelComments from "../../components/ModelComments";
 
+const spinnerOverlay = (
+  <div style={{
+    position: "absolute", inset: 0, zIndex: 10,
+    display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    background: "#1b1c1f", gap: 16,
+  }}>
+    <div style={{
+      width: 48, height: 48,
+      border: "4px solid #2a2c31",
+      borderTop: "4px solid #b8960c",
+      borderRadius: "50%",
+      animation: "viewer-spin 1s linear infinite",
+    }} />
+    <p style={{ color: "#aaa", fontSize: 14, margin: 0, fontWeight: 700 }}>3D 모델 불러오는 중...</p>
+    <p style={{ color: "#666", fontSize: 12, margin: 0 }}>파일 크기에 따라 시간이 걸릴 수 있습니다</p>
+  </div>
+);
+
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
+  loading: () => spinnerOverlay,
 });
 
 type ModelItem = {
@@ -39,6 +59,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [viewMode, setViewMode] = useState<"image" | "viewer">("image");
   const [viewerUrl, setViewerUrl] = useState("");
   const [viewerLoading, setViewerLoading] = useState(false);
+  const [viewerModelLoaded, setViewerModelLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   const [seller, setSeller] = useState<any>(null);
@@ -355,6 +376,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   const loadViewerUrl = async () => {
     try {
+      setViewerModelLoaded(false);
       setViewerLoading(true);
 
       const token = getAccessToken();
@@ -634,17 +656,14 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
               </button>
 
               {/* 뷰어 영역 */}
-              <div style={{ flex: 1, width: "100%", overflow: "hidden" }}>
+              <div style={{ flex: 1, width: "100%", overflow: "hidden", position: "relative" }}>
                 {viewerLoading ? (
-                  <div style={{
-                    width: "100%", height: "100%",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "white", fontSize: 18, fontWeight: 800,
-                  }}>
-                    3D 파일 준비 중...
-                  </div>
+                  spinnerOverlay
                 ) : viewerUrl ? (
-                  <ModelViewer url={viewerUrl} />
+                  <>
+                    {!viewerModelLoaded && spinnerOverlay}
+                    <ModelViewer url={viewerUrl} onLoaded={() => setViewerModelLoaded(true)} />
+                  </>
                 ) : (
                   <div style={{
                     width: "100%", height: "100%",
@@ -683,22 +702,11 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
               )
             ) : viewerSupported ? (
               viewerLoading ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "white",
-                    fontWeight: 800,
-                  }}
-                >
-                  3D 파일 준비 중...
-                </div>
+                spinnerOverlay
               ) : viewerUrl ? (
                 <div style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
-                  <ModelViewer url={viewerUrl} />
+                  {!viewerModelLoaded && spinnerOverlay}
+                  <ModelViewer url={viewerUrl} onLoaded={() => setViewerModelLoaded(true)} />
                 </div>
               ) : (
                 <div

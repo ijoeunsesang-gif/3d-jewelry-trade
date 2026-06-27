@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 
-type Props = { url: string };
+type Props = { url: string; onLoaded?: () => void };
 
 type ModelProps = {
   url: string;
@@ -181,7 +181,7 @@ function CameraReset({
   return null;
 }
 
-export default function ModelViewer({ url }: Props) {
+export default function ModelViewer({ url, onLoaded }: Props) {
   const controlsRef = useRef<any>(null);
   const savedPosRef = useRef<THREE.Vector3 | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -271,14 +271,14 @@ export default function ModelViewer({ url }: Props) {
             <STLModel
               url={url}
               controlsRef={controlsRef}
-              onFitted={(pos) => { savedPosRef.current = pos; }}
+              onFitted={(pos) => { savedPosRef.current = pos; onLoaded?.(); }}
             />
           )}
           {ext === "obj" && (
             <OBJModel
               url={url}
               controlsRef={controlsRef}
-              onFitted={(pos) => { savedPosRef.current = pos; }}
+              onFitted={(pos) => { savedPosRef.current = pos; onLoaded?.(); }}
             />
           )}
           <Environment preset="studio" />
