@@ -38,6 +38,8 @@ export default function SellerPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortType>("latest");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [sellerPage, setSellerPage] = useState(1);
+  const SELLER_PAGE_SIZE = 12;
 
   const [favoriteMap, setFavoriteMap] = useState<Record<string, boolean>>({});
   const [favoriteLoadingIds, setFavoriteLoadingIds] = useState<Record<string, boolean>>({});
@@ -427,6 +429,14 @@ export default function SellerPage() {
 
     return result;
   }, [models, search, sortBy, categoryFilter]);
+
+  useEffect(() => { setSellerPage(1); }, [search, sortBy, categoryFilter]);
+
+  const sellerTotalPages = Math.ceil(filteredModels.length / SELLER_PAGE_SIZE);
+  const paginatedModels = useMemo(
+    () => filteredModels.slice((sellerPage - 1) * SELLER_PAGE_SIZE, sellerPage * SELLER_PAGE_SIZE),
+    [filteredModels, sellerPage]
+  );
 
   const sellerCategoryCount = useMemo(() => {
     return new Set(
@@ -901,7 +911,7 @@ export default function SellerPage() {
                 gap: 20,
               }}
             >
-              {filteredModels.map((item) => {
+              {paginatedModels.map((item) => {
                 const thumb = getThumbnailUrl(item);
                 const liked = !!favoriteMap[item.id];
                 const liking = !!favoriteLoadingIds[item.id];
@@ -1160,6 +1170,28 @@ export default function SellerPage() {
                   </article>
                 );
                })}
+            </div>
+          )}
+
+          {sellerTotalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 32 }}>
+              <button
+                onClick={() => setSellerPage((p) => Math.max(1, p - 1))}
+                disabled={sellerPage === 1}
+                style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: sellerPage === 1 ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: sellerPage === 1 ? 0.4 : 1 }}
+              >‹</button>
+              {Array.from({ length: sellerTotalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setSellerPage(p)}
+                  style={{ height: 38, minWidth: 38, borderRadius: 10, border: sellerPage === p ? "none" : "1px solid #d1d5db", background: sellerPage === p ? "#111827" : "white", color: sellerPage === p ? "white" : "#374151", cursor: "pointer", fontWeight: 800, fontSize: 14 }}
+                >{p}</button>
+              ))}
+              <button
+                onClick={() => setSellerPage((p) => Math.min(sellerTotalPages, p + 1))}
+                disabled={sellerPage === sellerTotalPages}
+                style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: sellerPage === sellerTotalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: sellerPage === sellerTotalPages ? 0.4 : 1 }}
+              >›</button>
             </div>
           )}
         </section>

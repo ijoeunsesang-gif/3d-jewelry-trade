@@ -23,7 +23,7 @@ type FavoriteMap = Record<string, boolean>;
 
 const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기타부속"];
 const recommendedKeywords = ["반지", "펜던트", "이어링", "기타부속", "링", "플라워", "큐빅", "체인"];
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 12;
 
 function HomeInner() {
   const router = useRouter();
