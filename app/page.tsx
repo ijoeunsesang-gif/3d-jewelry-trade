@@ -348,21 +348,6 @@ function HomeInner() {
 
   const getThumbnailUrl = getModelThumbnailUrl;
 
-  // 페이지 변경 시 썸네일 URL 확인용 디버그 로그
-  useEffect(() => {
-    if (paginatedModels.length === 0) return;
-    console.log(`[home] page=${page} 모델 ${paginatedModels.length}개`);
-    paginatedModels.forEach((m, i) => {
-      const raw = m.thumbnail || m.thumbnail_path || '';
-      const converted = getModelThumbnailUrl(m);
-      if (raw !== converted) {
-        console.log(`[home] [${i}] ${m.title} | raw: ${raw.slice(0, 60)} → ${converted.slice(0, 60)}`);
-      } else {
-        console.log(`[home] [${i}] ${m.title} | src: ${converted.slice(0, 80)}`);
-      }
-    });
-  }, [page, paginatedModels]);
-
   const getModelExt = (item: ModelItem) => {
     const source = item.model_file_path || item.file_url || "";
     return source.split("?")[0].split(".").pop()?.toLowerCase() || "";
@@ -451,6 +436,21 @@ function HomeInner() {
     () => filteredModels.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
     [filteredModels, page]
   );
+
+  // 페이지 변경 시 썸네일 URL 확인용 디버그 로그
+  useEffect(() => {
+    if (paginatedModels.length === 0) return;
+    console.log(`[home] page=${page} 모델 ${paginatedModels.length}개`);
+    paginatedModels.forEach((m, i) => {
+      const raw = m.thumbnail || m.thumbnail_path || '';
+      const converted = getModelThumbnailUrl(m);
+      if (raw !== converted) {
+        console.log(`[home] [${i}] ${m.title} | raw: ${raw.slice(0, 60)} → ${converted.slice(0, 60)}`);
+      } else {
+        console.log(`[home] [${i}] ${m.title} | src: ${converted.slice(0, 80)}`);
+      }
+    });
+  }, [page, paginatedModels]);
 
   const openQuickView = (model: ModelItem) => {
     setViewerUrl("");
