@@ -11,7 +11,7 @@ import { showError, showInfo, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import ModelComments from "../../components/ModelComments";
-import { getModelThumbnailUrl, getGalleryUrl } from "@/lib/imageUrl";
+import { getCdnImageUrl, getModelThumbnailUrl, getGalleryUrl } from "@/lib/imageUrl";
 
 const spinnerOverlay = (
   <div style={{
@@ -267,7 +267,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
       if (!error && data?.length) {
         data.forEach((row: any) => {
-          let url = row.image_url || "";
+          let url = row.image_url ? getCdnImageUrl(row.image_url) : "";
           if (!url && row.image_path) {
             const p = row.image_path as string;
             url = getGalleryUrl(p);

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { scrollToTop } from "@/lib/scroll";
-import { getCdnImageUrl } from "@/lib/imageUrl";
+import { getThumbnailUrl } from "@/lib/imageUrl";
 
 type CartItem = {
   id: string;
@@ -225,7 +225,7 @@ function CartPageInner() {
                 />
 
                 <img
-                  src={getCdnImageUrl(migrateThumbUrl(item.thumbUrl), { width: 400, height: 400, quality: 80 })}
+                  src={getThumbnailUrl(item.thumbUrl)}
                   alt={item.title}
                   style={{
                     width: 120,
