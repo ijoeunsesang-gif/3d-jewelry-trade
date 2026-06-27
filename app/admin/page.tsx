@@ -12,7 +12,7 @@ import { showError, showSuccess } from "../lib/toast";
 const GOLD = "#c9a84c";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "printShops" | "finishingWorkers";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "printShops" | "finishingWorkers" | "factories" | "partners";
 
 interface UserProfile {
   id: string;
@@ -157,6 +157,8 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "inquiries",         label: "문의 관리",       icon: "💬" },
   { key: "printShops",        label: "출력소 관리",      icon: "🖨" },
   { key: "finishingWorkers",  label: "마무리 작업자",    icon: "🔧" },
+  { key: "factories",         label: "공장 정보",         icon: "🏭" },
+  { key: "partners",          label: "협력업체 관리",     icon: "🤝" },
 ];
 
 export default function AdminPage() {
@@ -260,6 +262,30 @@ export default function AdminPage() {
   const [fwSaving, setFwSaving] = useState(false);
   const [fwShowForm, setFwShowForm] = useState(false);
 
+  /* ── Factories ── */
+  const [factories, setFactories] = useState<{
+    id: string; name: string; phone: string | null; address: string | null;
+    description: string | null; is_active: boolean; created_at: string;
+  }[]>([]);
+  const [factoriesLoading, setFactoriesLoading] = useState(false);
+  const [factoryForm, setFactoryForm] = useState({ name: "", phone: "", address: "", description: "", is_active: true });
+  const [factoryEditId, setFactoryEditId] = useState<string | null>(null);
+  const [factorySaving, setFactorySaving] = useState(false);
+  const [factoryShowForm, setFactoryShowForm] = useState(false);
+
+  /* ── Partners ── */
+  const PARTNER_CATEGORIES = ["도금", "고무몰드", "레이저 각인", "주조", "조각"] as const;
+  const [partners, setPartners] = useState<{
+    id: string; name: string; category: string; phone: string | null; address: string | null;
+    description: string | null; is_active: boolean; created_at: string;
+  }[]>([]);
+  const [partnersLoading, setPartnersLoading] = useState(false);
+  const [partnerForm, setPartnerForm] = useState({ category: "도금", name: "", phone: "", address: "", description: "", is_active: true });
+  const [partnerEditId, setPartnerEditId] = useState<string | null>(null);
+  const [partnerSaving, setPartnerSaving] = useState(false);
+  const [partnerShowForm, setPartnerShowForm] = useState(false);
+  const [partnerCategoryFilter, setPartnerCategoryFilter] = useState("");
+
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [commLoading, setCommLoading] = useState(false);
@@ -329,6 +355,8 @@ export default function AdminPage() {
     if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
     if (tab === "printShops"       && printShops.length === 0)       fetchPrintShops();
     if (tab === "finishingWorkers" && finishingWorkers.length === 0) fetchFinishingWorkers();
+    if (tab === "factories"        && factories.length === 0)        fetchFactories();
+    if (tab === "partners"         && partners.length === 0)         fetchPartners();
   };
 
   const switchTab = (tab: AdminTab) => {
@@ -637,6 +665,109 @@ export default function AdminPage() {
     setPsEditId(ps.id);
     setPsForm({ name: ps.name, address: ps.address, phone: ps.phone, hours: ps.hours || "", description: ps.description || "", naver_map_url: ps.naver_map_url || "", is_active: ps.is_active });
     setPsShowForm(true);
+  };
+
+  const fetchFactories = async () => {
+    setFactoriesLoading(true);
+    try {
+      const { data, error } = await supabase.from("factories").select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      setFactories(data || []);
+    } catch { showError("공장 목록 불러오기 실패"); }
+    finally { setFactoriesLoading(false); }
+  };
+
+  const handleSaveFactory = async () => {
+    if (!factoryForm.name.trim()) { showError("공장명을 입력하세요."); return; }
+    setFactorySaving(true);
+    try {
+      const payload = {
+        name: factoryForm.name.trim(),
+        phone: factoryForm.phone.trim() || null,
+        address: factoryForm.address.trim() || null,
+        description: factoryForm.description.trim() || null,
+        is_active: factoryForm.is_active,
+      };
+      if (factoryEditId) {
+        const { error } = await supabase.from("factories").update(payload).eq("id", factoryEditId);
+        if (error) throw error;
+        showSuccess("공장 정보를 수정했습니다.");
+      } else {
+        const { error } = await supabase.from("factories").insert(payload);
+        if (error) throw error;
+        showSuccess("공장을 추가했습니다.");
+      }
+      setFactoryShowForm(false); setFactoryEditId(null);
+      setFactoryForm({ name: "", phone: "", address: "", description: "", is_active: true });
+      await fetchFactories();
+    } catch { showError("저장에 실패했습니다."); }
+    finally { setFactorySaving(false); }
+  };
+
+  const handleDeleteFactory = async (id: string) => {
+    if (!confirm("공장 정보를 삭제할까요?")) return;
+    const { error } = await supabase.from("factories").delete().eq("id", id);
+    if (error) { showError("삭제 실패"); return; }
+    setFactories(prev => prev.filter(f => f.id !== id));
+    showSuccess("삭제했습니다.");
+  };
+
+  const startEditFactory = (f: typeof factories[0]) => {
+    setFactoryEditId(f.id);
+    setFactoryForm({ name: f.name, phone: f.phone || "", address: f.address || "", description: f.description || "", is_active: f.is_active });
+    setFactoryShowForm(true);
+  };
+
+  const fetchPartners = async () => {
+    setPartnersLoading(true);
+    try {
+      const { data, error } = await supabase.from("partners").select("*").order("created_at", { ascending: true });
+      if (error) throw error;
+      setPartners(data || []);
+    } catch { showError("협력업체 목록 불러오기 실패"); }
+    finally { setPartnersLoading(false); }
+  };
+
+  const handleSavePartner = async () => {
+    if (!partnerForm.name.trim()) { showError("업체명을 입력하세요."); return; }
+    setPartnerSaving(true);
+    try {
+      const payload = {
+        category: partnerForm.category,
+        name: partnerForm.name.trim(),
+        phone: partnerForm.phone.trim() || null,
+        address: partnerForm.address.trim() || null,
+        description: partnerForm.description.trim() || null,
+        is_active: partnerForm.is_active,
+      };
+      if (partnerEditId) {
+        const { error } = await supabase.from("partners").update(payload).eq("id", partnerEditId);
+        if (error) throw error;
+        showSuccess("협력업체를 수정했습니다.");
+      } else {
+        const { error } = await supabase.from("partners").insert(payload);
+        if (error) throw error;
+        showSuccess("협력업체를 추가했습니다.");
+      }
+      setPartnerShowForm(false); setPartnerEditId(null);
+      setPartnerForm({ category: "도금", name: "", phone: "", address: "", description: "", is_active: true });
+      await fetchPartners();
+    } catch { showError("저장에 실패했습니다."); }
+    finally { setPartnerSaving(false); }
+  };
+
+  const handleDeletePartner = async (id: string) => {
+    if (!confirm("협력업체를 삭제할까요?")) return;
+    const { error } = await supabase.from("partners").delete().eq("id", id);
+    if (error) { showError("삭제 실패"); return; }
+    setPartners(prev => prev.filter(p => p.id !== id));
+    showSuccess("삭제했습니다.");
+  };
+
+  const startEditPartner = (p: typeof partners[0]) => {
+    setPartnerEditId(p.id);
+    setPartnerForm({ category: p.category, name: p.name, phone: p.phone || "", address: p.address || "", description: p.description || "", is_active: p.is_active });
+    setPartnerShowForm(true);
   };
 
   const handleReportStatus = async (id: string, status: "reviewed" | "dismissed") => {
@@ -2252,6 +2383,200 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              공장 정보 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "factories" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>공장 정보 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {factories.length}개</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={fetchFactories} style={btnStyle("outline")}>새로고침</button>
+                  <button type="button" onClick={() => { setFactoryEditId(null); setFactoryForm({ name: "", phone: "", address: "", description: "", is_active: true }); setFactoryShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                </div>
+              </div>
+
+              {factoryShowForm && (
+                <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
+                  <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{factoryEditId ? "공장 수정" : "공장 추가"}</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {([
+                      { label: "공장명 *", key: "name",    placeholder: "예: 홍길동 주조공장" },
+                      { label: "연락처",   key: "phone",   placeholder: "예: 010-0000-0000" },
+                    ] as const).map(({ label, key, placeholder }) => (
+                      <div key={key}>
+                        <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>{label}</label>
+                        <input value={factoryForm[key]} onChange={e => setFactoryForm(p => ({ ...p, [key]: e.target.value }))} placeholder={placeholder}
+                          style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                      </div>
+                    ))}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>주소</label>
+                      <input value={factoryForm.address} onChange={e => setFactoryForm(p => ({ ...p, address: e.target.value }))} placeholder="예: 서울 종로구"
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>설명 (선택)</label>
+                      <textarea value={factoryForm.description} onChange={e => setFactoryForm(p => ({ ...p, description: e.target.value }))} placeholder="공장 소개 메모"
+                        rows={2} style={{ width: "100%", borderRadius: 10, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="checkbox" id="factory-active" checked={factoryForm.is_active} onChange={e => setFactoryForm(p => ({ ...p, is_active: e.target.checked }))} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                      <label htmlFor="factory-active" style={{ fontSize: 14, fontWeight: 600, color: "#374151", cursor: "pointer" }}>활성화</label>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                    <button type="button" disabled={factorySaving} onClick={handleSaveFactory}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, fontSize: 14, cursor: factorySaving ? "default" : "pointer" }}>
+                      {factorySaving ? "저장 중..." : factoryEditId ? "수정" : "추가"}
+                    </button>
+                    <button type="button" onClick={() => { setFactoryShowForm(false); setFactoryEditId(null); }}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {factoriesLoading ? <LoadingSpinner /> : factories.length === 0 ? (
+                <Empty text="등록된 공장이 없습니다." />
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {factories.map(f => (
+                    <div key={f.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>{f.name}</span>
+                          <span style={badgeStyle(f.is_active ? "#16a34a" : "#6b7280", f.is_active ? "#dcfce7" : "#f3f4f6")}>
+                            {f.is_active ? "활성" : "비활성"}
+                          </span>
+                        </div>
+                        {f.address && <div style={{ fontSize: 13, color: "#374151", marginBottom: 2 }}>📍 {f.address}</div>}
+                        {f.phone && <div style={{ fontSize: 13, color: "#374151", marginBottom: 2 }}>📞 {f.phone}</div>}
+                        {f.description && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{f.description}</div>}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button type="button" onClick={() => startEditFactory(f)} style={miniBtn("#374151")}>수정</button>
+                        <button type="button" onClick={() => handleDeleteFactory(f.id)} style={miniBtn("#dc2626")}>삭제</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              협력업체 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "partners" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>협력업체 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {partners.length}개</p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={fetchPartners} style={btnStyle("outline")}>새로고침</button>
+                  <button type="button" onClick={() => { setPartnerEditId(null); setPartnerForm({ category: "도금", name: "", phone: "", address: "", description: "", is_active: true }); setPartnerShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                </div>
+              </div>
+
+              {partnerShowForm && (
+                <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
+                  <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{partnerEditId ? "협력업체 수정" : "협력업체 추가"}</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>카테고리 *</label>
+                      <select value={partnerForm.category} onChange={e => setPartnerForm(p => ({ ...p, category: e.target.value }))}
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, outline: "none", background: "white" }}>
+                        {PARTNER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>업체명 *</label>
+                      <input value={partnerForm.name} onChange={e => setPartnerForm(p => ({ ...p, name: e.target.value }))} placeholder="예: 홍길동 도금"
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>연락처</label>
+                      <input value={partnerForm.phone} onChange={e => setPartnerForm(p => ({ ...p, phone: e.target.value }))} placeholder="010-0000-0000"
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>주소</label>
+                      <input value={partnerForm.address} onChange={e => setPartnerForm(p => ({ ...p, address: e.target.value }))} placeholder="서울 종로구"
+                        style={{ width: "100%", height: 40, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 12px", fontSize: 14, boxSizing: "border-box", outline: "none" }} />
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>설명 (선택)</label>
+                      <textarea value={partnerForm.description} onChange={e => setPartnerForm(p => ({ ...p, description: e.target.value }))} placeholder="업체 소개 메모"
+                        rows={2} style={{ width: "100%", borderRadius: 10, border: "1px solid #d1d5db", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "vertical", fontFamily: "inherit" }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input type="checkbox" id="partner-active" checked={partnerForm.is_active} onChange={e => setPartnerForm(p => ({ ...p, is_active: e.target.checked }))} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                      <label htmlFor="partner-active" style={{ fontSize: 14, fontWeight: 600, color: "#374151", cursor: "pointer" }}>활성화</label>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                    <button type="button" disabled={partnerSaving} onClick={handleSavePartner}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, fontSize: 14, cursor: partnerSaving ? "default" : "pointer" }}>
+                      {partnerSaving ? "저장 중..." : partnerEditId ? "수정" : "추가"}
+                    </button>
+                    <button type="button" onClick={() => { setPartnerShowForm(false); setPartnerEditId(null); }}
+                      style={{ height: 40, padding: "0 20px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 카테고리 필터 */}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                <button type="button" onClick={() => setPartnerCategoryFilter("")}
+                  style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: partnerCategoryFilter === "" ? "none" : "1px solid #d1d5db", background: partnerCategoryFilter === "" ? "#111827" : "white", color: partnerCategoryFilter === "" ? "white" : "#374151" }}>
+                  전체
+                </button>
+                {PARTNER_CATEGORIES.map(c => (
+                  <button key={c} type="button" onClick={() => setPartnerCategoryFilter(c)}
+                    style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: partnerCategoryFilter === c ? "none" : "1px solid #d1d5db", background: partnerCategoryFilter === c ? "#111827" : "white", color: partnerCategoryFilter === c ? "white" : "#374151" }}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+
+              {partnersLoading ? <LoadingSpinner /> : partners.filter(p => !partnerCategoryFilter || p.category === partnerCategoryFilter).length === 0 ? (
+                <Empty text="등록된 협력업체가 없습니다." />
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {partners.filter(p => !partnerCategoryFilter || p.category === partnerCategoryFilter).map(p => (
+                    <div key={p.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>{p.name}</span>
+                          <span style={badgeStyle("#2563eb", "#dbeafe")}>{p.category}</span>
+                          <span style={badgeStyle(p.is_active ? "#16a34a" : "#6b7280", p.is_active ? "#dcfce7" : "#f3f4f6")}>
+                            {p.is_active ? "활성" : "비활성"}
+                          </span>
+                        </div>
+                        {p.address && <div style={{ fontSize: 13, color: "#374151", marginBottom: 2 }}>📍 {p.address}</div>}
+                        {p.phone && <div style={{ fontSize: 13, color: "#374151", marginBottom: 2 }}>📞 {p.phone}</div>}
+                        {p.description && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>{p.description}</div>}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button type="button" onClick={() => startEditPartner(p)} style={miniBtn("#374151")}>수정</button>
+                        <button type="button" onClick={() => handleDeletePartner(p.id)} style={miniBtn("#dc2626")}>삭제</button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
