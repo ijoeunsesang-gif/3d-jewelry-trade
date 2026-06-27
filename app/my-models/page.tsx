@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { scrollToTop } from "@/lib/scroll";
 import { sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 
 type ModelItem = {
   id: string;
@@ -52,14 +53,7 @@ function MyModelsPageInner() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
 
-  const getThumbnailUrl = (item: ModelItem) => {
-    if (item.thumbnail_path) {
-      const p = item.thumbnail_path;
-      if (p.startsWith("http")) return p;
-      return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p}`;
-    }
-    return item.thumbnail || "";
-  };
+  const getThumbnailUrl = getModelThumbnailUrl;
 
   const fetchMyModels = async () => {
     try {

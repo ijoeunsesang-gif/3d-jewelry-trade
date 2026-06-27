@@ -11,6 +11,7 @@ import GradeBadge from "../../components/GradeBadge";
 import AvatarImage from "../../components/AvatarImage";
 import { Grade } from "@/lib/grades";
 import { Phone } from "lucide-react";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
@@ -446,11 +447,7 @@ export default function SellerPage() {
     ).size;
   }, [models]);
 
-  const getThumbnailUrl = (item: any) => {
-    if (item.thumbnail) return item.thumbnail;
-    if (item.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${item.thumbnail_path}`;
-    return "";
-  };
+  const getThumbnailUrl = getModelThumbnailUrl;
 
   const getModelExt = (item: any) => {
     const source = item.model_file_path || item.file_url || "";

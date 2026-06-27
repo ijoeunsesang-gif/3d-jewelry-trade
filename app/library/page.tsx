@@ -8,6 +8,7 @@ import Image from "next/image";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../lib/toast";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import { startProgress, updateProgress, completeProgress, errorProgress } from "@/app/lib/progressStore";
 
 type PurchasedModel = {
@@ -223,14 +224,7 @@ function LibraryPageInner() {
     }
   };
 
-  const getThumbnailUrl = (item: PurchasedModel) => {
-    if (item.thumbnail_path) {
-      const p = item.thumbnail_path;
-      if (p.startsWith("http")) return p;
-      return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p}`;
-    }
-    return item.thumbnail || "";
-  };
+  const getThumbnailUrl = getModelThumbnailUrl;
 
   const filteredItems = items.filter((item) => {
     const matchSearch = !search.trim() || item.title.toLowerCase().includes(search.trim().toLowerCase());

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 
 type PurchaseRow = {
   id: string;
@@ -180,12 +181,8 @@ export default function SalesPage() {
 
   const maxRevenue = Math.max(...chartData.map((d) => d.revenue), 1);
 
-  const getThumbUrl = (model?: ModelRow) => {
-    if (!model) return "";
-    if (model.thumbnail) return model.thumbnail;
-    if (model.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${model.thumbnail_path}`;
-    return "";
-  };
+  const getThumbUrl = (model?: ModelRow) =>
+    model ? getModelThumbnailUrl(model) : "";
 
   if (loading) {
     return (

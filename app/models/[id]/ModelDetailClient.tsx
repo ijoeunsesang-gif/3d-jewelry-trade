@@ -11,6 +11,7 @@ import { showError, showInfo, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import ModelComments from "../../components/ModelComments";
+import { getModelThumbnailUrl, getGalleryUrl } from "@/lib/imageUrl";
 
 const spinnerOverlay = (
   <div style={{
@@ -269,7 +270,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
           let url = row.image_url || "";
           if (!url && row.image_path) {
             const p = row.image_path as string;
-            url = p.startsWith("http") ? p : `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p}`;
+            url = getGalleryUrl(p);
           }
           if (url && !urls.includes(url)) {
             urls.push(url);
@@ -314,11 +315,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
     }
   };
 
-  const getThumbnailUrl = (item: ModelItem) => {
-    if (item.thumbnail) return item.thumbnail;
-    if (item.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${item.thumbnail_path}`;
-    return "";
-  };
+  const getThumbnailUrl = getModelThumbnailUrl;
 
   const toggleFavorite = async () => {
     try {

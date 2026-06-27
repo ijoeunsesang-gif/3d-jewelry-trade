@@ -8,6 +8,7 @@ import { scrollToTop } from "@/lib/scroll";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 
 type ModelItem = {
   id: string;
@@ -117,14 +118,7 @@ function FavoritesPageInner() {
     }
   };
 
-  const getThumbnailUrl = (item: ModelItem) => {
-    if (item.thumbnail_path) {
-      const p = item.thumbnail_path;
-      if (p.startsWith("http")) return p;
-      return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${p}`;
-    }
-    return item.thumbnail || "";
-  };
+  const getThumbnailUrl = getModelThumbnailUrl;
 
   const filteredModels = useMemo(() => {
     let arr = [...models];

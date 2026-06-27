@@ -11,6 +11,7 @@ import AvatarImage from "../components/AvatarImage";
 import { Grade, GRADE_CONFIG, gradeOrder, MentorGrade, MENTOR_GRADE_CONFIG, calcMentorGrade, mentorGradeOrder } from "@/lib/grades";
 import { Phone } from "lucide-react";
 import { compressThumbnail } from "@/lib/imageCompression";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 
 type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users";
 type UserListSubTab = "sellers" | "mentors" | "all";
@@ -1764,12 +1765,8 @@ function SalesTab({ userId }: { userId: string }) {
 
   const maxRevenue = Math.max(...chartData.map((d) => d.revenue), 1);
 
-  const getThumbUrl = (model?: ModelRow) => {
-    if (!model) return "";
-    if (model.thumbnail) return model.thumbnail;
-    if (model.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${model.thumbnail_path}`;
-    return "";
-  };
+  const getThumbUrl = (model?: ModelRow) =>
+    model ? getModelThumbnailUrl(model) : "";
 
   if (salesLoading) {
     return <div style={{ padding: "20px 0" }}><p style={{ color: "#6b7280" }}>판매 통계 불러오는 중...</p></div>;

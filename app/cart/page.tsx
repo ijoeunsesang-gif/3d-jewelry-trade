@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { scrollToTop } from "@/lib/scroll";
+import { getCdnImageUrl } from "@/lib/imageUrl";
 
 type CartItem = {
   id: string;
@@ -25,11 +26,6 @@ const migrateThumbUrl = (url: string | undefined) => {
   return url;
 };
 
-const getImageUrl = (path: string | null | undefined) => {
-  if (!path) return "/placeholder.png";
-  if (path.startsWith("http")) return path;
-  return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${path}`;
-};
 
 function CartPageInner() {
   const router = useRouter();
@@ -229,7 +225,7 @@ function CartPageInner() {
                 />
 
                 <img
-                  src={getImageUrl(item.thumbUrl)}
+                  src={getCdnImageUrl(migrateThumbUrl(item.thumbUrl), { width: 400, height: 400, quality: 80 })}
                   alt={item.title}
                   style={{
                     width: 120,

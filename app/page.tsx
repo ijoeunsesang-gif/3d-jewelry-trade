@@ -17,6 +17,7 @@ import ModelCard, { type ModelItem } from "./components/ModelCard";
 import TopModelCard from "./components/TopModelCard";
 import QuickViewModal from "./components/QuickViewModal";
 import { SkeletonCard, SkeletonTopCard } from "./components/SkeletonCard";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 
 type SortType = "latest" | "price-low" | "price-high" | "popular";
 type FavoriteMap = Record<string, boolean>;
@@ -345,11 +346,7 @@ function HomeInner() {
     }
   };
 
-  const getThumbnailUrl = (item: ModelItem) => {
-    if (item.thumbnail) return item.thumbnail;
-    if (item.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${item.thumbnail_path}`;
-    return "";
-  };
+  const getThumbnailUrl = getModelThumbnailUrl;
 
   const getModelExt = (item: ModelItem) => {
     const source = item.model_file_path || item.file_url || "";

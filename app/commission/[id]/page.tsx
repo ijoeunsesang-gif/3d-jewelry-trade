@@ -8,6 +8,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { ImagePlus } from "lucide-react";
+import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import Image from "next/image";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
@@ -413,11 +414,7 @@ export default function CommissionDetailPage() {
     }
   };
 
-  const getModelThumbnail = (model: { thumbnail: string | null; thumbnail_path: string | null }) => {
-    if (model.thumbnail_path) return `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${model.thumbnail_path}`;
-    if (model.thumbnail) return model.thumbnail;
-    return "/placeholder.png";
-  };
+  const getModelThumbnail = getModelThumbnailUrl;
 
   const handleModelSelect = (modelId: string) => {
     setResultLink(`${window.location.origin}/models/${modelId}`);
