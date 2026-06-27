@@ -298,7 +298,7 @@ export default function ModelViewer({ url, onLoaded }: Props) {
           makeDefault
           rotateSpeed={2.5}
           zoomSpeed={1.2}
-          panSpeed={0.6}
+          panSpeed={0.3}
           noPan={false}
           staticMoving={false}
           dynamicDampingFactor={0.15}
