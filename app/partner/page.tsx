@@ -177,7 +177,7 @@ export default function PartnerPage() {
       if (partnersLoading) return <p style={{ color: "#6b7280" }}>불러오는 중...</p>;
       const category = PARTNER_CATEGORY_MAP[activeTab]!;
       const filtered = partners.filter((p) => p.category === category);
-      if (filtered.length === 0) return <EmptyState text="등록된 협력업체가 없습니다." />;
+      if (filtered.length === 0) return <EmptyState text="등록된 업체정보가 없습니다." />;
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {filtered.map((p) => (
@@ -239,8 +239,8 @@ export default function PartnerPage() {
       `}</style>
 
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>협력업체</h1>
-        <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>주얼리 제작에 필요한 협력업체 정보를 확인하세요.</p>
+        <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>업체정보</h1>
+        <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>주얼리 제작에 필요한 업체정보를 확인하세요.</p>
       </div>
 
       <div className="partner-tab-wrap">

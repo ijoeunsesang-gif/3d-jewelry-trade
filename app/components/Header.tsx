@@ -352,7 +352,7 @@ export default function Header() {
         <MyMenuLink href="/favorites" icon={<IconDropHeart    active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>찜</MyMenuLink>
         <MyMenuLink href="/cart"      icon={<IconDropCart     active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>장바구니</MyMenuLink>
         <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>다운로드</MyMenuLink>
-        <MyMenuLink href="/partner"   icon={<IconDropPartner  active={pathname.startsWith("/partner")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/partner")}>협력업체</MyMenuLink>
+        <MyMenuLink href="/partner"   icon={<IconDropPartner  active={pathname.startsWith("/partner")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/partner")}>업체정보</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
@@ -494,7 +494,7 @@ export default function Header() {
               <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
               <NavItem href="/library" label="다운로드" icon={<IconDownload />} active={pathname === "/library"} />
               <NavItem href="/commission" label="의뢰" icon={<IconClipboard />} active={pathname.startsWith("/commission")} />
-              <NavItem href="/partner" label="협력업체" icon={<IconPartners />} active={pathname.startsWith("/partner")} />
+              <NavItem href="/partner" label="업체정보" icon={<IconPartners />} active={pathname.startsWith("/partner")} />
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
               <NavItem href="/help" label="도움말" icon={<IconHelp />} active={pathname === "/help"} />
@@ -567,7 +567,7 @@ export default function Header() {
                 padding: "4px 0",
               }}>
                 <IconPartners active={pathname.startsWith("/partner")} size={28} />
-                <span style={{ fontSize: 10, color: pathname.startsWith("/partner") ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>협력업체</span>
+                <span style={{ fontSize: 10, color: pathname.startsWith("/partner") ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>업체정보</span>
               </Link>
 
               {/* 알림 아이콘 */}

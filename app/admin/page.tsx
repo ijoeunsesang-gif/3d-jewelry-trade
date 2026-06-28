@@ -155,7 +155,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "modelReports",      label: "모델 신고",      icon: "🚨" },
   { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
   { key: "inquiries",         label: "문의 관리",       icon: "💬" },
-  { key: "partners",          label: "협력업체 관리",     icon: "🤝" },
+  { key: "partners",          label: "업체정보 관리",     icon: "🤝" },
 ];
 
 export default function AdminPage() {
@@ -718,7 +718,7 @@ export default function AdminPage() {
       const { data, error } = await supabase.from("partners").select("*").order("created_at", { ascending: true });
       if (error) throw error;
       setPartners(data || []);
-    } catch { showError("협력업체 목록 불러오기 실패"); }
+    } catch { showError("업체정보 목록 불러오기 실패"); }
     finally { setPartnersLoading(false); }
   };
 
@@ -737,11 +737,11 @@ export default function AdminPage() {
       if (partnerEditId) {
         const { error } = await supabase.from("partners").update(payload).eq("id", partnerEditId);
         if (error) throw error;
-        showSuccess("협력업체를 수정했습니다.");
+        showSuccess("업체정보를 수정했습니다.");
       } else {
         const { error } = await supabase.from("partners").insert(payload);
         if (error) throw error;
-        showSuccess("협력업체를 추가했습니다.");
+        showSuccess("업체정보를 추가했습니다.");
       }
       setPartnerShowForm(false); setPartnerEditId(null);
       setPartnerForm({ category: "도금", name: "", phone: "", address: "", description: "", is_active: true });
@@ -751,7 +751,7 @@ export default function AdminPage() {
   };
 
   const handleDeletePartner = async (id: string) => {
-    if (!confirm("협력업체를 삭제할까요?")) return;
+    if (!confirm("업체정보를 삭제할까요?")) return;
     const { error } = await supabase.from("partners").delete().eq("id", id);
     if (error) { showError("삭제 실패"); return; }
     setPartners(prev => prev.filter(p => p.id !== id));
@@ -2196,7 +2196,7 @@ export default function AdminPage() {
             <section>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>협력업체 관리</h2>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>업체정보 관리</h2>
                   <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {subCount}</p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -2481,7 +2481,7 @@ export default function AdminPage() {
               {(partnerSubTab === "전체" || isCategoryTab(partnerSubTab)) && (<>
               {partnerShowForm && (
                 <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
-                  <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{partnerEditId ? "협력업체 수정" : "협력업체 추가"}</h3>
+                  <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{partnerEditId ? "업체정보 수정" : "업체정보 추가"}</h3>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", display: "block", marginBottom: 4 }}>카테고리 *</label>
@@ -2528,7 +2528,7 @@ export default function AdminPage() {
                 </div>
               )}
               {partnersLoading ? <LoadingSpinner /> : partners.filter(p => partnerSubTab === "전체" || p.category === partnerSubTab).length === 0 ? (
-                <Empty text="등록된 협력업체가 없습니다." />
+                <Empty text="등록된 업체정보가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {partners.filter(p => partnerSubTab === "전체" || p.category === partnerSubTab).map(p => (
