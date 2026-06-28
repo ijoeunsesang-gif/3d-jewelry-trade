@@ -283,7 +283,20 @@ export default function AdminPage() {
   const [partnerEditId, setPartnerEditId] = useState<string | null>(null);
   const [partnerSaving, setPartnerSaving] = useState(false);
   const [partnerShowForm, setPartnerShowForm] = useState(false);
-  const [partnerSubTab, setPartnerSubTab] = useState("전체");
+  const [partnerSubTab, setPartnerSubTab] = useState("등록신청");
+
+  /* ── Partner Requests ── */
+  interface PartnerRequest {
+    id: string; user_id: string; user_email: string; category: string;
+    name: string; contact: string; address: string; description: string;
+    status: "pending" | "approved" | "rejected"; reject_reason: string | null;
+    created_at: string; processed_at: string | null;
+  }
+  const [partnerRequests, setPartnerRequests] = useState<PartnerRequest[]>([]);
+  const [prLoading, setPrLoading] = useState(false);
+  const [prStatusFilter, setPrStatusFilter] = useState("pending");
+  const [prProcessing, setPrProcessing] = useState<string | null>(null);
+  const [prRejectReason, setPrRejectReason] = useState<Record<string, string>>({});
 
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -352,6 +365,7 @@ export default function AdminPage() {
     if (tab === "modelReports"     && modelReports.length === 0)     fetchModelReports();
     if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
     if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
+    if (tab === "partners"         && partnerRequests.length === 0)  fetchPartnerRequests();
     if (tab === "partners"         && partners.length === 0)         fetchPartners();
   };
 
@@ -712,6 +726,43 @@ export default function AdminPage() {
     setFactoryEditId(f.id);
     setFactoryForm({ name: f.name, phone: f.phone || "", address: f.address || "", description: f.description || "", is_active: f.is_active });
     setFactoryShowForm(true);
+  };
+
+  const fetchPartnerRequests = async () => {
+    setPrLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("partner_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setPartnerRequests(data || []);
+    } catch { showError("업체등록 신청 목록 불러오기 실패"); }
+    finally { setPrLoading(false); }
+  };
+
+  const handlePartnerRequestAction = async (id: string, action: "approve" | "reject") => {
+    const reason = prRejectReason[id]?.trim() || "";
+    if (action === "reject" && !reason) { showError("거절 사유를 입력하세요."); return; }
+    setPrProcessing(id);
+    try {
+      const token = await getToken();
+      const res = await fetch("/api/admin/partner-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, action, reject_reason: reason }),
+      });
+      if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || "처리 실패");
+      }
+      showSuccess(action === "approve" ? "승인되었습니다." : "반려되었습니다.");
+      fetchPartnerRequests();
+    } catch (err: any) {
+      showError(err.message || "처리 중 오류가 발생했습니다.");
+    } finally {
+      setPrProcessing(null);
+    }
   };
 
   const fetchPartners = async () => {
@@ -2168,14 +2219,16 @@ export default function AdminPage() {
               출력소 관리
           ══════════════════════════════════════════════ */}
           {activeTab === "partners" && (() => {
-            const PARTNER_SUB_TABS = ["전체", "출력소", "원본", "생산공장", "도금", "고무몰드", "레이저 각인", "주조", "조각"];
+            const PARTNER_SUB_TABS = ["등록신청", "전체", "출력소", "원본", "생산공장", "도금", "고무몰드", "레이저 각인", "주조", "조각"];
             const isCategoryTab = (t: string) => ["도금", "고무몰드", "레이저 각인", "주조", "조각"].includes(t);
-            const subCount = partnerSubTab === "출력소" ? `${printShops.length}개`
+            const subCount = partnerSubTab === "등록신청" ? `${partnerRequests.filter(r => r.status === prStatusFilter || !prStatusFilter).length}건`
+              : partnerSubTab === "출력소" ? `${printShops.length}개`
               : partnerSubTab === "원본" ? `${finishingWorkers.length}명`
               : partnerSubTab === "생산공장" ? `${factories.length}개`
               : partnerSubTab === "전체" ? `${partners.length}개`
               : `${partners.filter(p => p.category === partnerSubTab).length}개`;
             const handleSubRefresh = () => {
+              if (partnerSubTab === "등록신청") { fetchPartnerRequests(); return; }
               if (partnerSubTab === "출력소") { fetchPrintShops(); return; }
               if (partnerSubTab === "원본") { fetchFinishingWorkers(); return; }
               if (partnerSubTab === "생산공장") { fetchFactories(); return; }
@@ -2203,7 +2256,9 @@ export default function AdminPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={handleSubRefresh} style={btnStyle("outline")}>새로고침</button>
-                  <button type="button" onClick={handleSubAdd} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                  {partnerSubTab !== "등록신청" && (
+                    <button type="button" onClick={handleSubAdd} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                  )}
                 </div>
               </div>
 
@@ -2213,15 +2268,120 @@ export default function AdminPage() {
                   <button key={t} type="button" onClick={() => {
                     setPartnerSubTab(t);
                     setPsShowForm(false); setFwShowForm(false); setFactoryShowForm(false); setPartnerShowForm(false);
+                    if (t === "등록신청" && partnerRequests.length === 0) fetchPartnerRequests();
                     if (t === "출력소" && printShops.length === 0) fetchPrintShops();
                     if (t === "원본" && finishingWorkers.length === 0) fetchFinishingWorkers();
                     if (t === "생산공장" && factories.length === 0) fetchFactories();
-                    if (t !== "출력소" && t !== "원본" && t !== "생산공장" && partners.length === 0) fetchPartners();
+                    if (t !== "등록신청" && t !== "출력소" && t !== "원본" && t !== "생산공장" && partners.length === 0) fetchPartners();
                   }} style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: partnerSubTab === t ? "none" : "1px solid #d1d5db", background: partnerSubTab === t ? "#111827" : "white", color: partnerSubTab === t ? "white" : "#374151" }}>
                     {t}
                   </button>
                 ))}
               </div>
+
+              {/* 등록신청 서브탭 */}
+              {partnerSubTab === "등록신청" && (
+                <div>
+                  {/* 상태 필터 */}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    {[
+                      { val: "pending", label: "대기중" },
+                      { val: "approved", label: "승인됨" },
+                      { val: "rejected", label: "반려됨" },
+                      { val: "", label: "전체" },
+                    ].map(({ val, label }) => (
+                      <button key={val} type="button"
+                        onClick={() => setPrStatusFilter(val)}
+                        style={{
+                          height: 32, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 700,
+                          cursor: "pointer",
+                          border: prStatusFilter === val ? "none" : "1px solid #d1d5db",
+                          background: prStatusFilter === val ? "#111827" : "white",
+                          color: prStatusFilter === val ? "white" : "#374151",
+                        }}
+                      >{label}</button>
+                    ))}
+                  </div>
+
+                  {prLoading ? <LoadingSpinner /> : (() => {
+                    const filtered = partnerRequests.filter(r => !prStatusFilter || r.status === prStatusFilter);
+                    if (filtered.length === 0) return <EmptyState message="신청 내역이 없습니다." />;
+                    return (
+                      <div style={{ display: "grid", gap: 12 }}>
+                        {filtered.map(r => (
+                          <div key={r.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px" }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                                  <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>{r.name}</span>
+                                  <span style={{
+                                    display: "inline-flex", alignItems: "center", height: 22,
+                                    padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                                    color: r.category === "출력소" ? "#2563eb" : r.category === "원본" ? "#7c3aed" : r.category === "생산공장" ? "#d97706" : "#374151",
+                                    background: r.category === "출력소" ? "#dbeafe" : r.category === "원본" ? "#ede9fe" : r.category === "생산공장" ? "#fef3c7" : "#f3f4f6",
+                                  }}>{r.category}</span>
+                                  <span style={{
+                                    display: "inline-flex", alignItems: "center", height: 22,
+                                    padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                                    color: r.status === "approved" ? "#16a34a" : r.status === "rejected" ? "#dc2626" : "#d97706",
+                                    background: r.status === "approved" ? "#dcfce7" : r.status === "rejected" ? "#fef2f2" : "#fef3c7",
+                                  }}>
+                                    {r.status === "approved" ? "승인됨" : r.status === "rejected" ? "반려됨" : "대기중"}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 2 }}>신청자: {r.user_email}</div>
+                                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 2 }}>연락처: {r.contact} · 주소: {r.address}</div>
+                                <div style={{ fontSize: 13, color: "#374151", marginTop: 6, whiteSpace: "pre-wrap" }}>{r.description}</div>
+                                {r.status === "rejected" && r.reject_reason && (
+                                  <div style={{ marginTop: 8, fontSize: 13, color: "#dc2626" }}>반려 사유: {r.reject_reason}</div>
+                                )}
+                                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+                                  신청일: {formatDate(r.created_at)}
+                                  {r.processed_at && ` · 처리일: ${formatDate(r.processed_at)}`}
+                                </div>
+                              </div>
+
+                              {r.status === "pending" && (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 200 }}>
+                                  <textarea
+                                    placeholder="반려 사유 (반려 시 필수)"
+                                    value={prRejectReason[r.id] || ""}
+                                    onChange={e => setPrRejectReason(prev => ({ ...prev, [r.id]: e.target.value }))}
+                                    rows={2}
+                                    style={{
+                                      width: "100%", borderRadius: 10, border: "1px solid #d1d5db",
+                                      padding: "8px 12px", fontSize: 13, resize: "vertical",
+                                      boxSizing: "border-box", outline: "none", fontFamily: "inherit",
+                                    }}
+                                  />
+                                  <div style={{ display: "flex", gap: 8 }}>
+                                    <button type="button"
+                                      disabled={prProcessing === r.id}
+                                      onClick={() => handlePartnerRequestAction(r.id, "approve")}
+                                      style={{
+                                        flex: 1, height: 36, borderRadius: 10, border: "none",
+                                        background: "#16a34a", color: "white", fontWeight: 800, fontSize: 13, cursor: "pointer",
+                                      }}
+                                    >{prProcessing === r.id ? "처리중..." : "승인"}</button>
+                                    <button type="button"
+                                      disabled={prProcessing === r.id}
+                                      onClick={() => handlePartnerRequestAction(r.id, "reject")}
+                                      style={{
+                                        flex: 1, height: 36, borderRadius: 10, border: "none",
+                                        background: "#dc2626", color: "white", fontWeight: 800, fontSize: 13, cursor: "pointer",
+                                      }}
+                                    >{prProcessing === r.id ? "처리중..." : "반려"}</button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
 
               {/* 출력소 서브탭 */}
               {partnerSubTab === "출력소" && (<>

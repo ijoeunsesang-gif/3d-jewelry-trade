@@ -241,7 +241,12 @@ export default function PartnerPage() {
 
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>업체정보</h1>
-        <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>주얼리 제작에 필요한 업체정보를 확인하세요.</p>
+        <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>
+          주얼리 제작에 필요한 업체정보를 확인하세요.{" "}
+          <a href="/customer-service#partner-request" style={{ color: "#c9a84c", fontWeight: 700, textDecoration: "underline" }}>
+            업체등록 신청하기
+          </a>
+        </p>
       </div>
 
       <div className="partner-tab-wrap">
