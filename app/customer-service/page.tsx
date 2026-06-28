@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../lib/toast";
@@ -40,6 +41,7 @@ const FAQ_LIST = [
 ];
 
 export default function CustomerServicePage() {
+  const router = useRouter();
   const [notices, setNotices] = useState<Notice[]>([]);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [expandedNotice, setExpandedNotice] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export default function CustomerServicePage() {
   const [prDescription, setPrDescription] = useState("");
   const [prSubmitting, setPrSubmitting] = useState(false);
   const [prMyRequest, setPrMyRequest] = useState<{ status: string; name: string; category: string; created_at: string; reject_reason?: string } | null>(null);
+  const [prModalOpen, setPrModalOpen] = useState(false);
   const [myInquiries, setMyInquiries] = useState<{
     id: string; title: string; status: string; created_at: string;
     inquiry_answers: { id: string; content: string; created_at: string }[];
@@ -135,6 +138,7 @@ export default function CustomerServicePage() {
       }
       showSuccess("업체등록 신청이 완료되었습니다. 검토 후 이메일로 안내드립니다.");
       setPrCategory(""); setPrName(""); setPrContact(""); setPrAddress(""); setPrDescription("");
+      setPrModalOpen(false);
       fetchMyPartnerRequest();
     } catch (err: any) {
       showError(err.message || "신청 중 오류가 발생했습니다.");
@@ -289,101 +293,128 @@ export default function CustomerServicePage() {
           출력소·원본·생산공장 등 주얼리 제작 업체를 등록 신청할 수 있습니다. 검토 후 등록 여부를 이메일로 안내드립니다.
         </p>
 
-        {prMyRequest && (
-          <div style={{
-            marginBottom: 20, padding: "16px 20px",
-            borderRadius: 16, border: "1px solid #e5e7eb", background: "#f9fafb",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
-                {prMyRequest.name} ({prMyRequest.category})
-              </span>
-              <span style={{
-                display: "inline-flex", alignItems: "center", height: 22,
-                padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
-                color: prMyRequest.status === "approved" ? "#16a34a" : prMyRequest.status === "rejected" ? "#dc2626" : "#d97706",
-                background: prMyRequest.status === "approved" ? "#dcfce7" : prMyRequest.status === "rejected" ? "#fef2f2" : "#fef3c7",
-              }}>
-                {prMyRequest.status === "approved" ? "승인됨" : prMyRequest.status === "rejected" ? "반려됨" : "검토 중"}
-              </span>
-            </div>
-            {prMyRequest.status === "rejected" && prMyRequest.reject_reason && (
-              <p style={{ margin: "10px 0 0", fontSize: 13, color: "#dc2626" }}>
-                반려 사유: {prMyRequest.reject_reason}
-              </p>
+        <div style={{
+          border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px",
+          background: "white", display: "flex", alignItems: "center",
+          justifyContent: "space-between", gap: 16, flexWrap: "wrap",
+        }}>
+          <div>
+            {prMyRequest ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                    {prMyRequest.name} ({prMyRequest.category})
+                  </span>
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", height: 22,
+                    padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                    color: prMyRequest.status === "approved" ? "#16a34a" : prMyRequest.status === "rejected" ? "#dc2626" : "#d97706",
+                    background: prMyRequest.status === "approved" ? "#dcfce7" : prMyRequest.status === "rejected" ? "#fef2f2" : "#fef3c7",
+                  }}>
+                    {prMyRequest.status === "approved" ? "승인됨" : prMyRequest.status === "rejected" ? "반려됨" : "검토 중"}
+                  </span>
+                </div>
+                {prMyRequest.status === "rejected" && prMyRequest.reject_reason && (
+                  <p style={{ margin: "0 0 4px", fontSize: 13, color: "#dc2626" }}>
+                    반려 사유: {prMyRequest.reject_reason}
+                  </p>
+                )}
+                <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+                  신청일: {new Date(prMyRequest.created_at).toLocaleDateString("ko-KR")}
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 14, color: "#6b7280" }}>아직 신청 내역이 없습니다.</p>
             )}
-            <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9ca3af" }}>
-              신청일: {new Date(prMyRequest.created_at).toLocaleDateString("ko-KR")}
-            </p>
           </div>
-        )}
 
-        {!userId ? (
-          <div style={{
-            padding: "28px 20px", background: "#f9fafb",
-            borderRadius: 16, textAlign: "center", border: "1px solid #e5e7eb",
-          }}>
-            <p style={{ margin: 0, fontSize: 16, color: "#6b7280" }}>
-              업체등록 신청은 로그인 후 이용하실 수 있습니다.
-            </p>
-          </div>
-        ) : (prMyRequest?.status === "pending" || prMyRequest?.status === "approved") ? null : (
-          <form
-            onSubmit={handlePartnerRequestSubmit}
-            style={{
-              border: "1px solid #e5e7eb", borderRadius: 20,
-              padding: "24px 20px", background: "white", display: "grid", gap: 16,
-            }}
-          >
-            <div>
-              <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>업체 분류</label>
-              <select
-                value={prCategory}
-                onChange={(e) => setPrCategory(e.target.value)}
-                style={{ ...inputStyle, cursor: "pointer" }}
-              >
-                <option value="">분류 선택</option>
-                {["출력소", "원본", "생산공장", "도금", "고무몰드", "레이저 각인", "주조", "조각"].map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>업체명</label>
-              <input value={prName} onChange={(e) => setPrName(e.target.value)} placeholder="업체명을 입력하세요" style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>연락처</label>
-              <input value={prContact} onChange={(e) => setPrContact(e.target.value)} placeholder="전화번호를 입력하세요" style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>주소</label>
-              <input value={prAddress} onChange={(e) => setPrAddress(e.target.value)} placeholder="업체 주소를 입력하세요" style={inputStyle} />
-            </div>
-            <div>
-              <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>상세내용</label>
-              <textarea
-                value={prDescription}
-                onChange={(e) => setPrDescription(e.target.value)}
-                placeholder="업체 소개 및 취급 품목 등을 상세히 입력해 주세요"
-                rows={5}
-                style={{ ...inputStyle, height: "auto", padding: "14px", resize: "vertical" }}
-              />
-            </div>
+          {prMyRequest?.status !== "pending" && prMyRequest?.status !== "approved" && (
             <button
-              type="submit"
-              disabled={prSubmitting}
+              type="button"
+              onClick={() => {
+                if (!userId) { router.push("/login"); return; }
+                setPrModalOpen(true);
+              }}
               style={{
-                height: 54, borderRadius: 16, border: "none",
-                background: "#111827", color: "white",
-                fontWeight: 900, fontSize: 17, cursor: "pointer",
+                height: 46, padding: "0 22px", borderRadius: 14, border: "none",
+                background: "#111827", color: "white", fontWeight: 800,
+                fontSize: 15, cursor: "pointer", flexShrink: 0,
               }}
             >
-              {prSubmitting ? "신청 중..." : "업체등록 신청"}
+              신청하기
             </button>
-          </form>
-        )}
+          )}
+        </div>
       </section>
+
+      {/* ── 업체등록요청 모달 ── */}
+      {prModalOpen && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          onClick={() => setPrModalOpen(false)}
+        >
+          <div
+            style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "85vh", overflow: "hidden", display: "flex", flexDirection: "column" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>업체등록 신청</span>
+              <button
+                type="button"
+                onClick={() => setPrModalOpen(false)}
+                style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: 16, color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >✕</button>
+            </div>
+            <form
+              onSubmit={handlePartnerRequestSubmit}
+              style={{ overflowY: "auto", padding: "20px", display: "grid", gap: 16 }}
+            >
+              <div>
+                <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>업체 분류</label>
+                <select value={prCategory} onChange={(e) => setPrCategory(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                  <option value="">분류 선택</option>
+                  {["출력소", "원본", "생산공장", "도금", "고무몰드", "레이저 각인", "주조", "조각"].map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>업체명</label>
+                <input value={prName} onChange={(e) => setPrName(e.target.value)} placeholder="업체명을 입력하세요" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>연락처</label>
+                <input value={prContact} onChange={(e) => setPrContact(e.target.value)} placeholder="전화번호를 입력하세요" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>주소</label>
+                <input value={prAddress} onChange={(e) => setPrAddress(e.target.value)} placeholder="업체 주소를 입력하세요" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: "block", fontWeight: 800, fontSize: 15, color: "#111827", marginBottom: 8 }}>상세내용</label>
+                <textarea
+                  value={prDescription}
+                  onChange={(e) => setPrDescription(e.target.value)}
+                  placeholder="업체 소개 및 취급 품목 등을 상세히 입력해 주세요"
+                  rows={5}
+                  style={{ ...inputStyle, height: "auto", padding: "14px", resize: "vertical" }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={prSubmitting}
+                style={{
+                  height: 54, borderRadius: 16, border: "none",
+                  background: "#111827", color: "white",
+                  fontWeight: 900, fontSize: 17, cursor: "pointer",
+                }}
+              >
+                {prSubmitting ? "신청 중..." : "업체등록 신청"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── 1:1 문의 ── */}
       <Section title="1:1 문의">
