@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ import { showError, showSuccess } from "../lib/toast";
 const GOLD = "#c9a84c";
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "printShops" | "finishingWorkers" | "factories" | "partners";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "partners";
 
 interface UserProfile {
   id: string;
@@ -155,9 +155,6 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "modelReports",      label: "모델 신고",      icon: "🚨" },
   { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
   { key: "inquiries",         label: "문의 관리",       icon: "💬" },
-  { key: "printShops",        label: "출력소 관리",      icon: "🖨" },
-  { key: "finishingWorkers",  label: "마무리 작업자",    icon: "🔧" },
-  { key: "factories",         label: "공장 정보",         icon: "🏭" },
   { key: "partners",          label: "협력업체 관리",     icon: "🤝" },
 ];
 
@@ -284,7 +281,7 @@ export default function AdminPage() {
   const [partnerEditId, setPartnerEditId] = useState<string | null>(null);
   const [partnerSaving, setPartnerSaving] = useState(false);
   const [partnerShowForm, setPartnerShowForm] = useState(false);
-  const [partnerCategoryFilter, setPartnerCategoryFilter] = useState("");
+  const [partnerSubTab, setPartnerSubTab] = useState("전체");
 
   /* ── Commissions ── */
   const [commissions, setCommissions] = useState<Commission[]>([]);
@@ -353,9 +350,6 @@ export default function AdminPage() {
     if (tab === "modelReports"     && modelReports.length === 0)     fetchModelReports();
     if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
     if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
-    if (tab === "printShops"       && printShops.length === 0)       fetchPrintShops();
-    if (tab === "finishingWorkers" && finishingWorkers.length === 0) fetchFinishingWorkers();
-    if (tab === "factories"        && factories.length === 0)        fetchFactories();
     if (tab === "partners"         && partners.length === 0)         fetchPartners();
   };
 
@@ -2171,20 +2165,64 @@ export default function AdminPage() {
           {/* ══════════════════════════════════════════════
               출력소 관리
           ══════════════════════════════════════════════ */}
-          {activeTab === "printShops" && (
+          {activeTab === "partners" && (() => {
+            const PARTNER_SUB_TABS = ["전체", "출력소", "원본", "생산공장", "도금", "고무몰드", "레이저 각인", "주조", "조각"];
+            const isCategoryTab = (t: string) => ["도금", "고무몰드", "레이저 각인", "주조", "조각"].includes(t);
+            const subCount = partnerSubTab === "출력소" ? `${printShops.length}개`
+              : partnerSubTab === "원본" ? `${finishingWorkers.length}명`
+              : partnerSubTab === "생산공장" ? `${factories.length}개`
+              : partnerSubTab === "전체" ? `${partners.length}개`
+              : `${partners.filter(p => p.category === partnerSubTab).length}개`;
+            const handleSubRefresh = () => {
+              if (partnerSubTab === "출력소") { fetchPrintShops(); return; }
+              if (partnerSubTab === "원본") { fetchFinishingWorkers(); return; }
+              if (partnerSubTab === "생산공장") { fetchFactories(); return; }
+              fetchPartners();
+            };
+            const handleSubAdd = () => {
+              setPsShowForm(false); setFwShowForm(false); setFactoryShowForm(false); setPartnerShowForm(false);
+              if (partnerSubTab === "출력소") {
+                setPsEditId(null); setPsForm({ name: "", address: "", phone: "", hours: "", description: "", naver_map_url: "", is_active: true }); setPsShowForm(true);
+              } else if (partnerSubTab === "원본") {
+                setFwEditId(null); setFwForm({ name: "", email: "", phone: "", location: "", work_scope: [], description: "", is_active: true }); setFwShowForm(true);
+              } else if (partnerSubTab === "생산공장") {
+                setFactoryEditId(null); setFactoryForm({ name: "", phone: "", address: "", description: "", is_active: true }); setFactoryShowForm(true);
+              } else {
+                const cat = isCategoryTab(partnerSubTab) ? partnerSubTab : "도금";
+                setPartnerEditId(null); setPartnerForm({ category: cat, name: "", phone: "", address: "", description: "", is_active: true }); setPartnerShowForm(true);
+              }
+            };
+            return (
             <section>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>출력소 관리</h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {printShops.length}개</p>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>협력업체 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {subCount}</p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={fetchPrintShops} style={btnStyle("outline")}>새로고침</button>
-                  <button type="button" onClick={() => { setPsEditId(null); setPsForm({ name: "", address: "", phone: "", hours: "", description: "", naver_map_url: "", is_active: true }); setPsShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
+                  <button type="button" onClick={handleSubRefresh} style={btnStyle("outline")}>새로고침</button>
+                  <button type="button" onClick={handleSubAdd} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
                 </div>
               </div>
 
-              {/* 추가/수정 폼 */}
+              {/* 서브 탭 */}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+                {PARTNER_SUB_TABS.map(t => (
+                  <button key={t} type="button" onClick={() => {
+                    setPartnerSubTab(t);
+                    setPsShowForm(false); setFwShowForm(false); setFactoryShowForm(false); setPartnerShowForm(false);
+                    if (t === "출력소" && printShops.length === 0) fetchPrintShops();
+                    if (t === "원본" && finishingWorkers.length === 0) fetchFinishingWorkers();
+                    if (t === "생산공장" && factories.length === 0) fetchFactories();
+                    if (t !== "출력소" && t !== "원본" && t !== "생산공장" && partners.length === 0) fetchPartners();
+                  }} style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: partnerSubTab === t ? "none" : "1px solid #d1d5db", background: partnerSubTab === t ? "#111827" : "white", color: partnerSubTab === t ? "white" : "#374151" }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              {/* 출력소 서브탭 */}
+              {partnerSubTab === "출력소" && (<>
               {psShowForm && (
                 <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
                   <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{psEditId ? "출력소 수정" : "출력소 추가"}</h3>
@@ -2236,7 +2274,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-
               {printShopsLoading ? <LoadingSpinner /> : printShops.length === 0 ? (
                 <Empty text="등록된 출력소가 없습니다." />
               ) : (
@@ -2267,26 +2304,10 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
-            </section>
-          )}
+              </>)}
 
-          {/* ══════════════════════════════════════════════
-              마무리 작업자 관리
-          ══════════════════════════════════════════════ */}
-          {activeTab === "finishingWorkers" && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>마무리 작업자 관리</h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {finishingWorkers.length}명</p>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={fetchFinishingWorkers} style={btnStyle("outline")}>새로고침</button>
-                  <button type="button" onClick={() => { setFwEditId(null); setFwForm({ name: "", email: "", phone: "", location: "", work_scope: [], description: "", is_active: true }); setFwShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
-                </div>
-              </div>
-
-              {/* 추가/수정 폼 */}
+              {/* 원본(마무리 작업자) 서브탭 */}
+              {partnerSubTab === "원본" && (<>
               {fwShowForm && (
                 <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
                   <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{fwEditId ? "작업자 수정" : "작업자 추가"}</h3>
@@ -2337,9 +2358,8 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-
               {fwLoading ? <LoadingSpinner /> : finishingWorkers.length === 0 ? (
-                <Empty text="등록된 마무리 작업자가 없습니다." />
+                <Empty text="등록된 원본 작업자가 없습니다." />
               ) : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -2385,25 +2405,10 @@ export default function AdminPage() {
                   </table>
                 </div>
               )}
-            </section>
-          )}
+              </>)}
 
-          {/* ══════════════════════════════════════════════
-              공장 정보 관리
-          ══════════════════════════════════════════════ */}
-          {activeTab === "factories" && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>공장 정보 관리</h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {factories.length}개</p>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={fetchFactories} style={btnStyle("outline")}>새로고침</button>
-                  <button type="button" onClick={() => { setFactoryEditId(null); setFactoryForm({ name: "", phone: "", address: "", description: "", is_active: true }); setFactoryShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
-                </div>
-              </div>
-
+              {/* 생산공장 서브탭 */}
+              {partnerSubTab === "생산공장" && (<>
               {factoryShowForm && (
                 <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
                   <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{factoryEditId ? "공장 수정" : "공장 추가"}</h3>
@@ -2445,7 +2450,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-
               {factoriesLoading ? <LoadingSpinner /> : factories.length === 0 ? (
                 <Empty text="등록된 공장이 없습니다." />
               ) : (
@@ -2471,25 +2475,10 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
-            </section>
-          )}
+              </>)}
 
-          {/* ══════════════════════════════════════════════
-              협력업체 관리
-          ══════════════════════════════════════════════ */}
-          {activeTab === "partners" && (
-            <section>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>협력업체 관리</h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 {partners.length}개</p>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={fetchPartners} style={btnStyle("outline")}>새로고침</button>
-                  <button type="button" onClick={() => { setPartnerEditId(null); setPartnerForm({ category: "도금", name: "", phone: "", address: "", description: "", is_active: true }); setPartnerShowForm(true); }} style={{ ...btnStyle("outline"), background: "#111827", color: "white", border: "none" }}>+ 추가</button>
-                </div>
-              </div>
-
+              {/* 파트너 서브탭 (전체 + 카테고리별) */}
+              {(partnerSubTab === "전체" || isCategoryTab(partnerSubTab)) && (<>
               {partnerShowForm && (
                 <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
                   <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 800, color: "#111827" }}>{partnerEditId ? "협력업체 수정" : "협력업체 추가"}</h3>
@@ -2538,26 +2527,11 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-
-              {/* 카테고리 필터 */}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-                <button type="button" onClick={() => setPartnerCategoryFilter("")}
-                  style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: partnerCategoryFilter === "" ? "none" : "1px solid #d1d5db", background: partnerCategoryFilter === "" ? "#111827" : "white", color: partnerCategoryFilter === "" ? "white" : "#374151" }}>
-                  전체
-                </button>
-                {PARTNER_CATEGORIES.map(c => (
-                  <button key={c} type="button" onClick={() => setPartnerCategoryFilter(c)}
-                    style={{ height: 34, padding: "0 14px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer", border: partnerCategoryFilter === c ? "none" : "1px solid #d1d5db", background: partnerCategoryFilter === c ? "#111827" : "white", color: partnerCategoryFilter === c ? "white" : "#374151" }}>
-                    {c}
-                  </button>
-                ))}
-              </div>
-
-              {partnersLoading ? <LoadingSpinner /> : partners.filter(p => !partnerCategoryFilter || p.category === partnerCategoryFilter).length === 0 ? (
+              {partnersLoading ? <LoadingSpinner /> : partners.filter(p => partnerSubTab === "전체" || p.category === partnerSubTab).length === 0 ? (
                 <Empty text="등록된 협력업체가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
-                  {partners.filter(p => !partnerCategoryFilter || p.category === partnerCategoryFilter).map(p => (
+                  {partners.filter(p => partnerSubTab === "전체" || p.category === partnerSubTab).map(p => (
                     <div key={p.id} style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
@@ -2579,8 +2553,10 @@ export default function AdminPage() {
                   ))}
                 </div>
               )}
+              </>)}
             </section>
-          )}
+            );
+          })()}
 
         </div>
       </main>
