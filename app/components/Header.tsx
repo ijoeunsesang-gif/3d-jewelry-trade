@@ -352,6 +352,7 @@ export default function Header() {
         <MyMenuLink href="/favorites" icon={<IconDropHeart    active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>찜</MyMenuLink>
         <MyMenuLink href="/cart"      icon={<IconDropCart     active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>장바구니</MyMenuLink>
         <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>다운로드</MyMenuLink>
+        <MyMenuLink href="/partner"   icon={<IconDropPartner  active={pathname.startsWith("/partner")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/partner")}>협력업체</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
@@ -959,6 +960,9 @@ function IconNotice({ active = false, size = 22, inactiveColor = "#5a5a5a", acti
 }
 function IconDropNotice({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M3 9v6h4l8 4V5L7 9H3z" /><path d="M17 9a4 4 0 0 1 0 6" /><line x1="7" y1="15" x2="7" y2="20" /></svg>;
+}
+function IconDropPartner({ active = false }: { active?: boolean }) {
+  return <svg {...dropSvg(active)}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
 }
 function IconPartners({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
   return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
