@@ -344,7 +344,6 @@ export default function Header() {
         <MyMenuLink href="/profile"   icon={<IconDropUser   active={pathname.startsWith("/profile")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/profile")}>내 정보</MyMenuLink>
         <MyMenuLink href="/my-models" icon={<IconDropBox    active={pathname.startsWith("/my-models")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/my-models")}>내 모델</MyMenuLink>
         <MyMenuLink href="/upload"    icon={<IconDropUpload active={pathname.startsWith("/upload")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/upload")}>업로드</MyMenuLink>
-        <MyMenuLink href="/cad-school" icon={<IconDropCadSchool active={pathname.startsWith("/cad-school")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cad-school")}>캐드스쿨</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
@@ -352,24 +351,22 @@ export default function Header() {
         <MyMenuLink href="/favorites" icon={<IconDropHeart    active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>찜</MyMenuLink>
         <MyMenuLink href="/cart"      icon={<IconDropCart     active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>장바구니</MyMenuLink>
         <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>다운로드</MyMenuLink>
-        <MyMenuLink href="/partner"   icon={<IconDropPartner  active={pathname.startsWith("/partner")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/partner")}>업체정보</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* 섹션 3: 의뢰 */}
+        {/* 섹션 3: 의뢰 / 캐드스쿨 / 업체정보 / 구인구직 */}
         <MyMenuLink href="/commission" icon={<IconDropClipboard active={pathname.startsWith("/commission")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/commission")}>의뢰</MyMenuLink>
+        <MyMenuLink href="/cad-school" icon={<IconDropCadSchool active={pathname.startsWith("/cad-school")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cad-school")}>캐드스쿨</MyMenuLink>
+        <MyMenuLink href="/partner"    icon={<IconDropPartner  active={pathname.startsWith("/partner")}    />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/partner")}>업체정보</MyMenuLink>
+        <MyMenuLink href="/jobs"       icon={<IconDropJobs     active={pathname.startsWith("/jobs")}       />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/jobs")}>구인구직</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
-        {/* 섹션 4: 문의함 / 고객센터 / 도움말 */}
+        {/* 섹션 4: 문의함 / 고객센터 / 공지사항 / 도움말 */}
         <MyMenuLink href="/messages"         icon={<IconDropMail       active={pathname.startsWith("/messages")}         />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/messages")}>문의함</MyMenuLink>
         <MyMenuLink href="/customer-service" icon={<IconDropHeadphones active={pathname.startsWith("/customer-service")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/customer-service")}>고객센터</MyMenuLink>
         <MyMenuLink href="/notice"           icon={<IconDropNotice     active={pathname.startsWith("/notice")}           />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/notice")}>공지사항</MyMenuLink>
         <MyMenuLink href="/help"             icon={<IconDropHelp       active={pathname.startsWith("/help")}             />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/help")}>도움말</MyMenuLink>
-
-        <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
-
-        <MyMenuLink href="/jobs" icon={<IconDropJobs active={pathname.startsWith("/jobs")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/jobs")}>구인구직</MyMenuLink>
 
         {userRole === "admin" && (
           <>
