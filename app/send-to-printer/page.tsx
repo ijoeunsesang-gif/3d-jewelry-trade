@@ -436,11 +436,15 @@ function SendToPrinterContent() {
           background: #f3f4f6;
           align-self: stretch;
         }
+        .stp-extra-left  { display: block; }
+        .stp-extra-right { display: none;  }
         @media (max-width: 768px) {
           .stp-form-grid {
             grid-template-columns: 1fr;
           }
           .stp-divider { display: none; }
+          .stp-extra-left  { display: none;  }
+          .stp-extra-right { display: block; }
         }
       `}</style>
 
@@ -669,6 +673,14 @@ function SendToPrinterContent() {
             </div>
           </div>
 
+          {/* 추가 내용 (PC 전용) */}
+          <div className="stp-extra-left" style={section("#f9fafb")}>
+            <div style={sectionTitle}>추가 내용</div>
+            <textarea value={extraNote} onChange={(e) => setExtraNote(e.target.value)}
+              placeholder="출력 시 참고할 내용을 입력해주세요." rows={3}
+              style={{ width: "100%", borderRadius: 10, border: "1.5px solid #e5e7eb", padding: "10px 12px", fontSize: 14, boxSizing: "border-box", outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.6 }} />
+          </div>
+
           </div>{/* 왼쪽 컬럼 끝 */}
 
           {/* 구분선 */}
@@ -852,8 +864,8 @@ function SendToPrinterContent() {
             </div>
           )}
 
-          {/* 추가 내용 */}
-          <div style={section("#f9fafb")}>
+          {/* 추가 내용 (모바일 전용) */}
+          <div className="stp-extra-right" style={section("#f9fafb")}>
             <div style={sectionTitle}>추가 내용</div>
             <textarea value={extraNote} onChange={(e) => setExtraNote(e.target.value)}
               placeholder="출력 시 참고할 내용을 입력해주세요." rows={3}
