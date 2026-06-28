@@ -8,8 +8,6 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
 import Image from "next/image";
 
-const GOLD = "#c9a84c";
-
 export default function TipNewPage() {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);

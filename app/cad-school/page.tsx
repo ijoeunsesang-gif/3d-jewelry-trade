@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import GradeBadge from "../components/GradeBadge";
 import ReputationBadge from "../components/ReputationBadge";
-import MentorNickname, { MentorMiniData } from "../components/MentorNickname";
+import MentorNickname from "../components/MentorNickname";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../lib/toast";
+import { GOLD } from "@/lib/constants";
+import { EmptyState } from "../components/EmptyState";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const PER_PAGE = 10;
 
@@ -1277,41 +1278,6 @@ function Gold({ children }: { children: React.ReactNode }) {
   return <strong style={{ color: GOLD }}>{children}</strong>;
 }
 
-// ─ 멘토 카드 ──────────────────────────────────────────────────
-function MentorCard({ mentor }: { mentor: Mentor }) {
-  const careerYears = mentor.career_start_year ? CURRENT_YEAR - mentor.career_start_year : null;
-  return (
-    <Link href={`/cad-school/mentor/${mentor.id}`} style={{ textDecoration: "none" }}>
-      <div
-        style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "18px 20px", cursor: "pointer", transition: "box-shadow 0.15s" }}
-        onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)")}
-        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
-      >
-        <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-          <Avatar url={mentor.profiles?.avatar_url} size={48} />
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>{mentor.profiles?.nickname ?? "멘토"}</span>
-              {mentor.profiles?.grade && <GradeBadge grade={mentor.profiles.grade as Grade} size="sm" />}
-              {(() => { const repScore = mentor.profiles?.reputation_scores?.[0]?.score ?? 0; return repScore > 0 ? <ReputationBadge score={repScore} size="sm" /> : null; })()}
-              {careerYears !== null && (
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280", background: "#f3f4f6", borderRadius: 6, padding: "2px 7px" }}>경력 {careerYears}년</span>
-              )}
-              {mentor.avg_rating > 0 && (
-                <span style={{ fontSize: 12, color: GOLD, fontWeight: 700 }}>★ {mentor.avg_rating.toFixed(1)}</span>
-              )}
-            </div>
-            <p style={{ margin: "0 0 8px", fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>{mentor.intro || "소개글이 없습니다."}</p>
-            {mentor.response_rate > 0 && (
-              <span style={{ fontSize: 12, color: "#6b7280" }}>답변률 {mentor.response_rate.toFixed(0)}%</span>
-            )}
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 function PostCard({ post, myUserId, isAdmin, onDeleted, mentorUserIdToMentorId }: { post: Post; myUserId: string | null; isAdmin: boolean; onDeleted: () => void; mentorUserIdToMentorId: Record<string, string> }) {
   const [deleting, setDeleting] = useState(false);
   const isMyPost = myUserId === post.user_id;
@@ -1394,16 +1360,6 @@ function Avatar({ url, size }: { url?: string | null; size: number }) {
 
 function LoadingState() {
   return <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "60px 20px", textAlign: "center", color: "#9ca3af", fontSize: 14 }}>불러오는 중...</div>;
-}
-
-function EmptyState({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "60px 20px", textAlign: "center" }}>
-      <div style={{ fontSize: 40, marginBottom: 14 }}>{icon}</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 13, color: "#9ca3af" }}>{desc}</div>
-    </div>
-  );
 }
 
 function timeAgo(dateStr: string): string {

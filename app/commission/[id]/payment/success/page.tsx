@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getAccessToken } from "@/lib/supabase-fetch";
 import UploadProgress, { buildSteps } from "@/app/components/UploadProgress";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 export default function PaymentSuccessPage() {
   const { id } = useParams<{ id: string }>();

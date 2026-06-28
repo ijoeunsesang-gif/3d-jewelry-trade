@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -8,8 +8,8 @@ import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../lib/toast";
 import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 type AddonType = "checklist" | "review" | "post_review_cad";
 
@@ -25,7 +25,6 @@ function AddonContent() {
   const subId   = searchParams.get("sub")  ?? "";
   const preType = (searchParams.get("type") ?? "") as AddonType | "";
 
-  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [paying, setPaying] = useState<AddonType | null>(null);
   const [subStatus, setSubStatus] = useState<"loading" | "active" | "inactive">("loading");
 
@@ -33,8 +32,6 @@ function AddonContent() {
     const token = getAccessToken();
     if (!token) { showInfo("로그인이 필요합니다."); router.push("/auth"); return; }
     const payload = decodeJwt(token) as { sub?: string } | null;
-    setMyUserId(payload?.sub ?? null);
-
     if (!subId) { setSubStatus("inactive"); return; }
 
     (async () => {

@@ -4,13 +4,11 @@ import { r2SignedUrl } from "@/lib/r2";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Supabase 환경변수가 설정되지 않았습니다.");
 }
 
-const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 const publicSupabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function POST(req: NextRequest) {

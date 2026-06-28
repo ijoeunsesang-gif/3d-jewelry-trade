@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 export default function PaymentFailPage() {
   const { id } = useParams<{ id: string }>();

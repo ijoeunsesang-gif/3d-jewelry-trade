@@ -12,8 +12,8 @@ import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import Image from "next/image";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 const PRIVATE_STEPS = ["pending", "negotiating", "payment", "working", "completed", "downloaded"];
 const PRIVATE_STEP_LABELS: Record<string, string> = {
@@ -176,7 +176,6 @@ export default function CommissionDetailPage() {
   const [myId, setMyId] = useState<string | null>(null);
   const [isSeller, setIsSeller] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
 
@@ -281,7 +280,6 @@ export default function CommissionDetailPage() {
     if (token) {
       const payload = decodeJwt(token) as any;
       const uid = payload?.sub as string;
-      const email = (payload?.email as string) || "";
       setMyId(uid);
       supabase.from("profiles").select("role, nickname").eq("id", uid).single()
         .then(({ data }) => {

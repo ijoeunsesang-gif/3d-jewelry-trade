@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -6,8 +6,8 @@ import { supabase } from "@/app/lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { GRADE_CONFIG, Grade, MentorGrade, MENTOR_GRADE_CONFIG } from "@/lib/grades";
 import GradeBadge from "@/app/components/GradeBadge";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 const RATE_COMMISSION = 0.2;  // 의뢰 수수료율 20% (고정)
 // 캐드스쿨(수강패키지/이용권추가/건별멘토링)은 멘토 등급별 수수료율 동적 적용

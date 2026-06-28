@@ -6,8 +6,8 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import Image from "next/image";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const MAX_IMAGES = 5;
 const DAILY_POINT_LIMIT = 100;
 const MIN_ANSWER_LENGTH = 20;
@@ -234,7 +234,7 @@ export default function AskDetailPage() {
 
       if (meetsLength && !isSolved && !isSelfAnswer) {
         // 이 post_id에 이미 포인트를 받은 적 있는지 확인
-        const { data: prevPoints } = await supabase
+        await supabase
           .from("points")
           .select("id")
           .eq("user_id", myId)

@@ -8,8 +8,10 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { scrollToTop } from "@/lib/scroll";
 import Image from "next/image";
 import { showError, showSuccess } from "../lib/toast";
+import { GOLD } from "@/lib/constants";
+import { EmptyState } from "../components/EmptyState";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 
-const GOLD = "#c9a84c";
 const SIDEBAR_BG = "#111827";
 
 type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "partners";
@@ -1294,7 +1296,7 @@ export default function AdminPage() {
               </div>
 
               {convsLoading ? <LoadingSpinner /> : convs.length === 0 ? (
-                <Empty text="삭제된 대화가 없습니다." />
+                <EmptyState message="삭제된 대화가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 10 }}>
                   {convs.map(c => (
@@ -1374,7 +1376,7 @@ export default function AdminPage() {
               </div>
 
               {reportsLoading ? <LoadingSpinner /> : reports.length === 0 ? (
-                <Empty text="신고된 답변이 없습니다." />
+                <EmptyState message="신고된 답변이 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {reports.map(r => (
@@ -1468,7 +1470,7 @@ export default function AdminPage() {
                     {/* Seller rankings */}
                     <div style={cardStyle}>
                       <h3 style={cardTitle}>판매자별 매출 순위</h3>
-                      {sellerRankings.length === 0 ? <Empty text="데이터 없음" /> : (
+                      {sellerRankings.length === 0 ? <EmptyState message="데이터 없음" /> : (
                         sellerRankings.map((s, i) => (
                           <div key={s.sellerId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1487,7 +1489,7 @@ export default function AdminPage() {
                     {/* Product rankings */}
                     <div style={cardStyle}>
                       <h3 style={cardTitle}>상품별 다운로드 순위</h3>
-                      {productRankings.length === 0 ? <Empty text="데이터 없음" /> : (
+                      {productRankings.length === 0 ? <EmptyState message="데이터 없음" /> : (
                         productRankings.map((p, i) => (
                           <div key={p.modelId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -1547,7 +1549,7 @@ export default function AdminPage() {
               </div>
 
               {commLoading ? <LoadingSpinner /> : filteredCommissions.length === 0 ? (
-                <Empty text="의뢰가 없습니다." />
+                <EmptyState message="의뢰가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 10 }}>
                   {filteredCommissions.map(c => (
@@ -1643,7 +1645,7 @@ export default function AdminPage() {
                 />
 
                 {deletedMembersLoading ? <LoadingSpinner /> : filtered.length === 0 ? (
-                  <Empty text="탈퇴 회원이 없습니다." />
+                  <EmptyState message="탈퇴 회원이 없습니다." />
                 ) : (
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -1742,7 +1744,7 @@ export default function AdminPage() {
 
               {/* 목록 */}
               {bannedWordsLoading ? <LoadingSpinner /> : bannedWords.length === 0 ? (
-                <Empty text="등록된 금지어가 없습니다." />
+                <EmptyState message="등록된 금지어가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
                   {bannedWords.map(bw => (
@@ -1794,7 +1796,7 @@ export default function AdminPage() {
               </div>
 
               {modelReportsLoading ? <LoadingSpinner /> : modelReports.length === 0 ? (
-                <Empty text="신고된 모델이 없습니다." />
+                <EmptyState message="신고된 모델이 없습니다." />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {modelReports.map((r) => {
@@ -1912,7 +1914,7 @@ export default function AdminPage() {
 
               {/* 목록 */}
               {noticesLoading ? <LoadingSpinner /> : notices.length === 0 ? (
-                <Empty text="등록된 공지사항이 없습니다." />
+                <EmptyState message="등록된 공지사항이 없습니다." />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {notices.map((n) => (
@@ -1971,7 +1973,7 @@ export default function AdminPage() {
               </div>
 
               {deletionRequestsLoading ? <LoadingSpinner /> : deletionRequests.length === 0 ? (
-                <Empty text="삭제 요청이 없습니다." />
+                <EmptyState message="삭제 요청이 없습니다." />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {deletionRequests.map((r) => {
@@ -2064,7 +2066,7 @@ export default function AdminPage() {
               </div>
 
               {inqLoading ? <LoadingSpinner /> : filteredInquiries.length === 0 ? (
-                <Empty text="문의가 없습니다." />
+                <EmptyState message="문의가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 10 }}>
                   {filteredInquiries.map(inq => (
@@ -2275,7 +2277,7 @@ export default function AdminPage() {
                 </div>
               )}
               {printShopsLoading ? <LoadingSpinner /> : printShops.length === 0 ? (
-                <Empty text="등록된 출력소가 없습니다." />
+                <EmptyState message="등록된 출력소가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {printShops.map(ps => (
@@ -2359,7 +2361,7 @@ export default function AdminPage() {
                 </div>
               )}
               {fwLoading ? <LoadingSpinner /> : finishingWorkers.length === 0 ? (
-                <Empty text="등록된 원본 작업자가 없습니다." />
+                <EmptyState message="등록된 원본 작업자가 없습니다." />
               ) : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -2451,7 +2453,7 @@ export default function AdminPage() {
                 </div>
               )}
               {factoriesLoading ? <LoadingSpinner /> : factories.length === 0 ? (
-                <Empty text="등록된 공장이 없습니다." />
+                <EmptyState message="등록된 공장이 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {factories.map(f => (
@@ -2528,7 +2530,7 @@ export default function AdminPage() {
                 </div>
               )}
               {partnersLoading ? <LoadingSpinner /> : partners.filter(p => partnerSubTab === "전체" || p.category === partnerSubTab).length === 0 ? (
-                <Empty text="등록된 업체정보가 없습니다." />
+                <EmptyState message="등록된 업체정보가 없습니다." />
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {partners.filter(p => partnerSubTab === "전체" || p.category === partnerSubTab).map(p => (
@@ -2565,20 +2567,6 @@ export default function AdminPage() {
 }
 
 /* ── Sub-components ──────────────────────────────────────── */
-function LoadingSpinner() {
-  return (
-    <div style={{ padding: "48px 0", textAlign: "center", color: "#9ca3af" }}>
-      불러오는 중...
-    </div>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return (
-    <p style={{ textAlign: "center", color: "#9ca3af", padding: "48px 0", fontSize: 15 }}>{text}</p>
-  );
-}
-
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{
@@ -2627,3 +2615,4 @@ function btnStyle(variant: "outline" | "warn" | "danger", disabled?: boolean): R
   if (variant === "danger")  return { ...base, border: "none", background: "#ef4444", color: "white" };
   return base;
 }
+

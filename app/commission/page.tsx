@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 const STATUS_LABEL: Record<string, string> = {
   open: "의뢰중", in_progress: "작업중", completed: "완료",
@@ -211,13 +211,6 @@ export default function CommissionListPage() {
 
   const needsLogin = !isLoggedIn && activeTab !== "public";
 
-  const STATUS_GROUP: Record<string, string[]> = {
-    "의뢰중": ["pending", "open"],
-    "결제중": ["payment"],
-    "작업중": ["working", "in_progress"],
-    "완료":   ["completed", "downloaded"],
-    "취소":   ["cancelled", "rejected"],
-  };
 
   const displayCommissions = commissions;
 

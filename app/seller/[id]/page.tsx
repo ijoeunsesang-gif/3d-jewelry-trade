@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
-import { showError, showInfo, showSuccess } from "../../lib/toast";
+import { showError } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import AvatarImage from "../../components/AvatarImage";
 import { Grade } from "@/lib/grades";
@@ -1409,22 +1409,3 @@ export default function SellerPage() {
   );
 }
 
-const statBox: React.CSSProperties = {
-  border: "1px solid #e5e7eb",
-  borderRadius: 16,
-  padding: 12,
-  background: "#f8fafc",
-};
-
-const statTitle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 800,
-  color: "#6b7280",
-};
-
-const statValue: React.CSSProperties = {
-  marginTop: 6,
-  fontSize: 22,
-  fontWeight: 900,
-  color: "#111827",
-};

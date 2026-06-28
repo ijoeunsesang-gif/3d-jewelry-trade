@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -7,8 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
 import AvatarImage from "./AvatarImage";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const GOLD_TAB = "#D4AF37";
 const TAB_INACTIVE = "rgba(255,255,255,0.72)";
@@ -954,9 +954,6 @@ function IconDropJobs({ active = false }: { active?: boolean }) {
 }
 function IconDropAdmin({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>;
-}
-function IconNotice({ active = false, size = 22, inactiveColor = "#5a5a5a", activeColor = GOLD }: { active?: boolean; size?: number; inactiveColor?: string; activeColor?: string }) {
-  return <svg {...svgProps(active, size, inactiveColor, activeColor)}><path d="M3 9v6h4l8 4V5L7 9H3z" /><path d="M17 9a4 4 0 0 1 0 6" /><line x1="7" y1="15" x2="7" y2="20" /></svg>;
 }
 function IconDropNotice({ active = false }: { active?: boolean }) {
   return <svg {...dropSvg(active)}><path d="M3 9v6h4l8 4V5L7 9H3z" /><path d="M17 9a4 4 0 0 1 0 6" /><line x1="7" y1="15" x2="7" y2="20" /></svg>;

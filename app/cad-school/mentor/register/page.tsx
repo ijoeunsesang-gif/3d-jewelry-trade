@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,8 +6,8 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 
 const PROGRAM_OPTIONS = ["주얼리CAD", "Rhino 5", "Rhino 6", "Rhino 7", "Rhino 8", "ZBrush (지브러쉬)", "KeyShot (키샷)"];

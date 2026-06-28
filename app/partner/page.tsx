@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
+import { EmptyState } from "../components/EmptyState";
 
 type TabKey = "factories" | "printShops" | "원본" | "레이저" | "고무몰드" | "도금" | "주조" | "조각";
 
@@ -113,7 +114,7 @@ export default function PartnerPage() {
   const renderContent = () => {
     if (activeTab === "factories") {
       if (factoriesLoading) return <p style={{ color: "#6b7280" }}>불러오는 중...</p>;
-      if (factories.length === 0) return <EmptyState text="등록된 공장 정보가 없습니다." />;
+      if (factories.length === 0) return <EmptyState message="등록된 공장 정보가 없습니다." />;
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {factories.map((f) => (
@@ -125,7 +126,7 @@ export default function PartnerPage() {
 
     if (activeTab === "printShops") {
       if (printShopsLoading) return <p style={{ color: "#6b7280" }}>불러오는 중...</p>;
-      if (printShops.length === 0) return <EmptyState text="등록된 출력소가 없습니다." />;
+      if (printShops.length === 0) return <EmptyState message="등록된 출력소가 없습니다." />;
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
           {printShops.map((ps) => (
@@ -150,7 +151,7 @@ export default function PartnerPage() {
 
     if (activeTab === "원본") {
       if (finishingWorkersLoading) return <p style={{ color: "#6b7280" }}>불러오는 중...</p>;
-      if (finishingWorkers.length === 0) return <EmptyState text="등록된 원본 작업자가 없습니다." />;
+      if (finishingWorkers.length === 0) return <EmptyState message="등록된 원본 작업자가 없습니다." />;
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {finishingWorkers.map((w) => (
@@ -177,7 +178,7 @@ export default function PartnerPage() {
       if (partnersLoading) return <p style={{ color: "#6b7280" }}>불러오는 중...</p>;
       const category = PARTNER_CATEGORY_MAP[activeTab]!;
       const filtered = partners.filter((p) => p.category === category);
-      if (filtered.length === 0) return <EmptyState text="등록된 업체정보가 없습니다." />;
+      if (filtered.length === 0) return <EmptyState message="등록된 업체정보가 없습니다." />;
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {filtered.map((p) => (
@@ -266,14 +267,6 @@ export default function PartnerPage() {
 
       {renderContent()}
     </main>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-      <p style={{ fontSize: 16, color: "#6b7280", margin: 0 }}>{text}</p>
-    </div>
   );
 }
 

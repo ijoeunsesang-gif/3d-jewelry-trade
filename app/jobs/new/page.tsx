@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 export default function JobNewPage() {
   const router = useRouter();

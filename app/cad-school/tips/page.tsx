@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
@@ -8,8 +8,8 @@ import MentorNickname from "../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import Image from "next/image";
 import { showInfo } from "../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const PER_PAGE = 10;
 

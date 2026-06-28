@@ -9,8 +9,8 @@ import ReputationBadge from "../../../components/ReputationBadge";
 import { Grade } from "@/lib/grades";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const CURRENT_YEAR = new Date().getFullYear();
 

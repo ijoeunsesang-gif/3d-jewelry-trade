@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -7,8 +7,9 @@ import { supabase } from "../../lib/supabase-browser";
 import MentorNickname from "../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
+import { GOLD } from "@/lib/constants";
+import { EmptyState } from "../../components/EmptyState";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const PER_PAGE = 10;
 
@@ -290,7 +291,7 @@ function MyActivityPage() {
       {/* ── 탭 콘텐츠: 건별 멘토링 ── */}
       {tab === "mentoring" && (
         sessions.length === 0 ? (
-          <EmptyBox icon="💬" title="진행한 건별 멘토링이 없습니다" desc="유료 피드백 탭에서 멘토에게 질문해보세요." />
+          <EmptyState icon="💬" title="진행한 건별 멘토링이 없습니다" desc="유료 피드백 탭에서 멘토에게 질문해보세요." />
         ) : (
           <>
             <div style={{ display: "grid", gap: 12 }}>
@@ -334,7 +335,7 @@ function MyActivityPage() {
       {/* ── 탭 콘텐츠: 내 질문 ── */}
       {tab === "posts" && (
         posts.length === 0 ? (
-          <EmptyBox icon="📝" title="등록한 질문이 없습니다" desc="자유 피드백 탭에서 첫 번째 질문을 올려보세요." />
+          <EmptyState icon="📝" title="등록한 질문이 없습니다" desc="자유 피드백 탭에서 첫 번째 질문을 올려보세요." />
         ) : (
           <>
             <div style={{ display: "grid", gap: 12 }}>
@@ -496,16 +497,6 @@ function OtherSubscriptionCard({ sub }: { sub: Subscription }) {
 // ── 공통 컴포넌트 ──────────────────────────────────────────────
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h2 style={{ margin: "0 0 14px", fontSize: 18, fontWeight: 900, color: "#111827" }}>{children}</h2>;
-}
-
-function EmptyBox({ icon, title, desc }: { icon: string; title: string; desc: string }) {
-  return (
-    <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 18, padding: "60px 20px", textAlign: "center" }}>
-      <div style={{ fontSize: 36, marginBottom: 12 }}>{icon}</div>
-      <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 13, color: "#9ca3af" }}>{desc}</div>
-    </div>
-  );
 }
 
 function QuotaBar({ label, remaining, total, color }: { label: string; remaining: number; total: number; color: string }) {

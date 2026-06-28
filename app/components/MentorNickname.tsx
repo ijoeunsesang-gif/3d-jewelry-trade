@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const CURRENT_YEAR = new Date().getFullYear();
 
 export type MentorMiniData = {

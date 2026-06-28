@@ -81,8 +81,6 @@ function SendToPrinterContent() {
 
   /* 모델 정보 */
   const [modelTitle, setModelTitle] = useState("");
-  const [modelFilePath, setModelFilePath] = useState<string | null>(null);
-
   /* 출력소 */
   const [printers, setPrinters] = useState<PrinterContact[]>([]);
   const [selectedPrinterId, setSelectedPrinterId] = useState<string | null>(null);
@@ -189,7 +187,6 @@ function SendToPrinterContent() {
       .from("models").select("title, model_file_path, thumbnail_path, thumbnail").eq("id", modelId).single();
     if (model) {
       setModelTitle(model.title || "");
-      setModelFilePath(model.model_file_path || null);
       const tp = model.thumbnail_path || model.thumbnail || "";
       if (tp) setModelThumbnail(tp.startsWith("http") ? tp : `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${tp}`);
     }

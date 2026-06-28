@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -8,8 +8,8 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 type AdminTab = "mentors" | "warnings" | "delete-requests" | "point-configs";
 

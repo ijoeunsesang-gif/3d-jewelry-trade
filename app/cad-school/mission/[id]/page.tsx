@@ -7,8 +7,8 @@ import { supabase } from "../../../lib/supabase-browser";
 import MentorNickname from "../../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 type FileItem = { name: string; url: string; ext: string };
 

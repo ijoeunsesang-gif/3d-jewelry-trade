@@ -47,7 +47,6 @@ export default function CustomerServicePage() {
   const [inqTitle, setInqTitle] = useState("");
   const [inqContent, setInqContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [myInquiries, setMyInquiries] = useState<{
     id: string; title: string; status: string; created_at: string;
@@ -82,7 +81,6 @@ export default function CustomerServicePage() {
     if (!token) return;
     const payload = decodeJwt(token) as any;
     const uid = payload?.sub || "";
-    setUserEmail(payload?.email || "");
     setUserId(uid);
     if (uid) fetchMyInquiries(uid);
   };

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ import { Grade, GRADE_CONFIG, gradeOrder, MentorGrade, MENTOR_GRADE_CONFIG, calc
 import { Phone } from "lucide-react";
 import { compressThumbnail } from "@/lib/imageCompression";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
+import { GOLD } from "@/lib/constants";
 
 type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users";
 type UserListSubTab = "sellers" | "mentors" | "all";
@@ -21,7 +22,6 @@ type PurchaseRow = { id: string; model_id: string; price: number; created_at: st
 type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
 type PeriodType = "7days" | "30days" | "all" | "monthly";
 
-const GOLD = "#c9a84c";
 const DARK = "#111827";
 
 export default function ProfilePage() {
@@ -70,7 +70,6 @@ export default function ProfilePage() {
   // 판매자 정보
   const [isSeller, setIsSeller] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [sellerAppliedAt, setSellerAppliedAt] = useState<string | null>(null);
 
   // 멘토 정보
   const [isMentor, setIsMentor] = useState(false);
@@ -187,7 +186,6 @@ export default function ProfilePage() {
         setIsAdmin(profile.role === "admin");
         const banned = profile.is_seller_banned || false;
         setIsSellerBanned(banned);
-        setSellerAppliedAt(profile.seller_applied_at || null);
         if (banned) {
           const { data: latestReq } = await supabase
             .from("seller_reinstate_requests")
@@ -459,7 +457,6 @@ export default function ProfilePage() {
       }).eq("id", userId);
       if (error) throw error;
       setIsSeller(true);
-      setSellerAppliedAt(now);
       showSuccess("판매자 등록이 완료되었습니다!");
     } catch (e: any) {
       showError(e.message || "등록 실패. 다시 시도해주세요.");
@@ -590,8 +587,6 @@ export default function ProfilePage() {
       setUserListLoading(false);
     }
   };
-
-  const handleBizUpload = handleBizLicenseUpload;
 
   const tabs: { id: TabId; label: string; sellerOnly?: boolean; mentorOrSeller?: boolean }[] = [
     { id: "basic", label: "기본 정보" },
@@ -2263,8 +2258,7 @@ type PointRow = {
 };
 
 function PointsTab({ userId, isSeller, isAdmin }: { userId: string; isSeller: boolean; isAdmin: boolean }) {
-  const GOLD = "#c9a84c";
-  const [rows, setRows] = useState<PointRow[]>([]);
+    const [rows, setRows] = useState<PointRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [guideOpen, setGuideOpen] = useState(false);
   const loadedRef = useRef(false);

@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getAccessToken } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const MAX_FILES = 5;
 
 type UploadedFile = { name: string; url: string; ext: string };

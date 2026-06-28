@@ -6,8 +6,8 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
 
@@ -526,7 +526,6 @@ export default function SubscriptionChatPage() {
           {/* 요청 버튼 */}
           <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
             {REQUEST_TYPES.map((type) => {
-              const info = REQUEST_MODAL_INFO[type];
               const used = type === "checklist" ? sub.checklist_count : type === "review" ? sub.review_count : sub.post_review_cad_count;
               const max = type === "checklist" ? limits.checklist : type === "review" ? limits.review : limits.post_review_cad;
               const exceeded = used >= max;
@@ -1053,10 +1052,6 @@ function timeAgo(dateStr: string): string {
   if (d < 30) return `${d}일 전`;
   return new Date(dateStr).toLocaleDateString("ko-KR");
 }
-
-const smallBtn = (bg: string): React.CSSProperties => ({
-  fontSize: 12, fontWeight: 800, padding: "7px 14px", borderRadius: 9, border: "none", background: bg, color: "white", cursor: "pointer",
-});
 
 const iconBtn: React.CSSProperties = {
   width: 40, height: 40, borderRadius: 10, border: "1px solid #e5e7eb", background: "#f9fafb", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",

@@ -1,11 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
-import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 
 type JobPost = {
   id: string;
@@ -22,16 +21,6 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [isRecruiting, setIsRecruiting] = useState(true);
   const [search, setSearch] = useState("");
-  const [myId, setMyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      const uid = (decodeJwt(token) as any)?.sub as string;
-      setMyId(uid);
-    }
-  }, []);
-
   useEffect(() => {
     fetchPosts(isRecruiting);
   }, [isRecruiting]);

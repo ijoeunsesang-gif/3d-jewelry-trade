@@ -7,8 +7,8 @@ import { supabase } from "../../../lib/supabase-browser";
 import MentorNickname from "../../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
+import { GOLD } from "@/lib/constants";
 
-const GOLD = "#c9a84c";
 const GOLD_LIGHT = "#fdf6e3";
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -53,7 +53,6 @@ export default function TipDetailPage({ params }: { params: Promise<{ id: string
   const [uploadingImg, setUploadingImg] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [myUserId, setMyUserId] = useState<string | null>(null);
   const [isMentorOwner, setIsMentorOwner] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [liked, setLiked]         = useState(false);
@@ -74,7 +73,6 @@ export default function TipDetailPage({ params }: { params: Promise<{ id: string
     if (token) {
       const payload = decodeJwt(token) as { sub?: string } | null;
       const uid = payload?.sub ?? null;
-      setMyUserId(uid);
       if (uid) {
         supabase.from("profiles").select("role").eq("id", uid).single()
           .then(({ data }) => { if (data?.role === "admin") setIsAdmin(true); });
@@ -377,7 +375,6 @@ export default function TipDetailPage({ params }: { params: Promise<{ id: string
               <CommentCard
                 key={c.id}
                 comment={c}
-                myUserId={myUserId}
                 isMentorOwner={isMentorOwner}
                 isAdmin={isAdmin}
                 onDelete={() => deleteComment(c.id)}
@@ -391,16 +388,13 @@ export default function TipDetailPage({ params }: { params: Promise<{ id: string
 }
 
 function CommentCard({
-  comment, myUserId, isMentorOwner, isAdmin, onDelete,
+  comment, isMentorOwner, isAdmin, onDelete,
 }: {
   comment: Comment;
-  myUserId: string | null;
   isMentorOwner: boolean;
   isAdmin: boolean;
   onDelete: () => void;
 }) {
-  const canDelete = comment.profiles !== null && myUserId !== null || isMentorOwner || isAdmin;
-
   return (
     <div style={{ background: "white", border: "1px solid #f0f0f0", borderRadius: 14, padding: "14px 16px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
