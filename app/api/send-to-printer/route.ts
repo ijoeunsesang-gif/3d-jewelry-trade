@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
       { label: "확대축소",      value: scaleText,                                                                  highlight: hasScale },
       { label: "출력 수량",     value: `${qty}개`,                                                                 highlight: qty > 1 },
       { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",                                        highlight: !!symmetric },
-      { label: "마무리 작업",   value: hasFinishing ? finishingScope! : "없음",                                    highlight: hasFinishing },
+      { label: "원본 작업",     value: hasFinishing ? finishingScope! : "없음",                                    highlight: hasFinishing },
       ...(hasFinishing && finishingWorkerName ? [
         { label: "작업자",      value: `${finishingWorkerName}${finishingWorkerPhone ? ` / ${finishingWorkerPhone}` : ""}`, highlight: true },
       ] : []),
@@ -308,14 +308,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 마무리 작업자 별도 이메일 ─────────────────────────────
+    // ── 원본 별도 이메일 ────────────────────────────────────
     if (hasFinishing && finishingWorkerEmail) {
       const fwHtml = `
         <table align="left" width="100%" cellpadding="0" cellspacing="0" style="font-family: system-ui, sans-serif; background: #ffffff;">
           <tr>
             <td align="left" style="text-align: left; padding: 32px 24px; color: #111827; max-width: 580px;">
-              <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">마무리 작업 의뢰</h2>
-              <p align="left" style="color: #6b7280; margin: 0 0 20px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 마무리 작업 부탁드립니다.</p>
+              <h2 align="left" style="font-size: 22px; font-weight: 900; margin: 0 0 6px; text-align: left;">원본 작업 의뢰</h2>
+              <p align="left" style="color: #6b7280; margin: 0 0 20px; font-size: 14px; text-align: left;">안녕하세요, 아래 내용으로 원본 작업 부탁드립니다.</p>
 
               ${thumbnailHtml}
               ${model.title ? `<p align="left" style="font-size: 15px; font-weight: 800; color: #111827; margin: 0 0 16px; text-align: left;">${model.title}</p>` : ""}
@@ -351,9 +351,9 @@ export async function POST(req: NextRequest) {
         from: `3D Jewelry Trade <${fromAddress}>`,
         to: finishingWorkerEmail,
         replyTo: (senderEmail || user.email) || undefined,
-        subject: `<${businessName}> 마무리 작업 의뢰`,
+        subject: `<${businessName}> 원본 작업 의뢰`,
         html: fwHtml,
-      }).catch((e) => console.error("마무리 작업자 이메일 발송 실패:", e));
+      }).catch((e) => console.error("원본 이메일 발송 실패:", e));
     }
 
     return NextResponse.json({ success: true, oversizedFiles });

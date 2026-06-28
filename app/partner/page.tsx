@@ -3,25 +3,25 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 
-type TabKey = "factories" | "printShops" | "원본" | "레이저" | "고무몰드" | "도금" | "주조" | "finishingWorkers";
+type TabKey = "factories" | "printShops" | "원본" | "레이저" | "고무몰드" | "도금" | "주조" | "조각";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "factories",        label: "생산 공장" },
-  { key: "printShops",       label: "출력소" },
-  { key: "원본",             label: "원본" },
-  { key: "레이저",           label: "레이저(각인)" },
-  { key: "고무몰드",         label: "고무몰드" },
-  { key: "도금",             label: "도금" },
-  { key: "주조",             label: "주조" },
-  { key: "finishingWorkers", label: "조각" },
+  { key: "factories", label: "생산 공장" },
+  { key: "printShops", label: "출력소" },
+  { key: "원본",     label: "원본" },
+  { key: "레이저",   label: "레이저(각인)" },
+  { key: "고무몰드", label: "고무몰드" },
+  { key: "도금",     label: "도금" },
+  { key: "주조",     label: "주조" },
+  { key: "조각",     label: "조각" },
 ];
 
 const PARTNER_CATEGORY_MAP: Partial<Record<TabKey, string>> = {
-  원본: "원본",
   레이저: "레이저 각인",
   고무몰드: "고무몰드",
   도금: "도금",
   주조: "주조",
+  조각: "조각",
 };
 
 function isPartnerTab(key: TabKey): boolean {
@@ -59,7 +59,7 @@ export default function PartnerPage() {
   useEffect(() => {
     if (activeTab === "factories" && !factoriesLoaded) fetchFactories();
     if (activeTab === "printShops" && !printShopsLoaded) fetchPrintShops();
-    if (activeTab === "finishingWorkers" && !finishingWorkersLoaded) fetchFinishingWorkers();
+    if (activeTab === "원본" && !finishingWorkersLoaded) fetchFinishingWorkers();
     if (isPartnerTab(activeTab) && !partnersLoaded) fetchPartners();
   }, [activeTab]);
 
@@ -148,9 +148,9 @@ export default function PartnerPage() {
       );
     }
 
-    if (activeTab === "finishingWorkers") {
+    if (activeTab === "원본") {
       if (finishingWorkersLoading) return <p style={{ color: "#6b7280" }}>불러오는 중...</p>;
-      if (finishingWorkers.length === 0) return <EmptyState text="등록된 조각 작업자가 없습니다." />;
+      if (finishingWorkers.length === 0) return <EmptyState text="등록된 원본 작업자가 없습니다." />;
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {finishingWorkers.map((w) => (

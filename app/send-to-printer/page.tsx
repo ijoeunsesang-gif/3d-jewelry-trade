@@ -122,7 +122,7 @@ function SendToPrinterContent() {
   const [symmetric, setSymmetric] = useState(false);
   const [extraNote, setExtraNote] = useState("");
 
-  /* 마무리 작업 */
+  /* 원본 작업 */
   const [finishingScope, setFinishingScope] = useState<string>("없음");
   const [fwList, setFwList] = useState<FinishingWorker[]>([]);
   const [fwLoading, setFwLoading] = useState(false);
@@ -266,7 +266,7 @@ function SendToPrinterContent() {
     setPrinterFormMode(null);
   };
 
-  /* ── 마무리 작업자 ─────────────────────────────────────── */
+  /* ── 원본 ──────────────────────────────────────────────── */
   const fetchFinishingWorkers = async () => {
     if (fwList.length > 0) return;
     setFwLoading(true);
@@ -498,7 +498,7 @@ function SendToPrinterContent() {
                   { label: "확대축소",      value: !scaleType ? "없음" : `${scaleType} ${scalePercent}%`,                                highlight: !!scaleType },
                   { label: "출력 수량",     value: `${printQty}개`,                                                                       highlight: printQty > 1 },
                   { label: "대칭 출력",     value: symmetric ? "✓ 좌우 반전 1쌍" : "-",                                                   highlight: symmetric },
-                  { label: "마무리 작업",   value: finishingScope === "없음" || !finishingScope ? "없음" : `${finishingScope}${selectedFw ? ` · ${selectedFw.name}` : ""}`, highlight: !!(finishingScope && finishingScope !== "없음") },
+                  { label: "원본 작업",     value: finishingScope === "없음" || !finishingScope ? "없음" : `${finishingScope}${selectedFw ? ` · ${selectedFw.name}` : ""}`, highlight: !!(finishingScope && finishingScope !== "없음") },
                   { label: "전화번호",      value: phoneNumber.trim() || "-",                                                             highlight: false },
                   { label: "보내는 이메일", value: senderEmail.trim() || "-",                                                             highlight: false },
                   { label: "추가 내용",     value: extraNote.trim() || "-",                                                               highlight: false },
@@ -774,9 +774,9 @@ function SendToPrinterContent() {
             </div>
           </div>
 
-          {/* 마무리 작업 */}
+          {/* 원본 작업 */}
           <div style={section()}>
-            <div style={sectionTitle}>마무리 작업 <span style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af" }}>(선택사항)</span></div>
+            <div style={sectionTitle}>원본 작업 <span style={{ fontSize: 12, fontWeight: 500, color: "#9ca3af" }}>(선택사항)</span></div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: finishingScope !== "없음" ? 12 : 0 }}>
               {FINISHING_SCOPES.map((s) => (
                 <button key={s} type="button" onClick={() => handleFinishingScopeChange(s)}
@@ -804,7 +804,7 @@ function SendToPrinterContent() {
                     </div>
                     <p style={{ fontSize: 13, color: "#b45309", background: "#fef9c3", border: "1px solid #fde047", borderRadius: 6, padding: "10px 12px", marginTop: 8, lineHeight: 1.6, margin: "8px 0 0" }}>
                       ※ 출력비와 마무리 비용이 합산되어 청구되오니,<br />
-                      마무리 작업자에게 함께 지급해 주세요.
+                      원본에게 함께 지급해 주세요.
                     </p>
                   </>
                 ) : (
@@ -817,14 +817,14 @@ function SendToPrinterContent() {
             )}
           </div>
 
-          {/* 마무리 작업자 팝업 */}
+          {/* 원본 선택 팝업 */}
           {showFwPopup && (
             <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
               onClick={() => setShowFwPopup(false)}>
               <div style={{ background: "white", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}
                 onClick={e => e.stopPropagation()}>
                 <div style={{ padding: "16px 20px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>마무리 작업자 선택</span>
+                  <span style={{ fontSize: 16, fontWeight: 900, color: "#111827" }}>원본 선택</span>
                   <button type="button" onClick={() => setShowFwPopup(false)}
                     style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: 16, color: "#6b7280", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                 </div>

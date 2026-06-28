@@ -566,7 +566,7 @@ export default function AdminPage() {
       const { data, error } = await supabase.from("finishing_workers").select("*").order("created_at", { ascending: true });
       if (error) throw error;
       setFinishingWorkers(data || []);
-    } catch { showError("마무리 작업자 목록 불러오기 실패"); }
+    } catch { showError("원본 목록 불러오기 실패"); }
     finally { setFwLoading(false); }
   };
 
@@ -2306,7 +2306,7 @@ export default function AdminPage() {
               )}
               </>)}
 
-              {/* 원본(마무리 작업자) 서브탭 */}
+              {/* 원본 서브탭 */}
               {partnerSubTab === "원본" && (<>
               {fwShowForm && (
                 <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
