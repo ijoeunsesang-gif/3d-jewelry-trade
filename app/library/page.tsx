@@ -211,7 +211,7 @@ function LibraryPageInner() {
   };
 
   if (loading && activeTab === "purchases") {
-    return <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>내 다운로드를 불러오는 중...</p></main>;
+    return <main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>다운로드를 불러오는 중...</p></main>;
   }
 
   return (
@@ -221,7 +221,7 @@ function LibraryPageInner() {
         {/* 헤더 */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 16 }}>
-            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>내 다운로드</h1>
+            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>다운로드</h1>
             <p style={{ color: "#6b7280", fontSize: 14, margin: 0 }}>구매한 3D 모델을 구매일로부터 6개월 동안 안전하게 다시 다운로드할 수 있습니다.</p>
           </div>
 
@@ -426,7 +426,7 @@ function LibraryPageInner() {
 
 export default function LibraryPage() {
   return (
-    <Suspense fallback={<main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>내 다운로드를 불러오는 중...</p></main>}>
+    <Suspense fallback={<main style={{ maxWidth: 1100, margin: "40px auto", padding: "0 20px" }}><p>다운로드를 불러오는 중...</p></main>}>
       <LibraryPageInner />
     </Suspense>
   );

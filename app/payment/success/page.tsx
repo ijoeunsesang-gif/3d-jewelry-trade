@@ -392,7 +392,7 @@ function PaymentSuccessContent() {
           <h1 className="ps-title">구매가 완료되었습니다.</h1>
 
           <p style={{ fontSize: 16, color: "#6b7280", marginBottom: 8 }}>
-            이제 내 다운로드에서 파일을 받을 수 있습니다.
+            이제 다운로드에서 파일을 받을 수 있습니다.
           </p>
 
           {order && (
@@ -469,7 +469,7 @@ function PaymentSuccessContent() {
                     boxSizing: "border-box",
                   }}
                 >
-                  내 다운로드 보기
+                  다운로드 보기
                 </Link>
                 <Link
                   href="/"

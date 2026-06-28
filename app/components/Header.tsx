@@ -351,7 +351,7 @@ export default function Header() {
         {/* 섹션 2: 찜 / 장바구니 / 다운로드 */}
         <MyMenuLink href="/favorites" icon={<IconDropHeart    active={pathname.startsWith("/favorites")} />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/favorites")}>찜</MyMenuLink>
         <MyMenuLink href="/cart"      icon={<IconDropCart     active={pathname.startsWith("/cart")}      />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/cart")}>장바구니</MyMenuLink>
-        <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>내 다운로드</MyMenuLink>
+        <MyMenuLink href="/library"   icon={<IconDropDownload active={pathname.startsWith("/library")}   />} onClick={() => setMyOpen(false)} active={pathname.startsWith("/library")}>다운로드</MyMenuLink>
 
         <div style={{ height: 1, background: "#f0ead8", margin: "4px 0" }} />
 
@@ -491,7 +491,7 @@ export default function Header() {
               <NavItem href="/" label="홈" icon={<IconHome />} active={pathname === "/"} />
               <NavItem href="/favorites" label="찜" icon={<IconHeart />} active={pathname === "/favorites"} badge={favoriteCount} />
               <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
-              <NavItem href="/library" label="내 다운로드" icon={<IconDownload />} active={pathname === "/library"} />
+              <NavItem href="/library" label="다운로드" icon={<IconDownload />} active={pathname === "/library"} />
               <NavItem href="/commission" label="의뢰" icon={<IconClipboard />} active={pathname.startsWith("/commission")} />
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
@@ -743,7 +743,7 @@ export default function Header() {
         <BottomTabItem
           href="/library"
           icon={<IconDownload active={pathname === "/library"} size={28} inactiveColor={TAB_INACTIVE} activeColor={GOLD_TAB} />}
-          label="내 다운로드"
+          label="다운로드"
           active={pathname === "/library"}
         />
         <BottomTabItem

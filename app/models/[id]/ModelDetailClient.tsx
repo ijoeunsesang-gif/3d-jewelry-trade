@@ -1001,7 +1001,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                   fontSize: 17,
                 }}
               >
-                내 다운로드에서 받기
+                다운로드에서 받기
               </Link>
             )}
 

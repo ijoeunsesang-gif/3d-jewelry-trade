@@ -1971,7 +1971,7 @@ export default function CommissionDetailPage() {
                   )}
 
                   <a href="/library?tab=commissions" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 36, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
-                    내 다운로드에서 받기 →
+                    다운로드에서 받기 →
                   </a>
                 </>
               )}
@@ -2091,7 +2091,7 @@ export default function CommissionDetailPage() {
               )}
               {isAuthor && (
                 <a href="/library?tab=commissions" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 36, borderRadius: 9, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontSize: 13, fontWeight: 700 }}>
-                  내 다운로드에서 받기 →
+                  다운로드에서 받기 →
                 </a>
               )}
             </div>
