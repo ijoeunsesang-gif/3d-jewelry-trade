@@ -775,7 +775,7 @@ function NavItem({ href, label, icon, active, badge }: {
       style={{
         position: "relative", display: "inline-flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center", gap: 3,
-        padding: "6px 8px", textDecoration: "none",
+        padding: "6px 8px", minWidth: 54, textDecoration: "none",
         borderBottom: active ? `2px solid ${GOLD}` : "2px solid transparent",
         transition: "border-color 0.15s",
       }}
