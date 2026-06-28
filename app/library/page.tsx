@@ -46,35 +46,12 @@ function LibraryPageInner() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") === "commissions" ? "commissions" : "purchases";
 
-  const [activeTab, setActiveTab] = useState<"purchases" | "commissions" | "printShops" | "finishingWorkers" | "factories" | "partners">(initialTab);
+  const [activeTab, setActiveTab] = useState<"purchases" | "commissions">(initialTab);
   const [items, setItems] = useState<PurchasedModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [commissionItems, setCommissionItems] = useState<CompletedCommission[]>([]);
   const [commissionsLoading, setCommissionsLoading] = useState(false);
-
-  const [printShops, setPrintShops] = useState<{
-    id: string; name: string; address: string; phone: string;
-    hours: string | null; naver_map_url: string | null;
-  }[]>([]);
-  const [printShopsLoading, setPrintShopsLoading] = useState(false);
-
-  const [finishingWorkers, setFinishingWorkers] = useState<{
-    id: string; name: string; phone: string; location: string | null; work_scope: string[];
-  }[]>([]);
-  const [finishingWorkersLoading, setFinishingWorkersLoading] = useState(false);
-
-  const [factories, setFactories] = useState<{
-    id: string; name: string; phone: string | null; address: string | null; description: string | null;
-  }[]>([]);
-  const [factoriesLoading, setFactoriesLoading] = useState(false);
-
-  const PARTNER_CATEGORIES = ["도금", "고무몰드", "레이저 각인", "주조", "조각"] as const;
-  const [partners, setPartners] = useState<{
-    id: string; name: string; phone: string | null; address: string | null; description: string | null; category: string;
-  }[]>([]);
-  const [partnersLoading, setPartnersLoading] = useState(false);
-  const [partnersCategory, setPartnersCategory] = useState<string>("도금");
 
   // 검색 / 카테고리 필터
   const [search, setSearch] = useState("");
@@ -101,10 +78,6 @@ function LibraryPageInner() {
   useEffect(() => { fetchLibrary(); }, []);
   useEffect(() => {
     if (activeTab === "commissions" && commissionItems.length === 0) fetchCompletedCommissions();
-    if (activeTab === "printShops" && printShops.length === 0) fetchPrintShops();
-    if (activeTab === "finishingWorkers" && finishingWorkers.length === 0) fetchFinishingWorkers();
-    if (activeTab === "factories" && factories.length === 0) fetchFactories();
-    if (activeTab === "partners" && partners.length === 0) fetchPartners();
   }, [activeTab]);
 
   const fetchLibrary = async () => {
@@ -163,42 +136,6 @@ function LibraryPageInner() {
       })));
     } catch (e) { console.error(e); }
     finally { setCommissionsLoading(false); }
-  };
-
-  const fetchPrintShops = async () => {
-    setPrintShopsLoading(true);
-    try {
-      const { data, error } = await supabase.from("print_shops").select("id, name, address, phone, hours, naver_map_url").eq("is_active", true).order("created_at", { ascending: true });
-      if (!error && data) setPrintShops(data);
-    } catch { /* silent */ }
-    finally { setPrintShopsLoading(false); }
-  };
-
-  const fetchFinishingWorkers = async () => {
-    setFinishingWorkersLoading(true);
-    try {
-      const { data, error } = await supabase.from("finishing_workers").select("id, name, phone, location, work_scope").eq("is_active", true).order("created_at", { ascending: true });
-      if (!error && data) setFinishingWorkers(data);
-    } catch { /* silent */ }
-    finally { setFinishingWorkersLoading(false); }
-  };
-
-  const fetchFactories = async () => {
-    setFactoriesLoading(true);
-    try {
-      const { data, error } = await supabase.from("factories").select("id, name, phone, address, description").eq("is_active", true).order("created_at", { ascending: true });
-      if (!error && data) setFactories(data);
-    } catch { /* silent */ }
-    finally { setFactoriesLoading(false); }
-  };
-
-  const fetchPartners = async () => {
-    setPartnersLoading(true);
-    try {
-      const { data, error } = await supabase.from("partners").select("id, name, phone, address, description, category").eq("is_active", true).order("created_at", { ascending: true });
-      if (!error && data) setPartners(data);
-    } catch { /* silent */ }
-    finally { setPartnersLoading(false); }
   };
 
   const handleDownload = async (item: PurchasedModel) => {
@@ -291,12 +228,8 @@ function LibraryPageInner() {
           {/* 탭 */}
           <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #e5e7eb", marginBottom: 20 }}>
             {([
-              { key: "purchases",         label: "구매한 모델",    count: items.length },
-              { key: "commissions",        label: "의뢰 완료 파일", count: commissionItems.length },
-              { key: "printShops",         label: "출력소 정보",    count: 0 },
-              { key: "finishingWorkers",   label: "마무리 작업자",  count: 0 },
-              { key: "factories",          label: "공장 정보",      count: 0 },
-              { key: "partners",           label: "협력업체",       count: 0 },
+              { key: "purchases",   label: "구매한 모델",    count: items.length },
+              { key: "commissions", label: "의뢰 완료 파일", count: commissionItems.length },
             ] as const).map(({ key, label, count }) => {
               const active = activeTab === key;
               return (
@@ -384,144 +317,6 @@ function LibraryPageInner() {
               })}
             </div>
           )
-        )}
-
-        {/* ── 출력소 정보 탭 ── */}
-        {activeTab === "printShops" && (
-          printShopsLoading ? (
-            <p style={{ color: "#6b7280" }}>불러오는 중...</p>
-          ) : printShops.length === 0 ? (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-              <p style={{ fontSize: 16, color: "#6b7280" }}>등록된 출력소가 없습니다.</p>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-              {printShops.map((ps) => (
-                <div key={ps.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: "20px", boxShadow: "0 2px 12px rgba(15,23,42,0.06)", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: "#111827" }}>{ps.name}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    <div style={{ fontSize: 13, color: "#374151" }}>📍 {ps.address}</div>
-                    <div style={{ fontSize: 13, color: "#374151" }}>📞 {ps.phone}</div>
-                    {ps.hours && <div style={{ fontSize: 12, color: "#6b7280" }}>🕐 {ps.hours}</div>}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                    {ps.naver_map_url && (
-                      <a href={ps.naver_map_url} target="_blank" rel="noopener noreferrer"
-                        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", height: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#374151", textDecoration: "none", fontWeight: 700, fontSize: 13 }}>
-                        네이버 지도
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sessionStorage.setItem("preferPrintShopId", ps.id);
-                        setActiveTab("purchases");
-                      }}
-                      style={{ flex: 1, height: 38, borderRadius: 10, border: "none", background: "#111827", color: "white", fontWeight: 800, fontSize: 13, cursor: "pointer" }}
-                    >
-                      출력소 전송
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-
-        {/* ── 마무리 작업자 탭 ── */}
-        {activeTab === "finishingWorkers" && (
-          finishingWorkersLoading ? (
-            <p style={{ color: "#6b7280" }}>불러오는 중...</p>
-          ) : finishingWorkers.length === 0 ? (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-              <p style={{ fontSize: 16, color: "#6b7280" }}>등록된 마무리 작업자가 없습니다.</p>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-              {finishingWorkers.map((w) => (
-                <div key={w.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: "20px", boxShadow: "0 2px 12px rgba(15,23,42,0.06)", display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: "#111827" }}>{w.name}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    {w.location && <div style={{ fontSize: 13, color: "#374151" }}>📍 {w.location}</div>}
-                    <div style={{ fontSize: 13, color: "#374151" }}>📞 {w.phone}</div>
-                  </div>
-                  {(w.work_scope || []).length > 0 && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                      {(w.work_scope || []).map((s) => (
-                        <span key={s} style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: "#f3f4f6", color: "#374151" }}>{s}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )
-        )}
-
-        {/* ── 공장 정보 탭 ── */}
-        {activeTab === "factories" && (
-          factoriesLoading ? (
-            <p style={{ color: "#6b7280" }}>불러오는 중...</p>
-          ) : factories.length === 0 ? (
-            <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-              <p style={{ fontSize: 16, color: "#6b7280" }}>등록된 공장 정보가 없습니다.</p>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-              {factories.map((f) => (
-                <div key={f.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: "20px", boxShadow: "0 2px 12px rgba(15,23,42,0.06)", display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 17, fontWeight: 900, color: "#111827" }}>{f.name}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    {f.address && <div style={{ fontSize: 13, color: "#374151" }}>📍 {f.address}</div>}
-                    {f.phone && <div style={{ fontSize: 13, color: "#374151" }}>📞 {f.phone}</div>}
-                    {f.description && <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{f.description}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        )}
-
-        {/* ── 협력업체 탭 ── */}
-        {activeTab === "partners" && (
-          <>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-              {PARTNER_CATEGORIES.map((cat) => (
-                <button key={cat} type="button" onClick={() => setPartnersCategory(cat)}
-                  style={{
-                    height: 34, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 800, cursor: "pointer",
-                    border: partnersCategory === cat ? "none" : "1px solid #d1d5db",
-                    background: partnersCategory === cat ? "#111827" : "white",
-                    color: partnersCategory === cat ? "white" : "#374151",
-                  }}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-            {partnersLoading ? (
-              <p style={{ color: "#6b7280" }}>불러오는 중...</p>
-            ) : partners.filter((p) => p.category === partnersCategory).length === 0 ? (
-              <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 32, background: "white" }}>
-                <p style={{ fontSize: 16, color: "#6b7280" }}>등록된 협력업체가 없습니다.</p>
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-                {partners.filter((p) => p.category === partnersCategory).map((p) => (
-                  <div key={p.id} style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", padding: "20px", boxShadow: "0 2px 12px rgba(15,23,42,0.06)", display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 17, fontWeight: 900, color: "#111827" }}>{p.name}</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: "#f3f4f6", color: "#6b7280" }}>{p.category}</span>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      {p.address && <div style={{ fontSize: 13, color: "#374151" }}>📍 {p.address}</div>}
-                      {p.phone && <div style={{ fontSize: 13, color: "#374151" }}>📞 {p.phone}</div>}
-                      {p.description && <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>{p.description}</div>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
         )}
 
         {activeTab === "purchases" && (items.length === 0 ? (
