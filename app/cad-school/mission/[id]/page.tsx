@@ -8,6 +8,7 @@ import MentorNickname from "../../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
+import Image from "next/image";
 
 
 type FileItem = { name: string; url: string; ext: string };
@@ -288,7 +289,7 @@ export default function MissionDetailPage() {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           {mission.mentor?.profiles?.avatar_url
-            ? <img src={mission.mentor.profiles.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+            ? <Image src={mission.mentor.profiles.avatar_url} alt="" width={28} height={28} style={{ borderRadius: "50%", objectFit: "cover" }} />
             : <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#f3f4f6", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>
           }
           <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
@@ -318,7 +319,7 @@ export default function MissionDetailPage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {mission.files.map((f, i) => (
                 isImageExt(f.ext)
-                  ? <a key={i} href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={f.name} style={{ height: 72, borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} /></a>
+                  ? <a key={i} href={f.url} target="_blank" rel="noreferrer"><Image src={f.url} alt={f.name} width={100} height={72} style={{ borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} /></a>
                   : <a key={i} href={f.url} download={f.name} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f3f4f6", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#374151", textDecoration: "none" }}>📎 {f.name}</a>
               ))}
             </div>
@@ -433,7 +434,7 @@ export default function MissionDetailPage() {
                 )}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                   {sub.profiles?.avatar_url
-                    ? <img src={sub.profiles.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }} />
+                    ? <Image src={sub.profiles.avatar_url} alt="" width={28} height={28} style={{ borderRadius: "50%", objectFit: "cover" }} />
                     : <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#f3f4f6", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>
                   }
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>{sub.profiles?.nickname ?? "익명"}</span>
@@ -448,7 +449,7 @@ export default function MissionDetailPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: (isMentorOfMission && !sub.is_best) || (sub.user_id === myUserId && !sub.is_best) ? 12 : 0 }}>
                     {sub.files.map((f, i) => (
                       isImageExt(f.ext)
-                        ? <a key={i} href={f.url} target="_blank" rel="noreferrer"><img src={f.url} alt={f.name} style={{ height: 72, borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} /></a>
+                        ? <a key={i} href={f.url} target="_blank" rel="noreferrer"><Image src={f.url} alt={f.name} width={100} height={72} style={{ borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} /></a>
                         : <a key={i} href={f.url} download={f.name} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f3f4f6", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#374151", textDecoration: "none" }}>📎 {f.name}</a>
                     ))}
                   </div>

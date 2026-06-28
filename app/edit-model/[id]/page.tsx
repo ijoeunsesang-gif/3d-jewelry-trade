@@ -7,6 +7,7 @@ import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../../lib/toast";
 import DescriptionTemplateSelector from "../../components/DescriptionTemplateSelector";
 import { uploadToR2 } from "@/lib/uploadToR2";
+import Image from "next/image";
 
 type ModelItem = {
   id: string;
@@ -632,14 +633,17 @@ export default function EditModelPage() {
         <Field label="현재 썸네일 이미지">
           <div style={uploadBoxStyle}>
             {getThumbnailUrl() ? (
-              <img
-                src={getThumbnailUrl()}
+              <Image
+                src={getThumbnailUrl()!}
                 alt="현재 썸네일"
+                width={220}
+                height={220}
                 style={{
-                  width: 220,
                   maxWidth: "100%",
                   borderRadius: 16,
                   border: "1px solid #e5e7eb",
+                  objectFit: "contain",
+                  height: "auto",
                 }}
               />
             ) : (
@@ -703,16 +707,15 @@ export default function EditModelPage() {
                     background: "white",
                   }}
                 >
-                  <img
-                    src={getImageUrl(img)}
-                    alt="추가 이미지"
-                    style={{
-                      width: "100%",
-                      aspectRatio: "1 / 1",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
+                  <div style={{ position: "relative", width: "100%", aspectRatio: "1 / 1" }}>
+                    <Image
+                      fill
+                      src={getImageUrl(img)}
+                      alt="추가 이미지"
+                      style={{ objectFit: "cover" }}
+                      sizes="(max-width: 768px) 50vw, 200px"
+                    />
+                  </div>
                   <div style={{ padding: 10 }}>
                     <button
                       type="button"

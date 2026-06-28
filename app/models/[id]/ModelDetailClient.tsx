@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase-browser";
@@ -678,9 +679,13 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
           <div className="detail-viewer-box">
             {viewMode === "image" ? (
               displayImage ? (
-                <img
+                <Image
+                  fill
                   src={displayImage}
                   alt={model.title}
+                  priority
+                  style={{ objectFit: "contain" }}
+                  sizes="(max-width: 768px) 100vw, 60vw"
                 />
               ) : (
                 <div
@@ -762,17 +767,15 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                     padding: 0,
                     cursor: "pointer",
                     aspectRatio: "1 / 1",
+                    position: "relative",
                   }}
                 >
-                  <img
+                  <Image
+                    fill
                     src={img}
                     alt={`gallery-${idx}`}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
+                    style={{ objectFit: "cover" }}
+                    sizes="20vw"
                   />
                 </button>
               ))}
@@ -852,12 +855,12 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                 color: "#111827",
               }}
             >
-              <img
+              <Image
                 src={seller.avatar_url || "/default-avatar.png"}
                 alt={seller.nickname || "seller"}
+                width={38}
+                height={38}
                 style={{
-                  width: 38,
-                  height: 38,
                   borderRadius: "50%",
                   objectFit: "cover",
                   border: "1px solid #e5e7eb",
@@ -1226,21 +1229,16 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                         aspectRatio: "1 / 1",
                         background: "#f3f4f6",
                         overflow: "hidden",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        position: "relative",
                       }}
                     >
                       {thumb ? (
-                        <img
+                        <Image
+                          fill
                           src={thumb}
                           alt={item.title}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            display: "block",
-                          }}
+                          style={{ objectFit: "cover" }}
+                          sizes="(max-width: 768px) 50vw, 200px"
                         />
                       ) : (
                         <svg

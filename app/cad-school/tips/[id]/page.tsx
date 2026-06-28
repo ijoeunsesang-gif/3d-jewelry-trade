@@ -8,6 +8,7 @@ import MentorNickname from "../../../components/MentorNickname";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
+import Image from "next/image";
 
 const GOLD_LIGHT = "#fdf6e3";
 const CURRENT_YEAR = new Date().getFullYear();
@@ -343,7 +344,7 @@ export default function TipDetailPage({ params }: { params: Promise<{ id: string
           />
           {commentImageUrl && (
             <div style={{ position: "relative", display: "inline-block", marginBottom: 8 }}>
-              <img src={commentImageUrl} alt="" style={{ height: 80, borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} />
+              <Image src={commentImageUrl} alt="" width={120} height={80} style={{ borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} />
               <button onClick={() => setCommentImageUrl(null)} style={{ position: "absolute", top: -6, right: -6, background: "#374151", color: "white", border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 11, cursor: "pointer", lineHeight: 1 }}>×</button>
             </div>
           )}
@@ -417,7 +418,7 @@ function CommentCard({
 
 function Avatar({ url, size }: { url?: string | null; size: number }) {
   return url ? (
-    <img src={url} alt="avatar" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+    <Image src={url} alt="avatar" width={size} height={size} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
   ) : (
     <div style={{ width: size, height: size, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.5, flexShrink: 0, color: "#9ca3af" }}>👤</div>
   );

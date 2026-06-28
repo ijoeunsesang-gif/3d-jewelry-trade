@@ -8,6 +8,7 @@ import { showError, showSuccess } from "../lib/toast";
 import type { ProfileItem } from "../lib/getProfile";
 import GradeBadge from "../components/GradeBadge";
 import AvatarImage from "../components/AvatarImage";
+import Image from "next/image";
 import { Grade } from "@/lib/grades";
 import { Phone } from "lucide-react";
 
@@ -626,12 +627,12 @@ function MessagesContent() {
                     }}
                   >
                     {selectedConversation.model_thumbnail ? (
-                      <img
+                      <Image
                         src={selectedConversation.model_thumbnail}
                         alt="model"
+                        width={54}
+                        height={54}
                         style={{
-                          width: 54,
-                          height: 54,
                           borderRadius: 12,
                           objectFit: "cover",
                           border: "1px solid #e5e7eb",

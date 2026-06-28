@@ -9,6 +9,7 @@ import { showError, showSuccess } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { GOLD } from "@/lib/constants";
+import Image from "next/image";
 
 
 type AdminTab = "mentors" | "warnings" | "delete-requests" | "point-configs";
@@ -259,7 +260,7 @@ export default function AdminCadSchoolPage() {
                     <td style={{ padding: "12px 14px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {m.profiles?.avatar_url
-                          ? <img src={m.profiles.avatar_url} alt="" style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover" }} />
+                          ? <Image src={m.profiles.avatar_url} alt="" width={30} height={30} style={{ borderRadius: "50%", objectFit: "cover" }} />
                           : <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#f3f4f6" }} />}
                         <div>
                           <div style={{ fontWeight: 700, color: "#111827" }}>{m.profiles?.nickname ?? "—"}</div>

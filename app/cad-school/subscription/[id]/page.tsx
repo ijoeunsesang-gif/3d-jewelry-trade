@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
+import Image from "next/image";
 
 const GOLD_LIGHT = "#fdf6e3";
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
@@ -499,7 +500,7 @@ export default function SubscriptionChatPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {mentor?.profiles?.avatar_url
-                ? <img src={mentor.profiles.avatar_url} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                ? <Image src={mentor.profiles.avatar_url} alt="" width={36} height={36} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                 : <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>👤</div>}
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
@@ -893,7 +894,7 @@ export default function SubscriptionChatPage() {
                   <div key={m.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       {m.profiles?.avatar_url
-                        ? <img src={m.profiles.avatar_url} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+                        ? <Image src={m.profiles.avatar_url} alt="" width={36} height={36} style={{ borderRadius: "50%", objectFit: "cover" }} />
                         : <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#f3f4f6" }} />}
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>{m.profiles?.nickname ?? "멘토"}</div>
@@ -1031,7 +1032,7 @@ function ChatImagePreview({ file, onClick }: { file: FileItem; onClick: () => vo
 function FileAttachment({ file, dark }: { file: FileItem; dark?: boolean }) {
   const isImage = ["jpg", "jpeg", "png", "webp", "gif"].includes(file.ext);
   if (isImage) {
-    return <a href={file.url} target="_blank" rel="noreferrer"><img src={file.url} alt={file.name} style={{ height: 70, borderRadius: 8, objectFit: "cover" }} /></a>;
+    return <a href={file.url} target="_blank" rel="noreferrer"><Image src={file.url} alt={file.name} width={100} height={70} style={{ borderRadius: 8, objectFit: "cover" }} /></a>;
   }
   const icon = ["stl", "obj", "3dm"].includes(file.ext) ? "📐" : "📎";
   return (

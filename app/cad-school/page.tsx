@@ -12,6 +12,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../lib/toast";
 import { GOLD } from "@/lib/constants";
 import { EmptyState } from "../components/EmptyState";
+import Image from "next/image";
 
 const GOLD_LIGHT = "#fdf6e3";
 const PER_PAGE = 10;
@@ -1352,7 +1353,7 @@ function PostCard({ post, myUserId, isAdmin, onDeleted, mentorUserIdToMentorId }
 
 function Avatar({ url, size }: { url?: string | null; size: number }) {
   return url ? (
-    <img src={url} alt="avatar" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+    <Image src={url} alt="avatar" width={size} height={size} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
   ) : (
     <div style={{ width: size, height: size, borderRadius: "50%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.5, flexShrink: 0, color: "#9ca3af" }}>👤</div>
   );

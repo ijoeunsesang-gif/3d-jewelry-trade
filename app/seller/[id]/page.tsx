@@ -9,6 +9,7 @@ import { sbFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError } from "../../lib/toast";
 import GradeBadge from "../../components/GradeBadge";
 import AvatarImage from "../../components/AvatarImage";
+import Image from "next/image";
 import { Grade } from "@/lib/grades";
 import { Phone } from "lucide-react";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
@@ -981,15 +982,14 @@ export default function SellerPage() {
                       }}
                     >
                       {thumb ? (
-                        <img
+                        <Image
+                          fill
                           className="seller-card-image"
                           src={thumb}
                           alt={item.title}
+                          sizes="(max-width: 768px) 100vw, 50vw"
                           style={{
-                            width: "100%",
-                            height: "100%",
                             objectFit: "cover",
-                            display: "block",
                             transform: "scale(1)",
                             transition: "transform 0.28s ease",
                           }}
@@ -1244,9 +1244,11 @@ export default function SellerPage() {
                   <ModelViewer url={viewerUrl} />
                 </div>
               ) : quickThumb ? (
-                <img
+                <Image
                   src={quickThumb}
                   alt={quickModel.title}
+                  width={800}
+                  height={440}
                   style={{
                     width: "100%",
                     height: 440,

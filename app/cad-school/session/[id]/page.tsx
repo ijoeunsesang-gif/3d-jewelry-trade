@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
+import Image from "next/image";
 
 type FileItem = { name: string; url: string; ext: string };
 
@@ -304,7 +305,7 @@ function ParticipantInfo({ label, nickname, avatar }: { label: string; nickname?
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>{label}</span>
-      {avatar ? <img src={avatar} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} /> : <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#f3f4f6" }} />}
+      {avatar ? <Image src={avatar} alt="" width={24} height={24} style={{ borderRadius: "50%", objectFit: "cover" }} /> : <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#f3f4f6" }} />}
       <span style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{nickname ?? "익명"}</span>
     </div>
   );
@@ -313,7 +314,7 @@ function ParticipantInfo({ label, nickname, avatar }: { label: string; nickname?
 function FileAttachment({ file }: { file: FileItem }) {
   const isImage = ["jpg","jpeg","png","webp","gif"].includes(file.ext);
   if (isImage) {
-    return <a href={file.url} target="_blank" rel="noreferrer"><img src={file.url} alt={file.name} style={{ height: 80, borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} /></a>;
+    return <a href={file.url} target="_blank" rel="noreferrer"><Image src={file.url} alt={file.name} width={120} height={80} style={{ borderRadius: 8, border: "1px solid #e5e7eb", objectFit: "cover" }} /></a>;
   }
   return (
     <a href={file.url} download={file.name} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#f3f4f6", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#374151", textDecoration: "none" }}>📎 {file.name}</a>
