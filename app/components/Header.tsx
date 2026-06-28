@@ -494,10 +494,10 @@ export default function Header() {
               <NavItem href="/cart" label="장바구니" icon={<IconCart />} active={pathname === "/cart"} badge={cartCount} />
               <NavItem href="/library" label="다운로드" icon={<IconDownload />} active={pathname === "/library"} />
               <NavItem href="/commission" label="의뢰" icon={<IconClipboard />} active={pathname.startsWith("/commission")} />
+              <NavItem href="/partner" label="협력업체" icon={<IconPartners />} active={pathname.startsWith("/partner")} />
               <NavItem href="/messages" label="문의함" icon={<IconMail />} active={pathname === "/messages"} badge={messageCount} />
               <NavItem href="/customer-service" label="고객센터" icon={<IconHeadphones />} active={pathname === "/customer-service"} />
               <NavItem href="/help" label="도움말" icon={<IconHelp />} active={pathname === "/help"} />
-              <NavItem href="/partner" label="협력업체" icon={<IconPartners />} active={pathname.startsWith("/partner")} />
               <div
                 ref={notifWrapRef}
                 style={{ position: "relative" }}
@@ -560,14 +560,14 @@ export default function Header() {
                 <span style={{ fontSize: 10, color: pathname === "/" ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>홈</span>
               </Link>
 
-              {/* 고객센터 아이콘 */}
-              <Link href="/customer-service" style={{
+              {/* 협력업체 아이콘 */}
+              <Link href="/partner" style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 width: 44, borderRadius: 10, textDecoration: "none", flexShrink: 0,
                 padding: "4px 0",
               }}>
-                <IconHeadphones active={pathname === "/customer-service"} size={28} />
-                <span style={{ fontSize: 10, color: pathname === "/customer-service" ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>고객센터</span>
+                <IconPartners active={pathname.startsWith("/partner")} size={28} />
+                <span style={{ fontSize: 10, color: pathname.startsWith("/partner") ? GOLD : "#5a5a5a", lineHeight: 1, marginTop: 2 }}>협력업체</span>
               </Link>
 
               {/* 알림 아이콘 */}
