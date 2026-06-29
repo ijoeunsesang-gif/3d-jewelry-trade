@@ -287,7 +287,7 @@ export default function CustomerServicePage() {
       </Section>
 
       {/* ── 업체등록요청 ── */}
-      <section id="partner-request" style={{ marginTop: 40 }}>
+      <section id="partner-request" style={{ marginTop: 40, scrollMarginTop: 90 }}>
         <h2 style={{ margin: "0 0 6px", fontSize: 26, fontWeight: 900, color: "#111827" }}>업체등록요청</h2>
         <p style={{ margin: "0 0 16px", fontSize: 14, color: "#6b7280" }}>
           출력소·원본·생산공장 등 주얼리 제작 업체를 등록 신청할 수 있습니다. 검토 후 등록 여부를 이메일로 안내드립니다.
