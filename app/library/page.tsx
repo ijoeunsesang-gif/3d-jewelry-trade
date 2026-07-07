@@ -119,6 +119,7 @@ function LibraryPageInner() {
         .eq("user_id", userId)
         .in("status", ["completed", "downloaded"])
         .not("result_link", "is", null)
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false });
 
       if (error || !data) return;

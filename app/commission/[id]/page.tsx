@@ -60,6 +60,14 @@ const CANCEL_REASONS = [
 
 const DISPUTE_REASONS = ["기간초과", "결과물불량", "수정요청미응답", "기타"];
 
+const DELETE_REASONS: { value: string; label: string }[] = [
+  { value: "mistake", label: "실수로 등록했어요" },
+  { value: "cancel", label: "의뢰를 취소할래요 (더 이상 필요없음)" },
+  { value: "solved_elsewhere", label: "다른 곳에서 해결했어요" },
+  { value: "info_error", label: "등록 정보에 오류가 있어요 (재등록 예정)" },
+  { value: "other", label: "기타" },
+];
+
 type Commission = {
   id: string;
   user_id: string;
@@ -198,6 +206,10 @@ export default function CommissionDetailPage() {
   const [rejectReasonOther, setRejectReasonOther] = useState("");
   const [cancelReasonIdx, setCancelReasonIdx] = useState(-1);
   const [cancelReasonOther, setCancelReasonOther] = useState("");
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteReasonCategory, setDeleteReasonCategory] = useState("");
+  const [deleteReasonDetail, setDeleteReasonDetail] = useState("");
 
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
@@ -581,18 +593,35 @@ export default function CommissionDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!commission || !confirm("의뢰를 삭제하면 복구할 수 없습니다. 정말 삭제하시겠습니까?")) return;
+    if (!commission) return;
+    if (isAdmin) {
+      // 관리자는 사유 입력 없이 기존 confirm 방식으로 바로 삭제 (hard delete)
+      if (!confirm("의뢰를 삭제하면 복구할 수 없습니다. 정말 삭제하시겠습니까?")) return;
+      await submitDelete();
+      return;
+    }
+    setDeleteReasonCategory("");
+    setDeleteReasonDetail("");
+    setDeleteModalOpen(true);
+  };
+
+  const submitDelete = async (body?: { reason_category: string; reason_detail: string }) => {
+    if (!commission) return;
     setDeleting(true);
     try {
       const token = getAccessToken();
       const res = await fetch(`/api/commission/delete?id=${commission.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body ? { "Content-Type": "application/json" } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        console.error("commission delete error:", body);
-        showError(body.error || "삭제 실패");
+        const resBody = await res.json().catch(() => ({}));
+        console.error("commission delete error:", resBody);
+        showError(resBody.error || "삭제 실패");
         setDeleting(false);
         return;
       }
@@ -602,6 +631,16 @@ export default function CommissionDetailPage() {
       showError("삭제 실패");
       setDeleting(false);
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteReasonCategory) { showError("삭제 사유를 선택해주세요."); return; }
+    if (deleteReasonCategory === "other" && !deleteReasonDetail.trim()) {
+      showError("상세 사유를 입력해주세요.");
+      return;
+    }
+    await submitDelete({ reason_category: deleteReasonCategory, reason_detail: deleteReasonDetail.trim() });
+    setDeleteModalOpen(false);
   };
 
   const handleAddComment = async () => {
@@ -2723,6 +2762,41 @@ export default function CommissionDetailPage() {
                 flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
                 color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
               }}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 의뢰 삭제 모달 ─── */}
+      {deleteModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: 24, maxWidth: 440, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#111827", marginBottom: 4 }}>의뢰 삭제</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>삭제 사유를 선택해주세요. 삭제된 의뢰는 목록에서 사라집니다.</div>
+            {DELETE_REASONS.map((reason, i) => (
+              <label key={reason.value} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderBottom: i < DELETE_REASONS.length - 1 ? "1px solid #f3f4f6" : "none", cursor: "pointer" }}>
+                <input type="radio" name="deleteReason" checked={deleteReasonCategory === reason.value} onChange={() => setDeleteReasonCategory(reason.value)}
+                  style={{ width: 16, height: 16, accentColor: "#dc2626", cursor: "pointer" }} />
+                <span style={{ fontSize: 14, color: "#374151" }}>{reason.label}</span>
+              </label>
+            ))}
+            <textarea
+              value={deleteReasonDetail}
+              onChange={(e) => setDeleteReasonDetail(e.target.value)}
+              placeholder={deleteReasonCategory === "other" ? "상세 사유를 입력해주세요 (필수)" : "상세 사유를 입력해주세요"}
+              rows={3}
+              style={{ width: "100%", marginTop: 12, borderRadius: 8, border: "1px solid #d1d5db", padding: "8px 10px", fontSize: 13, boxSizing: "border-box", outline: "none", fontFamily: "inherit", resize: "vertical" }}
+            />
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button onClick={handleConfirmDelete} disabled={deleting} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "none",
+                background: deleting ? "#d1d5db" : "#dc2626",
+                color: "white", fontSize: 14, fontWeight: 700, cursor: deleting ? "not-allowed" : "pointer",
+              }}>{deleting ? "삭제 중..." : "삭제하기"}</button>
+              <button onClick={() => setDeleteModalOpen(false)} style={{
+                flex: 1, height: 44, borderRadius: 10, border: "1px solid #d1d5db", background: "white",
+                color: "#374151", fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}>취소</button>
             </div>
           </div>
         </div>

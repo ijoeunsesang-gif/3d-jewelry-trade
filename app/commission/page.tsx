@@ -107,6 +107,7 @@ export default function CommissionListPage() {
           .from("commissions")
           .select(BASE_SELECT)
           .in("id", ids)
+          .is("deleted_at", null)
           .order("created_at", { ascending: false });
         if (error || !cData) { setCommissions([]); return; }
         data = cData;
@@ -124,6 +125,7 @@ export default function CommissionListPage() {
           .select(BASE_SELECT)
           .in("id", ids)
           .eq("is_private", false)
+          .is("deleted_at", null)
           .order("created_at", { ascending: false });
         if (error || !cData) { setCommissions([]); return; }
         data = cData;
@@ -131,6 +133,7 @@ export default function CommissionListPage() {
         let query = supabase
           .from("commissions")
           .select(BASE_SELECT)
+          .is("deleted_at", null)
           .order("created_at", { ascending: false });
 
         if (tab === "public") {

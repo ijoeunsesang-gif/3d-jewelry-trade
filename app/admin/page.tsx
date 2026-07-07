@@ -14,7 +14,7 @@ import { LoadingSpinner } from "../components/LoadingSpinner";
 
 const SIDEBAR_BG = "#111827";
 
-type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "modelReports" | "deletionRequests" | "inquiries" | "partners";
+type AdminTab = "users" | "conversations" | "reports" | "stats" | "commissions" | "bannedWords" | "deletedMembers" | "notices" | "popups" | "modelReports" | "deletionRequests" | "inquiries" | "partners";
 
 interface UserProfile {
   id: string;
@@ -122,6 +122,45 @@ interface Commission {
   commission_results?: { count: number }[];
 }
 
+interface DeletedCommission {
+  id: string;
+  user_id: string;
+  title: string;
+  status: string;
+  commission_type: string | null;
+  created_at: string;
+  deleted_at: string;
+  deleted_reason_category: string | null;
+  deleted_reason_detail: string | null;
+  deleted_by: string | null;
+  nickname: string;
+  deleted_by_nickname?: string;
+}
+
+interface PopupNotice {
+  id: string;
+  title: string | null;
+  content: string | null;
+  image_url: string | null;
+  link_url: string | null;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PopupForm {
+  id?: string;
+  title: string;
+  content: string;
+  image_url: string;
+  link_url: string;
+  is_active: boolean;
+  starts_at: string;
+  ends_at: string;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   open: "의뢰중", in_progress: "작업중", completed: "완료",
   pending: "의뢰중", negotiating: "협의중", payment: "결제중",
@@ -145,6 +184,14 @@ const STATUS_GROUP: Record<string, string[]> = {
   "취소":   ["cancelled", "rejected"],
 };
 
+const DELETE_REASON_LABEL: Record<string, string> = {
+  mistake: "실수로 등록",
+  cancel: "의뢰 취소 (더 필요없음)",
+  solved_elsewhere: "다른 곳에서 해결",
+  info_error: "등록정보 오류 (재등록 예정)",
+  other: "기타",
+};
+
 const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "users",         label: "유저 관리",   icon: "👥" },
   { key: "conversations", label: "삭제된 대화",  icon: "🗑" },
@@ -154,6 +201,7 @@ const SIDEBAR_TABS: { key: AdminTab; label: string; icon: string }[] = [
   { key: "bannedWords",    label: "금지어 관리",  icon: "🚫" },
   { key: "deletedMembers", label: "탈퇴 회원",    icon: "👤" },
   { key: "notices",        label: "공지사항",     icon: "📢" },
+  { key: "popups",         label: "팝업 관리",     icon: "📢" },
   { key: "modelReports",      label: "모델 신고",      icon: "🚨" },
   { key: "deletionRequests",  label: "삭제 요청 관리",  icon: "🗂" },
   { key: "inquiries",         label: "문의 관리",       icon: "💬" },
@@ -220,6 +268,15 @@ export default function AdminPage() {
   const [noticeForm, setNoticeForm] = useState({ title: "", content: "", is_pinned: false });
   const [noticeSaving, setNoticeSaving] = useState(false);
   const [noticeEditId, setNoticeEditId] = useState<string | null>(null);
+
+  /* ── Popup Notices ── */
+  const [popups, setPopups] = useState<PopupNotice[]>([]);
+  const [popupLoading, setPopupLoading] = useState(false);
+  const [editingPopup, setEditingPopup] = useState<PopupForm | null>(null);
+  const [popupSaving, setPopupSaving] = useState(false);
+  const [popupUploading, setPopupUploading] = useState(false);
+  const [popupTogglingId, setPopupTogglingId] = useState<string | null>(null);
+  const [popupDeletingId, setPopupDeletingId] = useState<string | null>(null);
 
   /* ── Banned Words ── */
   const [bannedWords, setBannedWords] = useState<{ id: string; word: string; created_at: string }[]>([]);
@@ -305,6 +362,13 @@ export default function AdminPage() {
   const [commStatusFilter, setCommStatusFilter] = useState("");
   const [commTypeFilter, setCommTypeFilter] = useState("");
   const [commDeleting, setCommDeleting] = useState<string | null>(null);
+  const [commissionSubTab, setCommissionSubTab] = useState<"active" | "deleted">("active");
+
+  /* ── Deleted Commissions (의뢰 관리 탭의 '삭제된 의뢰' 서브탭) ── */
+  const [deletedCommissions, setDeletedCommissions] = useState<DeletedCommission[]>([]);
+  const [deletedLoading, setDeletedLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [permDeletingId, setPermDeletingId] = useState<string | null>(null);
 
   /* ── Auth ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -352,6 +416,18 @@ export default function AdminPage() {
 
   const fmtKRW = (n: number) => n.toLocaleString("ko-KR") + "원";
 
+  // datetime-local input("YYYY-MM-DDTHH:mm") ↔ ISO 문자열 변환
+  const isoToDatetimeLocal = (iso: string | null): string => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+  const datetimeLocalToIso = (local: string): string | null => {
+    if (!local) return null;
+    return new Date(local).toISOString();
+  };
+
   /* ── Tab Loader ────────────────────────────────────────── */
   const loadTab = async (tab: AdminTab) => {
     if (tab === "users"         && users.length === 0)       fetchUsers();
@@ -362,6 +438,7 @@ export default function AdminPage() {
     if (tab === "bannedWords"    && bannedWords.length === 0)    fetchBannedWords();
     if (tab === "deletedMembers" && deletedMembers.length === 0) fetchDeletedMembers();
     if (tab === "notices"        && notices.length === 0)        fetchNotices();
+    if (tab === "popups"         && popups.length === 0)          fetchPopups();
     if (tab === "modelReports"     && modelReports.length === 0)     fetchModelReports();
     if (tab === "deletionRequests" && deletionRequests.length === 0) fetchDeletionRequests();
     if (tab === "inquiries"        && inquiries.length === 0)        fetchInquiries();
@@ -373,6 +450,11 @@ export default function AdminPage() {
     setActiveTab(tab);
     setSidebarOpen(false);
     loadTab(tab);
+  };
+
+  const switchCommissionSubTab = (sub: "active" | "deleted") => {
+    setCommissionSubTab(sub);
+    if (sub === "deleted" && deletedCommissions.length === 0) fetchDeletedCommissions();
   };
 
   /* ── Fetchers ──────────────────────────────────────────── */
@@ -488,6 +570,16 @@ export default function AdminPage() {
       setCommissions(data || []);
     } catch { showError("의뢰 목록 불러오기 실패"); }
     finally { setCommLoading(false); }
+  };
+
+  const fetchDeletedCommissions = async () => {
+    setDeletedLoading(true);
+    try {
+      const res = await fetch("/api/commission/admin/deleted", { headers: await authHeader() });
+      const { commissions } = await res.json();
+      setDeletedCommissions(commissions || []);
+    } catch { showError("삭제된 의뢰 목록 불러오기 실패"); }
+    finally { setDeletedLoading(false); }
   };
 
   const fetchDeletionRequests = async () => {
@@ -906,6 +998,97 @@ export default function AdminPage() {
     } catch { showError("삭제 실패"); }
   };
 
+  const fetchPopups = async () => {
+    setPopupLoading(true);
+    try {
+      const res = await fetch("/api/admin/popup-notices", { headers: await authHeader() });
+      const { popups } = await res.json();
+      setPopups(popups || []);
+    } catch { showError("팝업 목록 불러오기 실패"); }
+    finally { setPopupLoading(false); }
+  };
+
+  const handlePopupImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPopupUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("bucket", "thumbnails");
+      form.append("path", `popup-notices/${Date.now()}-${file.name}`);
+      const token = getAccessToken();
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) { showError("이미지 업로드 실패"); return; }
+      const { url } = await res.json();
+      setEditingPopup((f) => (f ? { ...f, image_url: url } : f));
+    } catch { showError("이미지 업로드 실패"); }
+    finally { setPopupUploading(false); e.target.value = ""; }
+  };
+
+  const savePopup = async () => {
+    if (!editingPopup) return;
+    if (!editingPopup.title.trim() && !editingPopup.content.trim() && !editingPopup.image_url) {
+      showError("제목, 본문, 이미지 중 최소 하나는 입력해주세요.");
+      return;
+    }
+    setPopupSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        title: editingPopup.title.trim() || null,
+        content: editingPopup.content.trim() || null,
+        image_url: editingPopup.image_url || null,
+        link_url: editingPopup.link_url.trim() || null,
+        is_active: editingPopup.is_active,
+        starts_at: datetimeLocalToIso(editingPopup.starts_at),
+        ends_at: datetimeLocalToIso(editingPopup.ends_at),
+      };
+      if (editingPopup.id) body.id = editingPopup.id;
+      const res = await fetch("/api/admin/popup-notices", {
+        method: editingPopup.id ? "PATCH" : "POST",
+        headers: await authHeader(),
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { showError("저장 실패"); return; }
+      showSuccess(editingPopup.id ? "팝업이 수정되었습니다." : "팝업이 등록되었습니다.");
+      setEditingPopup(null);
+      await fetchPopups();
+    } catch { showError("저장 실패"); }
+    finally { setPopupSaving(false); }
+  };
+
+  const togglePopupActive = async (p: PopupNotice) => {
+    setPopupTogglingId(p.id);
+    try {
+      const res = await fetch("/api/admin/popup-notices", {
+        method: "PATCH",
+        headers: await authHeader(),
+        body: JSON.stringify({ id: p.id, is_active: !p.is_active }),
+      });
+      if (!res.ok) { showError("변경 실패"); return; }
+      await fetchPopups();
+    } catch { showError("변경 실패"); }
+    finally { setPopupTogglingId(null); }
+  };
+
+  const deletePopup = async (id: string) => {
+    if (!confirm("이 팝업을 삭제할까요?")) return;
+    setPopupDeletingId(id);
+    try {
+      const res = await fetch(`/api/admin/popup-notices?id=${id}`, {
+        method: "DELETE", headers: await authHeader(),
+      });
+      if (!res.ok) { showError("삭제 실패"); return; }
+      showSuccess("삭제되었습니다.");
+      setPopups((prev) => prev.filter((p) => p.id !== id));
+    } catch { showError("삭제 실패"); }
+    finally { setPopupDeletingId(null); }
+  };
+
   const fetchBannedWords = async () => {
     setBannedWordsLoading(true);
     try {
@@ -962,6 +1145,34 @@ export default function AdminPage() {
       setCommissions(prev => prev.filter(c => c.id !== id));
     } catch { showError("오류가 발생했습니다."); }
     finally { setCommDeleting(null); }
+  };
+
+  const handleRestoreCommission = async (id: string) => {
+    if (!confirm("이 의뢰를 복구할까요? 목록에 다시 노출됩니다.")) return;
+    setRestoringId(id);
+    try {
+      const res = await fetch("/api/commission/admin/deleted", {
+        method: "PATCH", headers: await authHeader(), body: JSON.stringify({ id }),
+      });
+      if (!res.ok) { showError("복구 실패"); return; }
+      showSuccess("의뢰가 복구되었습니다.");
+      await fetchDeletedCommissions();
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setRestoringId(null); }
+  };
+
+  const handlePermanentDeleteCommission = async (id: string) => {
+    if (!confirm("정말 완전 삭제할까요? 데이터베이스에서 영구 삭제되며 복구할 수 없습니다.")) return;
+    setPermDeletingId(id);
+    try {
+      const res = await fetch(`/api/commission/admin/deleted?id=${id}`, {
+        method: "DELETE", headers: await authHeader(),
+      });
+      if (!res.ok) { showError("완전삭제 실패"); return; }
+      showSuccess("완전 삭제되었습니다.");
+      setDeletedCommissions(prev => prev.filter(c => c.id !== id));
+    } catch { showError("오류가 발생했습니다."); }
+    finally { setPermDeletingId(null); }
   };
 
   /* ── User Actions ──────────────────────────────────────── */
@@ -1569,94 +1780,186 @@ export default function AdminPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
                 <div>
                   <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>의뢰 관리</h2>
-                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>전체 의뢰 {commissions.length}건</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                    {commissionSubTab === "active"
+                      ? `전체 의뢰 ${commissions.length}건`
+                      : `삭제된 의뢰 ${deletedCommissions.length}건`}
+                  </p>
                 </div>
-                <button type="button" onClick={fetchCommissions} style={btnStyle("outline")}>새로고침</button>
+                <button
+                  type="button"
+                  onClick={commissionSubTab === "active" ? fetchCommissions : fetchDeletedCommissions}
+                  style={btnStyle("outline")}
+                >
+                  새로고침
+                </button>
               </div>
 
-              {/* Filters */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-                <input
-                  value={commSearch}
-                  onChange={e => setCommSearch(e.target.value)}
-                  placeholder="제목 또는 의뢰자 닉네임"
-                  style={{
-                    height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid #d1d5db",
-                    fontSize: 13, outline: "none", minWidth: 200, flex: 1,
-                  }}
-                />
-                <select value={commStatusFilter} onChange={e => setCommStatusFilter(e.target.value)}
-                  style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }}>
-                  <option value="">전체 상태</option>
-                  {Object.keys(STATUS_GROUP).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select value={commTypeFilter} onChange={e => setCommTypeFilter(e.target.value)}
-                  style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }}>
-                  <option value="">전체 유형</option>
-                  <option>공개의뢰</option>
-                  <option>개인의뢰</option>
-                  <option>미지정의뢰</option>
-                </select>
+              {/* Sub tabs */}
+              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                {([["active", "전체 의뢰"], ["deleted", "삭제된 의뢰"]] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => switchCommissionSubTab(key)}
+                    style={{
+                      height: 36, padding: "0 14px", borderRadius: 999, fontSize: 13,
+                      border: "1px solid #d1d5db", cursor: "pointer", fontWeight: 700,
+                      background: commissionSubTab === key ? SIDEBAR_BG : "white",
+                      color: commissionSubTab === key ? "white" : "#374151",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
 
-              {commLoading ? <LoadingSpinner /> : filteredCommissions.length === 0 ? (
-                <EmptyState message="의뢰가 없습니다." />
-              ) : (
-                <div style={{ display: "grid", gap: 10 }}>
-                  {filteredCommissions.map(c => (
-                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: "14px 18px", flexWrap: "wrap" }}>
-                      {/* Thumbnail */}
-                      <a href={`/commission/${c.id}`} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, textDecoration: "none" }}>
-                        {c.images?.[0] ? (
-                          <Image src={c.images[0]} alt="" width={56} height={56} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f3f4f6", flexShrink: 0 }} />
-                        )}
+              {commissionSubTab === "active" && (
+                <>
+                  {/* Filters */}
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+                    <input
+                      value={commSearch}
+                      onChange={e => setCommSearch(e.target.value)}
+                      placeholder="제목 또는 의뢰자 닉네임"
+                      style={{
+                        height: 40, padding: "0 14px", borderRadius: 10, border: "1px solid #d1d5db",
+                        fontSize: 13, outline: "none", minWidth: 200, flex: 1,
+                      }}
+                    />
+                    <select value={commStatusFilter} onChange={e => setCommStatusFilter(e.target.value)}
+                      style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }}>
+                      <option value="">전체 상태</option>
+                      {Object.keys(STATUS_GROUP).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select value={commTypeFilter} onChange={e => setCommTypeFilter(e.target.value)}
+                      style={{ height: 40, padding: "0 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }}>
+                      <option value="">전체 유형</option>
+                      <option>공개의뢰</option>
+                      <option>개인의뢰</option>
+                      <option>미지정의뢰</option>
+                    </select>
+                  </div>
 
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {c.title}
-                          </div>
-                          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                            {c.nickname}
-                            {c.is_private && c.target_seller_id && c.seller_nickname && (
-                              <> → <span style={{ color: GOLD, fontWeight: 700 }}>{c.seller_nickname}</span></>
+                  {commLoading ? <LoadingSpinner /> : filteredCommissions.length === 0 ? (
+                    <EmptyState message="의뢰가 없습니다." />
+                  ) : (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {filteredCommissions.map(c => (
+                        <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: "14px 18px", flexWrap: "wrap" }}>
+                          {/* Thumbnail */}
+                          <a href={`/commission/${c.id}`} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0, textDecoration: "none" }}>
+                            {c.images?.[0] ? (
+                              <Image src={c.images[0]} alt="" width={56} height={56} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 56, height: 56, borderRadius: 10, background: "#f3f4f6", flexShrink: 0 }} />
                             )}
-                            {c.is_private && !c.target_seller_id && " (미지정 개인의뢰)"}
-                            {!c.is_private && " (공개의뢰)"}
-                            {" · "}{new Date(c.created_at).toLocaleDateString("ko-KR")}
+
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {c.title}
+                              </div>
+                              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                                {c.nickname}
+                                {c.is_private && c.target_seller_id && c.seller_nickname && (
+                                  <> → <span style={{ color: GOLD, fontWeight: 700 }}>{c.seller_nickname}</span></>
+                                )}
+                                {c.is_private && !c.target_seller_id && " (미지정 개인의뢰)"}
+                                {!c.is_private && " (공개의뢰)"}
+                                {" · "}{new Date(c.created_at).toLocaleDateString("ko-KR")}
+                              </div>
+                            </div>
+                          </a>
+
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                            {c.commission_results?.[0]?.count !== undefined && (
+                              <span style={{ fontSize: 12, color: "#6b7280" }}>결과 {c.commission_results[0].count}개</span>
+                            )}
+                            <span style={{
+                              height: 26, padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                              background: STATUS_BG[c.status] || "#f3f4f6",
+                              color: STATUS_COLOR[c.status] || "#6b7280",
+                              display: "inline-flex", alignItems: "center",
+                            }}>
+                              {STATUS_LABEL[c.status] || c.status}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteCommission(c.id)}
+                              disabled={commDeleting === c.id}
+                              style={{
+                                height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid #fca5a5",
+                                background: "white", color: "#dc2626", fontSize: 12, fontWeight: 700,
+                                cursor: commDeleting === c.id ? "not-allowed" : "pointer", opacity: commDeleting === c.id ? 0.6 : 1,
+                              }}
+                            >
+                              {commDeleting === c.id ? "삭제 중..." : "삭제"}
+                            </button>
                           </div>
                         </div>
-                      </a>
-
-                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                        {c.commission_results?.[0]?.count !== undefined && (
-                          <span style={{ fontSize: 12, color: "#6b7280" }}>결과 {c.commission_results[0].count}개</span>
-                        )}
-                        <span style={{
-                          height: 26, padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
-                          background: STATUS_BG[c.status] || "#f3f4f6",
-                          color: STATUS_COLOR[c.status] || "#6b7280",
-                          display: "inline-flex", alignItems: "center",
-                        }}>
-                          {STATUS_LABEL[c.status] || c.status}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteCommission(c.id)}
-                          disabled={commDeleting === c.id}
-                          style={{
-                            height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid #fca5a5",
-                            background: "white", color: "#dc2626", fontSize: 12, fontWeight: 700,
-                            cursor: commDeleting === c.id ? "not-allowed" : "pointer", opacity: commDeleting === c.id ? 0.6 : 1,
-                          }}
-                        >
-                          {commDeleting === c.id ? "삭제 중..." : "삭제"}
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
+              )}
+
+              {commissionSubTab === "deleted" && (
+                deletedLoading ? <LoadingSpinner /> : deletedCommissions.length === 0 ? (
+                  <EmptyState message="삭제된 의뢰가 없습니다." />
+                ) : (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {deletedCommissions.map(c => (
+                      <div key={c.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, background: "white", padding: "14px 18px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <a href={`/commission/${c.id}`} target="_blank" rel="noreferrer" style={{ fontSize: 15, fontWeight: 800, color: "#111827", textDecoration: "none" }}>
+                            {c.title}
+                          </a>
+                          <span style={{
+                            height: 26, padding: "0 10px", borderRadius: 999, fontSize: 12, fontWeight: 700,
+                            background: STATUS_BG[c.status] || "#f3f4f6",
+                            color: STATUS_COLOR[c.status] || "#6b7280",
+                            display: "inline-flex", alignItems: "center",
+                          }}>
+                            {STATUS_LABEL[c.status] || c.status}
+                          </span>
+                          {c.commission_type && (
+                            <span style={badgeStyle("#6b7280", "#f3f4f6")}>{c.commission_type}</span>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 6 }}>
+                          작성자 {c.nickname} · 등록일 {formatDate(c.created_at)} · 삭제일 {formatDate(c.deleted_at)}
+                          {c.deleted_by_nickname && <> · 삭제자 {c.deleted_by_nickname}</>}
+                        </div>
+
+                        <div style={{ fontSize: 13, color: "#374151", marginTop: 8, background: "#f9fafb", borderRadius: 8, padding: "8px 10px" }}>
+                          <span style={{ fontWeight: 700 }}>삭제 사유: </span>
+                          {c.deleted_reason_category ? (DELETE_REASON_LABEL[c.deleted_reason_category] || c.deleted_reason_category) : "—"}
+                          {c.deleted_reason_detail && <> — {c.deleted_reason_detail}</>}
+                        </div>
+
+                        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                          <button
+                            type="button"
+                            disabled={restoringId === c.id}
+                            onClick={() => handleRestoreCommission(c.id)}
+                            style={{ ...miniBtn("#16a34a"), opacity: restoringId === c.id ? 0.5 : 1 }}
+                          >
+                            {restoringId === c.id ? "복구 중..." : "복구"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={permDeletingId === c.id}
+                            onClick={() => handlePermanentDeleteCommission(c.id)}
+                            style={{ ...miniBtn("#dc2626"), opacity: permDeletingId === c.id ? 0.5 : 1 }}
+                          >
+                            {permDeletingId === c.id ? "삭제 중..." : "완전삭제"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
               )}
             </section>
           )}
@@ -1999,6 +2302,206 @@ export default function AdminPage() {
                         </button>
                         <button type="button" onClick={() => deleteNotice(n.id)} style={miniBtn("#dc2626")}>
                           삭제
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ══════════════════════════════════════════════
+              팝업 관리
+          ══════════════════════════════════════════════ */}
+          {activeTab === "popups" && (
+            <section>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111827" }}>팝업 관리</h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6b7280" }}>
+                    홈페이지 진입 시 노출되는 팝업 공지 — 전체 {popups.length}건
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={fetchPopups} style={btnStyle("outline")}>새로고침</button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingPopup({
+                      title: "", content: "", image_url: "", link_url: "",
+                      is_active: true, starts_at: "", ends_at: "",
+                    })}
+                    style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "none", background: GOLD, color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                  >
+                    + 새 팝업
+                  </button>
+                </div>
+              </div>
+
+              {/* 작성/수정 폼 */}
+              {editingPopup && (
+                <div style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 14, padding: 20, marginBottom: 28 }}>
+                  <h3 style={{ margin: "0 0 14px", fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                    {editingPopup.id ? "팝업 수정" : "새 팝업 등록"}
+                  </h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <input
+                      type="text"
+                      placeholder="제목 (선택)"
+                      value={editingPopup.title}
+                      onChange={(e) => setEditingPopup((f) => f && ({ ...f, title: e.target.value }))}
+                      style={{ height: 38, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 12px", fontSize: 14 }}
+                    />
+                    <textarea
+                      placeholder="본문 (선택)"
+                      value={editingPopup.content}
+                      onChange={(e) => setEditingPopup((f) => f && ({ ...f, content: e.target.value }))}
+                      rows={4}
+                      style={{ border: "1px solid #d1d5db", borderRadius: 8, padding: "10px 12px", fontSize: 14, resize: "vertical", lineHeight: 1.7 }}
+                    />
+
+                    {/* 이미지 업로드 */}
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", marginBottom: 6 }}>배너 이미지 (선택)</div>
+                      {editingPopup.image_url ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <Image src={editingPopup.image_url} alt="" width={80} height={80} style={{ borderRadius: 10, objectFit: "cover" }} />
+                          <button
+                            type="button"
+                            onClick={() => setEditingPopup((f) => f && ({ ...f, image_url: "" }))}
+                            style={miniBtn("#dc2626")}
+                          >
+                            이미지 제거
+                          </button>
+                        </div>
+                      ) : (
+                        <input type="file" accept="image/*" onChange={handlePopupImageUpload} disabled={popupUploading} style={{ fontSize: 13 }} />
+                      )}
+                      {popupUploading && <div style={{ fontSize: 12, color: "#6b7280", marginTop: 6 }}>업로드 중...</div>}
+                    </div>
+
+                    <input
+                      type="text"
+                      placeholder="클릭 시 이동할 주소 (예: https://...)"
+                      value={editingPopup.link_url}
+                      onChange={(e) => setEditingPopup((f) => f && ({ ...f, link_url: e.target.value }))}
+                      style={{ height: 38, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 12px", fontSize: 14 }}
+                    />
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>표시 시작</div>
+                        <input
+                          type="datetime-local"
+                          value={editingPopup.starts_at}
+                          onChange={(e) => setEditingPopup((f) => f && ({ ...f, starts_at: e.target.value }))}
+                          style={{ height: 38, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 10px", fontSize: 13 }}
+                        />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>표시 종료</div>
+                        <input
+                          type="datetime-local"
+                          value={editingPopup.ends_at}
+                          onChange={(e) => setEditingPopup((f) => f && ({ ...f, ends_at: e.target.value }))}
+                          style={{ height: 38, border: "1px solid #d1d5db", borderRadius: 8, padding: "0 10px", fontSize: 13 }}
+                        />
+                      </div>
+                      <div style={{ fontSize: 12, color: "#9ca3af", alignSelf: "flex-end", paddingBottom: 9 }}>비워두면 제한 없음</div>
+                    </div>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer" }}>
+                      <input
+                        type="checkbox"
+                        checked={editingPopup.is_active}
+                        onChange={(e) => setEditingPopup((f) => f && ({ ...f, is_active: e.target.checked }))}
+                      />
+                      활성화 (즉시 노출)
+                    </label>
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={savePopup}
+                        disabled={popupSaving}
+                        style={{ height: 38, padding: "0 20px", borderRadius: 10, border: "none", background: GOLD, color: "white", fontWeight: 700, fontSize: 13, cursor: popupSaving ? "not-allowed" : "pointer", opacity: popupSaving ? 0.6 : 1 }}
+                      >
+                        {popupSaving ? "저장 중..." : editingPopup.id ? "수정 저장" : "등록"}
+                      </button>
+                      <button type="button" onClick={() => setEditingPopup(null)} style={btnStyle("outline")}>
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 목록 */}
+              {popupLoading ? <LoadingSpinner /> : popups.length === 0 ? (
+                <EmptyState message="등록된 팝업이 없습니다." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {popups.map((p) => (
+                    <div
+                      key={p.id}
+                      style={{ background: "white", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}
+                    >
+                      <div style={{ display: "flex", gap: 12, minWidth: 0, flex: 1 }}>
+                        {p.image_url && (
+                          <Image src={p.image_url} alt="" width={56} height={56} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                        )}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{p.title || "(제목 없음)"}</span>
+                            <span style={badgeStyle(p.is_active ? "#16a34a" : "#6b7280", p.is_active ? "#dcfce7" : "#f3f4f6")}>
+                              {p.is_active ? "노출중" : "숨김"}
+                            </span>
+                            {p.link_url && <span style={{ fontSize: 11, color: "#2563eb" }}>🔗 링크</span>}
+                          </div>
+                          {p.content && (
+                            <p style={{ margin: 0, fontSize: 13, color: "#6b7280", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>
+                              {p.content}
+                            </p>
+                          )}
+                          <span style={{ fontSize: 12, color: "#9ca3af", marginTop: 4, display: "block" }}>
+                            {p.starts_at || p.ends_at
+                              ? `${p.starts_at ? formatDate(p.starts_at) : "제한없음"} ~ ${p.ends_at ? formatDate(p.ends_at) : "제한없음"}`
+                              : "상시"}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setEditingPopup({
+                            id: p.id,
+                            title: p.title || "",
+                            content: p.content || "",
+                            image_url: p.image_url || "",
+                            link_url: p.link_url || "",
+                            is_active: p.is_active,
+                            starts_at: isoToDatetimeLocal(p.starts_at),
+                            ends_at: isoToDatetimeLocal(p.ends_at),
+                          })}
+                          style={miniBtn("#2563eb")}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          disabled={popupTogglingId === p.id}
+                          onClick={() => togglePopupActive(p)}
+                          style={{ ...miniBtn(p.is_active ? "#6b7280" : "#16a34a"), opacity: popupTogglingId === p.id ? 0.5 : 1 }}
+                        >
+                          {popupTogglingId === p.id ? "처리 중..." : p.is_active ? "숨기기" : "노출하기"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={popupDeletingId === p.id}
+                          onClick={() => deletePopup(p.id)}
+                          style={{ ...miniBtn("#dc2626"), opacity: popupDeletingId === p.id ? 0.5 : 1 }}
+                        >
+                          {popupDeletingId === p.id ? "삭제 중..." : "삭제"}
                         </button>
                       </div>
                     </div>

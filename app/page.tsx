@@ -18,6 +18,7 @@ import TopModelCard from "./components/TopModelCard";
 import QuickViewModal from "./components/QuickViewModal";
 import { SkeletonCard, SkeletonTopCard } from "./components/SkeletonCard";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
+import PopupNoticeModal from "./components/PopupNoticeModal";
 
 type SortType = "latest" | "price-low" | "price-high" | "popular";
 type FavoriteMap = Record<string, boolean>;
@@ -475,6 +476,7 @@ function HomeInner() {
 
   return (
     <>
+      <PopupNoticeModal />
       <main className={styles.main}>
         {/* Hero + 검색 */}
         <section className={styles.hero}>

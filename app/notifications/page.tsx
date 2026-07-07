@@ -293,7 +293,12 @@ export default function NotificationsPage() {
                   <a
                     key={item.id}
                     href={link}
-                    onClick={async () => { await markFollowNotificationAsRead(item.follower_id); }}
+                    onClick={async (e) => {
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+                      e.preventDefault();
+                      await markFollowNotificationAsRead(item.follower_id);
+                      router.push(link);
+                    }}
                     style={{
                       position: "relative",
                       padding: "14px 20px",
@@ -369,7 +374,12 @@ export default function NotificationsPage() {
                   <a
                     key={item.id}
                     href={link}
-                    onClick={async () => { await markConversationNotificationAsRead(item.id); }}
+                    onClick={async (e) => {
+                      if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+                      e.preventDefault();
+                      await markConversationNotificationAsRead(item.id);
+                      router.push(link);
+                    }}
                     style={{
                       position: "relative",
                       padding: "14px 20px",

@@ -49,10 +49,11 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // All commissions list
+  // All commissions list (삭제된 의뢰는 '삭제된 의뢰' 탭에서 별도 조회)
   const { data: commissions, error } = await adminSupabase
     .from("commissions")
     .select("id, title, images, status, user_id, created_at, is_private, target_seller_id, commission_results(count)")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
   if (error || !commissions) {

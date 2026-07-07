@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
@@ -15,6 +15,7 @@ const TAB_INACTIVE = "rgba(255,255,255,0.72)";
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [userEmail, setUserEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -224,6 +225,21 @@ export default function Header() {
     }
   };
 
+  const markNotifItemRead = async (id: string) => {
+    setNotifItems((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n));
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    window.dispatchEvent(new Event("notifications-updated"));
+  };
+
+  const handleNotifItemClick = async (e: React.MouseEvent, item: any) => {
+    // 새 탭으로 열기(ctrl/cmd/휠클릭)는 브라우저 기본 동작 유지
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    if (!item.is_read) await markNotifItemRead(item.id);
+    setNotifDropOpen(false);
+    router.push(item.link || "/notifications");
+  };
+
   const handleLogout = async () => {
     try {
       await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/logout`, {
@@ -285,6 +301,7 @@ export default function Header() {
           <a
             key={item.id}
             href={item.link || "/notifications"}
+            onClick={(e) => handleNotifItemClick(e, item)}
             style={{
               display: "block", padding: "10px 16px",
               textDecoration: "none", color: "inherit",

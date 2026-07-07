@@ -14,6 +14,13 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
   }
 
+  let body: { reason_category?: string; reason_detail?: string } = {};
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+
   // Verify caller is authenticated and owns the commission
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.replace("Bearer ", "");
@@ -51,13 +58,48 @@ export async function DELETE(req: NextRequest) {
     );
   }
 
-  // Delete child records first (FK constraints without CASCADE)
+  if (!isAdmin) {
+    // 작성자 본인 삭제 → soft delete (row 유지)
+    const ALLOWED_REASON_CATEGORIES = ["mistake", "cancel", "solved_elsewhere", "info_error", "other"];
+    const reasonCategory = body.reason_category;
+
+    if (!reasonCategory) {
+      return NextResponse.json({ error: "삭제 사유를 선택해주세요." }, { status: 400 });
+    }
+    if (!ALLOWED_REASON_CATEGORIES.includes(reasonCategory)) {
+      return NextResponse.json({ error: "올바르지 않은 삭제 사유입니다." }, { status: 400 });
+    }
+    if (reasonCategory === "other" && !body.reason_detail?.trim()) {
+      return NextResponse.json({ error: "상세 사유를 입력해주세요." }, { status: 400 });
+    }
+
+    const { error: softDeleteError } = await adminSupabase
+      .from("commissions")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_reason_category: reasonCategory,
+        deleted_reason_detail: body.reason_detail?.trim() || null,
+        deleted_by: user.id,
+      })
+      .eq("id", commissionId);
+
+    if (softDeleteError) {
+      console.error("commission soft delete error:", softDeleteError);
+      return NextResponse.json({ error: "삭제 실패: " + softDeleteError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  }
+
+  // 관리자 삭제 → hard delete. Delete child records first (FK constraints without CASCADE)
   await adminSupabase.from("commission_disputes").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_chats").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_negotiations").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_results").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_comments").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_bookmarks").delete().eq("commission_id", commissionId);
+  await adminSupabase.from("commission_revisions").delete().eq("commission_id", commissionId);
+  await adminSupabase.from("commission_bids").delete().eq("commission_id", commissionId);
 
   const { error: deleteError } = await adminSupabase
     .from("commissions")
