@@ -216,6 +216,7 @@ function CommissionNewInner() {
 
     setSubmitting(true);
     try {
+      const token = getAccessToken();
       const imageUrls: string[] = [];
       const now = Date.now();
       for (let i = 0; i < imageFiles.length; i++) {
@@ -226,7 +227,11 @@ function CommissionNewInner() {
         imgForm.append("file", file);
         imgForm.append("bucket", "thumbnails");
         imgForm.append("path", path);
-        const imgRes = await fetch("/api/upload", { method: "POST", body: imgForm });
+        const imgRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: imgForm,
+        });
         if (!imgRes.ok) throw new Error("이미지 업로드 실패");
         const { url } = await imgRes.json();
         imageUrls.push(url);
