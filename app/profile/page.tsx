@@ -528,7 +528,12 @@ export default function ProfilePage() {
       form.append("file", file);
       form.append("bucket", "thumbnails");
       form.append("path", path);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const token = getAccessToken();
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
       if (!res.ok) throw new Error("업로드 실패");
       const { url } = await res.json();
       await supabase.from("profiles").update({ business_registration_url: url }).eq("id", userId);

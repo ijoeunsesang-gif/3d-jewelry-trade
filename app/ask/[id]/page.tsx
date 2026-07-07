@@ -190,7 +190,12 @@ export default function AskDetailPage() {
     form.append("file", file);
     form.append("bucket", "thumbnails");
     form.append("path", `ask-answers/${myId}/${Date.now()}-${file.name}`);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
+    const token = getAccessToken();
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
     if (!res.ok) return null;
     const { url } = await res.json();
     return url;

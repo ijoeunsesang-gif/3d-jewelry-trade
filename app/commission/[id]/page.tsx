@@ -608,7 +608,12 @@ export default function CommissionDetailPage() {
     if (!commentText.trim() || !myId) return;
     setSubmittingComment(true);
     try {
-      const { error } = await supabase.from("commission_comments").insert({ commission_id: id, user_id: myId, content: commentText.trim() });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        showError("로그인이 만료되었습니다. 다시 로그인해주세요.");
+        return;
+      }
+      const { error } = await supabase.from("commission_comments").insert({ commission_id: id, user_id: user.id, content: commentText.trim() });
       if (error) throw error;
       setCommentText("");
       await fetchComments();
@@ -794,7 +799,12 @@ export default function CommissionDetailPage() {
       const path = `commission-chats/${id}/${Date.now()}-${file.name}`;
       const form = new FormData();
       form.append("file", file); form.append("bucket", "thumbnails"); form.append("path", path);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const token = getAccessToken();
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
       if (!res.ok) throw new Error("업로드 실패");
       const { url } = await res.json();
       await supabase.from("commission_chats").insert({ commission_id: id, sender_id: myId, message: null, image_url: url });
@@ -851,7 +861,12 @@ export default function CommissionDetailPage() {
       const path = `commission-files/${commission.id}/${file.name}`;
       const form = new FormData();
       form.append("file", file); form.append("bucket", "thumbnails"); form.append("path", path);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
+      const token = getAccessToken();
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
       if (!res.ok) throw new Error("파일 업로드 실패");
       const { url } = await res.json();
       await supabase.from("commissions").update({ status: "completed", result_link: url }).eq("id", id);
@@ -891,7 +906,12 @@ export default function CommissionDetailPage() {
     form.append("file", file);
     form.append("bucket", "thumbnails");
     form.append("path", `revision-images/${id}/${Date.now()}-${file.name}`);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
+    const token = getAccessToken();
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
     if (!res.ok) return null;
     const { url } = await res.json();
     return url;

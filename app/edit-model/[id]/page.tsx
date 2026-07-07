@@ -402,7 +402,12 @@ export default function EditModelPage() {
         thumbForm.append("file", thumbnailFile);
         thumbForm.append("bucket", "thumbnails");
         thumbForm.append("path", path);
-        const thumbRes = await fetch("/api/upload", { method: "POST", body: thumbForm });
+        const thumbToken = getAccessToken();
+        const thumbRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${thumbToken}` },
+          body: thumbForm,
+        });
         if (!thumbRes.ok) { showError("썸네일 업로드에 실패했습니다."); return; }
         const { url } = await thumbRes.json();
 
@@ -455,7 +460,12 @@ export default function EditModelPage() {
           imgForm.append("file", file);
           imgForm.append("bucket", "thumbnails");
           imgForm.append("path", path);
-          const imgRes = await fetch("/api/upload", { method: "POST", body: imgForm });
+          const imgToken = getAccessToken();
+          const imgRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${imgToken}` },
+            body: imgForm,
+          });
           if (!imgRes.ok) { console.error("추가 이미지 업로드 실패"); continue; }
           const { url: publicUrl } = await imgRes.json();
 
