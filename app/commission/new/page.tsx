@@ -476,6 +476,104 @@ function CommissionNewInner() {
 
   if (!userId) return null;
 
+  const productionOptionsSection = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      <OptionGroup
+        label="카테고리"
+        required
+        options={CATEGORY_OPTIONS.map((c) => ({ value: c, label: c }))}
+        value={category}
+        onChange={setCategory}
+      />
+
+      <OptionGroup
+        label="소재"
+        options={MATERIAL_OPTIONS.map((m) => ({ value: m, label: m }))}
+        value={material}
+        onChange={setMaterial}
+      />
+
+      <OptionGroup
+        label="속파기(최소중량)"
+        options={YES_NO_OPTIONS}
+        value={hollow}
+        onChange={setHollow}
+      />
+
+      <OptionGroup
+        label="안바닥(사가네)제작"
+        options={YES_NO_OPTIONS}
+        value={bottomPlate}
+        onChange={setBottomPlate}
+      />
+
+      <OptionGroup
+        label="제작방식"
+        options={PRODUCTION_TYPE_OPTIONS}
+        value={productionType}
+        onChange={setProductionType}
+      />
+
+      {category && (
+        <div key={category} style={{ display: "flex", flexDirection: "column", gap: 18, animation: "helpFadeIn 0.25s ease" }}>
+          {category === "반지" && (
+            <>
+              <div>
+                <label style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+                  반지 사이즈
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setRingSizeOverlayOpen(true)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                    width: 140, padding: "4px 10px", borderRadius: 10, fontSize: 16, fontWeight: 700,
+                    border: "1.5px solid #d1d5db", background: "white", color: "#111827", cursor: "pointer",
+                  }}
+                >
+                  #{ringSize}
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>▼</span>
+                </button>
+              </div>
+              <OptionGroup
+                label="우대 하단 사이즈조절"
+                options={YES_NO_OPTIONS}
+                value={ringSizeAdjust}
+                onChange={setRingSizeAdjust}
+              />
+            </>
+          )}
+
+          {category === "목걸이" && (
+            <>
+              <OptionGroup
+                label="삼각고리포함"
+                options={YES_NO_OPTIONS}
+                value={necklaceTriangle}
+                onChange={setNecklaceTriangle}
+              />
+              <OptionGroup
+                label="장식포함"
+                options={YES_NO_OPTIONS}
+                value={decoration}
+                onChange={setDecoration}
+              />
+            </>
+          )}
+
+          {category === "팔찌" && (
+            <OptionGroup
+              label="장식포함"
+              options={YES_NO_OPTIONS}
+              value={decoration}
+              onChange={setDecoration}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
     <div style={{
@@ -534,102 +632,8 @@ function CommissionNewInner() {
           )}
         </div>
 
-        {/* 제작 옵션 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <OptionGroup
-            label="카테고리"
-            required
-            options={CATEGORY_OPTIONS.map((c) => ({ value: c, label: c }))}
-            value={category}
-            onChange={setCategory}
-          />
-
-          <OptionGroup
-            label="소재"
-            options={MATERIAL_OPTIONS.map((m) => ({ value: m, label: m }))}
-            value={material}
-            onChange={setMaterial}
-          />
-
-          <OptionGroup
-            label="속파기(최소중량)"
-            options={YES_NO_OPTIONS}
-            value={hollow}
-            onChange={setHollow}
-          />
-
-          <OptionGroup
-            label="안바닥(사가네)제작"
-            options={YES_NO_OPTIONS}
-            value={bottomPlate}
-            onChange={setBottomPlate}
-          />
-
-          <OptionGroup
-            label="제작방식"
-            options={PRODUCTION_TYPE_OPTIONS}
-            value={productionType}
-            onChange={setProductionType}
-          />
-
-          {category && (
-            <div key={category} style={{ display: "flex", flexDirection: "column", gap: 18, animation: "helpFadeIn 0.25s ease" }}>
-              {category === "반지" && (
-                <>
-                  <div>
-                    <label style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
-                      반지 사이즈
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setRingSizeOverlayOpen(true)}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
-                        width: 140, padding: "4px 10px", borderRadius: 10, fontSize: 16, fontWeight: 700,
-                        border: "1.5px solid #d1d5db", background: "white", color: "#111827", cursor: "pointer",
-                      }}
-                    >
-                      #{ringSize}
-                      <span style={{ fontSize: 12, color: "#9ca3af" }}>▼</span>
-                    </button>
-                  </div>
-                  <OptionGroup
-                    label="우대 하단 사이즈조절"
-                    options={YES_NO_OPTIONS}
-                    value={ringSizeAdjust}
-                    onChange={setRingSizeAdjust}
-                  />
-                </>
-              )}
-
-              {category === "목걸이" && (
-                <>
-                  <OptionGroup
-                    label="삼각고리포함"
-                    options={YES_NO_OPTIONS}
-                    value={necklaceTriangle}
-                    onChange={setNecklaceTriangle}
-                  />
-                  <OptionGroup
-                    label="장식포함"
-                    options={YES_NO_OPTIONS}
-                    value={decoration}
-                    onChange={setDecoration}
-                  />
-                </>
-              )}
-
-              {category === "팔찌" && (
-                <OptionGroup
-                  label="장식포함"
-                  options={YES_NO_OPTIONS}
-                  value={decoration}
-                  onChange={setDecoration}
-                />
-              )}
-            </div>
-          )}
-        </div>
+        {/* 제작 옵션 (공개의뢰: 여기서 표시, 개인의뢰: 희망 비용 아래에서 표시) */}
+        {!isPrivate && productionOptionsSection}
 
         {/* 개인 의뢰 전용 섹션 */}
         {isPrivate && (
@@ -862,6 +866,9 @@ function CommissionNewInner() {
                 />
               </div>
             </div>
+
+            {/* 제작 옵션 (개인의뢰: 희망 비용 아래) */}
+            {productionOptionsSection}
           </>
         )}
 
