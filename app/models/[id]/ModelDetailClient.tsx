@@ -103,11 +103,35 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
   useEffect(() => {
     const incrementView = async () => {
-      const { error } = await supabase.rpc("increment_model_view", { mid: model.id });
+      const token = getAccessToken();
+      const uid = token ? ((decodeJwt(token) as any)?.sub ?? null) : null;
+
+      let todayKey = "";
+      if (!uid) {
+        const today = new Date().toISOString().slice(0, 10);
+        todayKey = `viewed_models_${today}`;
+        const viewedToday: string[] = JSON.parse(localStorage.getItem(todayKey) || "[]");
+        if (viewedToday.includes(model.id)) return;
+      }
+
+      const { data: didIncrement, error } = await supabase.rpc("increment_model_view", {
+        mid: model.id,
+        uid,
+      });
+
       if (error) {
         console.error("[view_count] increment_model_view RPC 실패:", error.message);
+        return;
       }
-      setViewCount((model.view_count || 0) + 1);
+
+      if (!uid) {
+        const viewedToday: string[] = JSON.parse(localStorage.getItem(todayKey) || "[]");
+        localStorage.setItem(todayKey, JSON.stringify([...viewedToday, model.id]));
+      }
+
+      if (didIncrement) {
+        setViewCount((model.view_count || 0) + 1);
+      }
     };
     incrementView();
   }, [model.id]);
