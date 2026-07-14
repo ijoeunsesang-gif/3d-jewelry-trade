@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const [profilesRes, authRes] = await Promise.all([
     adminSupabase
       .from("profiles")
-      .select("id, nickname, email, role, created_at, points, is_point_blocked, warning_count, deleted_at")
+      .select("id, nickname, email, role, created_at, points, is_point_blocked, warning_count, deleted_at, last_active_at")
       .order("created_at", { ascending: false }),
     adminSupabase.auth.admin.listUsers({ perPage: 1000 }),
   ]);
@@ -35,11 +35,21 @@ export async function GET(req: NextRequest) {
     (authRes.data?.users ?? []).map((u) => [u.id, { created_at: u.created_at, last_sign_in_at: u.last_sign_in_at }])
   );
 
-  const merged = (profilesRes.data ?? []).map((u: any) => ({
-    ...u,
-    created_at: authMap.get(u.id)?.created_at ?? u.created_at ?? null,
-    last_sign_in_at: authMap.get(u.id)?.last_sign_in_at ?? null,
-  }));
+  // last_sign_in_at(실제 로그인 그랜트)과 last_active_at(자동로그인 세션 복원 포함) 중 더 최근 값 사용
+  const merged = (profilesRes.data ?? []).map((u: any) => {
+    const authLogin = authMap.get(u.id)?.last_sign_in_at ?? null;
+    const activeAt = u.last_active_at ?? null;
+    const latestMs = Math.max(
+      authLogin ? new Date(authLogin).getTime() : 0,
+      activeAt ? new Date(activeAt).getTime() : 0
+    );
+
+    return {
+      ...u,
+      created_at: authMap.get(u.id)?.created_at ?? u.created_at ?? null,
+      last_sign_in_at: latestMs > 0 ? new Date(latestMs).toISOString() : null,
+    };
+  });
 
   return NextResponse.json({ data: merged });
 }

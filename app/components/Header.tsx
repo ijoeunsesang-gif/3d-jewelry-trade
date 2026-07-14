@@ -121,6 +121,9 @@ export default function Header() {
       setNickname(profile?.nickname || "");
       console.log("userRole:", profile?.role);
       setUserRole(profile?.role || "user");
+      supabase.rpc("touch_last_active", { uid }).then(({ error }) => {
+        if (error) console.error("[last_active] touch_last_active RPC 실패:", error.message);
+      });
     } else {
       setUserEmail("");
       setAvatarUrl("");
