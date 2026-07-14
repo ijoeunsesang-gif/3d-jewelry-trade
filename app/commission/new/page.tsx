@@ -76,7 +76,7 @@ function OptionGroup<T extends string | boolean>({
             type="button"
             onClick={() => onChange(opt.value)}
             style={{
-              padding: "4px 10px", borderRadius: 10, fontSize: 16, fontWeight: 600, cursor: "pointer",
+              padding: "4px 10px", borderRadius: 10, fontSize: 16, fontWeight: 400, cursor: "pointer",
               border: `1.5px solid ${value === opt.value ? "#111827" : "#d1d5db"}`,
               background: value === opt.value ? "#111827" : "white",
               color: value === opt.value ? "white" : "#374151",
@@ -501,6 +501,39 @@ function CommissionNewInner() {
           />
         </div>
 
+        {/* 공개 여부 */}
+        <div>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+            공개 여부
+          </label>
+          <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #d1d5db", width: "fit-content" }}>
+            <button type="button" onClick={() => setIsPrivate(false)} style={{
+              padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
+              background: !isPrivate ? "#111827" : "white", color: !isPrivate ? "white" : "#374151",
+            }}>
+              공개 의뢰
+            </button>
+            <button type="button" onClick={() => setIsPrivate(true)} style={{
+              padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
+              borderLeft: "1px solid #d1d5db",
+              background: isPrivate ? "#111827" : "white", color: isPrivate ? "white" : "#374151",
+            }}>
+              개인 의뢰
+            </button>
+          </div>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9ca3af" }}>
+            {isPrivate ? "나와 판매자만 볼 수 있습니다." : "누구나 볼 수 있습니다."}
+          </p>
+          {isPrivate && (
+            <div style={{
+              backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
+              padding: "12px 16px", fontSize: 13, color: "#854d0e", marginTop: 10,
+            }}>
+              ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
+            </div>
+          )}
+        </div>
+
         {/* 제작 옵션 */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <OptionGroup
@@ -594,39 +627,6 @@ function CommissionNewInner() {
                   onChange={setDecoration}
                 />
               )}
-            </div>
-          )}
-        </div>
-
-        {/* 공개 여부 */}
-        <div>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
-            공개 여부
-          </label>
-          <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1px solid #d1d5db", width: "fit-content" }}>
-            <button type="button" onClick={() => setIsPrivate(false)} style={{
-              padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
-              background: !isPrivate ? "#111827" : "white", color: !isPrivate ? "white" : "#374151",
-            }}>
-              공개 의뢰
-            </button>
-            <button type="button" onClick={() => setIsPrivate(true)} style={{
-              padding: "10px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
-              borderLeft: "1px solid #d1d5db",
-              background: isPrivate ? "#111827" : "white", color: isPrivate ? "white" : "#374151",
-            }}>
-              개인 의뢰
-            </button>
-          </div>
-          <p style={{ margin: "6px 0 0", fontSize: 12, color: "#9ca3af" }}>
-            {isPrivate ? "나와 판매자만 볼 수 있습니다." : "누구나 볼 수 있습니다."}
-          </p>
-          {isPrivate && (
-            <div style={{
-              backgroundColor: "#fef9c3", border: "1px solid #fde047", borderRadius: 8,
-              padding: "12px 16px", fontSize: 13, color: "#854d0e", marginTop: 10,
-            }}>
-              ⚠️ 결제 후 작업이 시작되면 의뢰를 삭제할 수 없습니다. 신중하게 의뢰해 주세요.
             </div>
           )}
         </div>
