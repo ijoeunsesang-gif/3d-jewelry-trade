@@ -40,6 +40,149 @@ const inputStyle: React.CSSProperties = {
 
 type SellerProfile = { id: string; nickname: string; avatar_url: string | null; grade: Grade };
 
+const CATEGORY_OPTIONS = ["반지", "목걸이", "팔찌", "귀걸이", "펜던트", "브로치", "기타부속"];
+const MATERIAL_OPTIONS = ["순금", "합금", "실버"];
+const PRODUCTION_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "원본", label: "원본(고무가다)" },
+  { value: "바로출력", label: "바로출력(CPX출력)" },
+];
+const YES_NO_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "유" },
+  { value: false, label: "무" },
+];
+
+function OptionGroup<T extends string | boolean>({
+  label,
+  required,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  required?: boolean;
+  options: { value: T; label: string }[];
+  value: T | null;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#374151", marginBottom: 8 }}>
+        {label} {required && <span style={{ color: "#dc2626" }}>*</span>}
+      </label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {options.map((opt) => (
+          <button
+            key={String(opt.value)}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            style={{
+              padding: "4px 10px", borderRadius: 10, fontSize: 16, fontWeight: 600, cursor: "pointer",
+              border: `1.5px solid ${value === opt.value ? "#111827" : "#d1d5db"}`,
+              background: value === opt.value ? "#111827" : "white",
+              color: value === opt.value ? "white" : "#374151",
+              transition: "all 0.12s",
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const RING_SIZE_MIN = 1;
+const RING_SIZE_MAX = 35;
+const RING_SIZE_ITEM_HEIGHT = 40;
+const RING_SIZE_VISIBLE_COUNT = 5;
+const RING_SIZES = Array.from({ length: RING_SIZE_MAX - RING_SIZE_MIN + 1 }, (_, i) => RING_SIZE_MIN + i);
+
+function RingSizePicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const didInit = useRef(false);
+  const padding = (RING_SIZE_ITEM_HEIGHT * (RING_SIZE_VISIBLE_COUNT - 1)) / 2;
+
+  const scrollToValue = (v: number, smooth: boolean) => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: (v - RING_SIZE_MIN) * RING_SIZE_ITEM_HEIGHT, behavior: smooth ? "smooth" : "auto" });
+  };
+
+  useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    scrollToValue(value, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScroll = () => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      const idx = Math.min(Math.max(Math.round(el.scrollTop / RING_SIZE_ITEM_HEIGHT), 0), RING_SIZES.length - 1);
+      const next = RING_SIZES[idx];
+      if (next !== value) onChange(next);
+    }, 100);
+  };
+
+  const handleItemClick = (v: number) => {
+    onChange(v);
+    scrollToValue(v, true);
+  };
+
+  return (
+    <div style={{ position: "relative", width: 140 }}>
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="scrollbar-hide"
+        style={{
+          height: RING_SIZE_ITEM_HEIGHT * RING_SIZE_VISIBLE_COUNT,
+          overflowY: "auto",
+          scrollSnapType: "y mandatory",
+          padding: `${padding}px 0`,
+        }}
+      >
+        {RING_SIZES.map((n) => {
+          const isSelected = n === value;
+          return (
+            <div
+              key={n}
+              onClick={() => handleItemClick(n)}
+              style={{
+                height: RING_SIZE_ITEM_HEIGHT,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                scrollSnapAlign: "center",
+                fontSize: isSelected ? 22 : 15,
+                fontWeight: isSelected ? 800 : 500,
+                color: isSelected ? "#111827" : "#9ca3af",
+                cursor: "pointer",
+                transition: "font-size 0.15s, color 0.15s",
+              }}
+            >
+              #{n}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: padding,
+        background: "linear-gradient(to bottom, white, rgba(255,255,255,0))", pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: padding,
+        background: "linear-gradient(to top, white, rgba(255,255,255,0))", pointerEvents: "none",
+      }} />
+      <div style={{
+        position: "absolute", top: padding, left: 0, right: 0, height: RING_SIZE_ITEM_HEIGHT,
+        borderTop: "1.5px solid #e5e7eb", borderBottom: "1.5px solid #e5e7eb", pointerEvents: "none",
+      }} />
+    </div>
+  );
+}
+
 function CommissionNewInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,6 +209,18 @@ function CommissionNewInner() {
   const [priceInput, setPriceInput] = useState("");
   const [desiredDays, setDesiredDays] = useState("");
   const [commissionType, setCommissionType] = useState<"지목" | "공개모집">("지목");
+
+  // 제작 옵션
+  const [category, setCategory] = useState<string | null>(null);
+  const [material, setMaterial] = useState<string | null>(null);
+  const [ringSize, setRingSize] = useState(13);
+  const [ringSizeAdjust, setRingSizeAdjust] = useState<boolean | null>(null);
+  const [necklaceTriangle, setNecklaceTriangle] = useState<boolean | null>(null);
+  const [decoration, setDecoration] = useState<boolean | null>(null);
+  const [hollow, setHollow] = useState<boolean | null>(null);
+  const [bottomPlate, setBottomPlate] = useState<boolean | null>(null);
+  const [productionType, setProductionType] = useState<string | null>(null);
+  const [ringSizeOverlayOpen, setRingSizeOverlayOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -211,6 +366,7 @@ function CommissionNewInner() {
 
   const handleSubmit = async () => {
     if (!title.trim()) { showError("제목을 입력해주세요."); return; }
+    if (!category) { showError("카테고리를 선택해주세요."); return; }
     if (isPrivate && commissionType === "지목" && !selectedSellerId) { showError("판매자를 선택해주세요."); return; }
     if (!userId) { router.replace("/auth"); return; }
 
@@ -244,7 +400,23 @@ function CommissionNewInner() {
         images: imageUrls,
         status: isPrivate ? "pending" : "open",
         is_private: isPrivate,
+        category,
+        material,
+        hollow,
+        bottom_plate: bottomPlate,
+        production_type: productionType,
       };
+      if (category === "반지") {
+        insertPayload.ring_size = `#${ringSize}`;
+        insertPayload.ring_size_adjust = ringSizeAdjust;
+      }
+      if (category === "목걸이") {
+        insertPayload.necklace_triangle = necklaceTriangle;
+        insertPayload.decoration = decoration;
+      }
+      if (category === "팔찌") {
+        insertPayload.decoration = decoration;
+      }
       if (isPrivate) {
         insertPayload.commission_type = commissionType;
         insertPayload.desired_price = desiredPrice ?? null;
@@ -305,6 +477,7 @@ function CommissionNewInner() {
   if (!userId) return null;
 
   return (
+    <>
     <div style={{
       maxWidth: 640, margin: "0 auto",
       padding: "32px 20px 80px",
@@ -326,6 +499,103 @@ function CommissionNewInner() {
             style={inputStyle}
             maxLength={100}
           />
+        </div>
+
+        {/* 제작 옵션 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <OptionGroup
+            label="카테고리"
+            required
+            options={CATEGORY_OPTIONS.map((c) => ({ value: c, label: c }))}
+            value={category}
+            onChange={setCategory}
+          />
+
+          <OptionGroup
+            label="소재"
+            options={MATERIAL_OPTIONS.map((m) => ({ value: m, label: m }))}
+            value={material}
+            onChange={setMaterial}
+          />
+
+          <OptionGroup
+            label="속파기(최소중량)"
+            options={YES_NO_OPTIONS}
+            value={hollow}
+            onChange={setHollow}
+          />
+
+          <OptionGroup
+            label="안바닥(사가네)제작"
+            options={YES_NO_OPTIONS}
+            value={bottomPlate}
+            onChange={setBottomPlate}
+          />
+
+          <OptionGroup
+            label="제작방식"
+            options={PRODUCTION_TYPE_OPTIONS}
+            value={productionType}
+            onChange={setProductionType}
+          />
+
+          {category && (
+            <div key={category} style={{ display: "flex", flexDirection: "column", gap: 18, animation: "helpFadeIn 0.25s ease" }}>
+              {category === "반지" && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
+                      반지 사이즈
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setRingSizeOverlayOpen(true)}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                        width: 140, padding: "4px 10px", borderRadius: 10, fontSize: 16, fontWeight: 700,
+                        border: "1.5px solid #d1d5db", background: "white", color: "#111827", cursor: "pointer",
+                      }}
+                    >
+                      #{ringSize}
+                      <span style={{ fontSize: 12, color: "#9ca3af" }}>▼</span>
+                    </button>
+                  </div>
+                  <OptionGroup
+                    label="우대 하단 사이즈조절"
+                    options={YES_NO_OPTIONS}
+                    value={ringSizeAdjust}
+                    onChange={setRingSizeAdjust}
+                  />
+                </>
+              )}
+
+              {category === "목걸이" && (
+                <>
+                  <OptionGroup
+                    label="삼각고리포함"
+                    options={YES_NO_OPTIONS}
+                    value={necklaceTriangle}
+                    onChange={setNecklaceTriangle}
+                  />
+                  <OptionGroup
+                    label="장식포함"
+                    options={YES_NO_OPTIONS}
+                    value={decoration}
+                    onChange={setDecoration}
+                  />
+                </>
+              )}
+
+              {category === "팔찌" && (
+                <OptionGroup
+                  label="장식포함"
+                  options={YES_NO_OPTIONS}
+                  value={decoration}
+                  onChange={setDecoration}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* 공개 여부 */}
@@ -679,6 +949,44 @@ function CommissionNewInner() {
 
       </div>
     </div>
+
+    {ringSizeOverlayOpen && (
+      <div
+        onClick={() => setRingSizeOverlayOpen(false)}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+          zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 16px",
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "white", borderRadius: 20, padding: "24px 20px",
+            width: "100%", maxWidth: 320,
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          }}
+        >
+          <h2 style={{ margin: "0 0 18px", fontSize: 16, fontWeight: 800, color: "#111827", textAlign: "center" }}>
+            반지 사이즈 선택
+          </h2>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+            <RingSizePicker value={ringSize} onChange={setRingSize} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setRingSizeOverlayOpen(false)}
+            style={{
+              width: "100%", height: 46, borderRadius: 12, border: "none",
+              background: GOLD, color: "white", fontSize: 15, fontWeight: 800, cursor: "pointer",
+            }}
+          >
+            확인
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

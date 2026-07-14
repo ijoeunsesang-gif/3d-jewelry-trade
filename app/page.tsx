@@ -235,11 +235,16 @@ function HomeInner() {
       const token = getAccessToken();
       if (!token) { setFavoriteMap({}); return; }
       const userId = (decodeJwt(token) as any)?.sub as string;
+      if (!userId) { setFavoriteMap({}); return; }
 
-      const { data, error } = await sbAuthFetch("favorites", `?select=model_id&user_id=eq.${userId}`);
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("model_id")
+        .eq("user_id", userId);
 
       if (error) {
         console.error("찜 불러오기 실패:", error);
+        setFavoriteMap({});
         return;
       }
 
@@ -251,6 +256,7 @@ function HomeInner() {
       window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
       console.error("찜 불러오기 오류:", error);
+      setFavoriteMap({});
     }
   };
 

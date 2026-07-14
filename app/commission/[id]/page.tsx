@@ -92,6 +92,15 @@ type Commission = {
   updated_at: string;
   commission_type: string | null;
   bid_status: string | null;
+  category: string | null;
+  material: string | null;
+  ring_size: string | null;
+  ring_size_adjust: boolean | null;
+  necklace_triangle: boolean | null;
+  decoration: boolean | null;
+  hollow: boolean | null;
+  bottom_plate: boolean | null;
+  production_type: string | null;
 };
 
 type CommissionRevision = {
@@ -345,7 +354,7 @@ export default function CommissionDetailPage() {
     try {
       const { data, error } = await supabase
         .from("commissions")
-        .select("id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason, commission_type, bid_status")
+        .select("id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason, commission_type, bid_status, category, material, ring_size, ring_size_adjust, necklace_triangle, decoration, hollow, bottom_plate, production_type")
         .eq("id", id)
         .single();
 
@@ -1304,6 +1313,19 @@ export default function CommissionDetailPage() {
     ? (PRIVATE_STATUS_BG[status] || "#f3f4f6")
     : (results.length > 0 ? "#dcfce7" : (PUBLIC_STATUS_BG[status] || "#f3f4f6"));
 
+  const optionBadges: string[] = [];
+  if (commission.category) optionBadges.push(commission.category);
+  if (commission.material) optionBadges.push(commission.material);
+  if (commission.category === "반지" && commission.ring_size) optionBadges.push(commission.ring_size);
+  if (commission.category === "반지" && commission.ring_size_adjust) optionBadges.push("사이즈조절 있음");
+  if (commission.category === "목걸이" && commission.necklace_triangle) optionBadges.push("삼각고리 포함");
+  if ((commission.category === "목걸이" || commission.category === "팔찌") && commission.decoration) optionBadges.push("장식 포함");
+  if (commission.hollow) optionBadges.push("속파기 있음");
+  if (commission.bottom_plate) optionBadges.push("안바닥 제작");
+  if (commission.production_type) {
+    optionBadges.push(commission.production_type === "원본" ? "원본(고무가다)" : "바로출력(CPX출력)");
+  }
+
   const stepIdx = PRIVATE_STEPS.indexOf(status);
 
   // Build progress bar elements
@@ -1430,6 +1452,15 @@ export default function CommissionDetailPage() {
             <span>·</span>
             <span>{fd(commission.created_at)}</span>
           </div>
+          {optionBadges.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+              {optionBadges.map((b, i) => (
+                <span key={i} style={{ fontSize: 12, fontWeight: 700, color: "#374151", background: "#f3f4f6", padding: "4px 12px", borderRadius: 999 }}>
+                  {b}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         {isSeller && !commission.is_private && (
           <button type="button" onClick={() => {

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   // Single commission fetch (for admin viewing detail page)
   const singleId = req.nextUrl.searchParams.get("id");
   if (singleId) {
-    const FULL_SELECT = "id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason, commission_type, bid_status";
+    const FULL_SELECT = "id, user_id, title, description, images, status, result_link, created_at, updated_at, is_private, target_seller_id, desired_price, desired_days, negotiation_count, final_price, final_days, revision_count, rejection_reason, cancellation_reason, cancel_reason, commission_type, bid_status, category, material, ring_size, ring_size_adjust, necklace_triangle, decoration, hollow, bottom_plate, production_type";
     const { data, error } = await adminSupabase
       .from("commissions")
       .select(FULL_SELECT)
