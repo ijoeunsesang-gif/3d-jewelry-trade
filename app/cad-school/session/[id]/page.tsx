@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
 import Image from "next/image";
+import ContactButtons from "../../../components/ContactButtons";
 
 type FileItem = { name: string; url: string; ext: string };
 
@@ -21,7 +22,7 @@ type Session = {
   created_at: string;
   mentor_id: string;
   mentee_id: string;
-  mentor: { user_id: string; profiles: { nickname: string | null; avatar_url: string | null } | null } | null;
+  mentor: { user_id: string; profiles: { nickname: string | null; avatar_url: string | null; opentalk_url: string | null; contact_phone: string | null } | null } | null;
   mentee_profile: { nickname: string | null; avatar_url: string | null } | null;
 };
 
@@ -64,7 +65,7 @@ export default function SessionDetailPage() {
     setLoading(true);
     const { data } = await supabase
       .from("cad_mentoring_sessions")
-      .select("id, title, description, files, price, status, result_files, created_at, mentor_id, mentee_id, mentor:cad_mentors(user_id, profiles(nickname, avatar_url)), mentee_profile:profiles!cad_mentoring_sessions_mentee_id_fkey(nickname, avatar_url)")
+      .select("id, title, description, files, price, status, result_files, created_at, mentor_id, mentee_id, mentor:cad_mentors(user_id, profiles(nickname, avatar_url, opentalk_url, contact_phone)), mentee_profile:profiles!cad_mentoring_sessions_mentee_id_fkey(nickname, avatar_url)")
       .eq("id", id)
       .single();
 
@@ -172,6 +173,12 @@ export default function SessionDetailPage() {
           <ParticipantInfo label="멘토" nickname={session.mentor?.profiles?.nickname} avatar={session.mentor?.profiles?.avatar_url} />
           <ParticipantInfo label="멘티" nickname={session.mentee_profile?.nickname} avatar={session.mentee_profile?.avatar_url} />
         </div>
+
+        {isMentee && (session.mentor?.profiles?.opentalk_url || session.mentor?.profiles?.contact_phone) && (
+          <div style={{ marginBottom: 16 }}>
+            <ContactButtons opentalkUrl={session.mentor?.profiles?.opentalk_url} contactPhone={session.mentor?.profiles?.contact_phone} />
+          </div>
+        )}
 
         <p style={{ margin: "0 0 16px", fontSize: 14, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{session.description}</p>
 

@@ -8,6 +8,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess, showInfo } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
 import Image from "next/image";
+import ContactButtons from "../../../components/ContactButtons";
 
 const GOLD_LIGHT = "#fdf6e3";
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
@@ -62,7 +63,7 @@ type Subscription = {
     avg_rating: number;
     total_ratings: number;
     is_suspended: boolean;
-    profiles: { nickname: string | null; avatar_url: string | null } | null;
+    profiles: { nickname: string | null; avatar_url: string | null; opentalk_url: string | null; contact_phone: string | null } | null;
   } | null;
   subscriber_profile: { nickname: string | null; avatar_url: string | null } | null;
 };
@@ -146,7 +147,7 @@ export default function SubscriptionChatPage() {
   const loadData = useCallback(async () => {
     const { data: subData } = await supabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, profiles(nickname, avatar_url)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, profiles(nickname, avatar_url, opentalk_url, contact_phone)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
       .eq("id", id)
       .single();
 
@@ -566,6 +567,12 @@ export default function SubscriptionChatPage() {
               );
             })}
           </div>
+
+          {isSubscriber && (mentor?.profiles?.opentalk_url || mentor?.profiles?.contact_phone) && (
+            <div style={{ marginTop: 8 }}>
+              <ContactButtons opentalkUrl={mentor?.profiles?.opentalk_url} contactPhone={mentor?.profiles?.contact_phone} />
+            </div>
+          )}
 
           {isMentor && (
             <div style={{ marginTop: 8, fontSize: 11, color: "#6b7280" }}>

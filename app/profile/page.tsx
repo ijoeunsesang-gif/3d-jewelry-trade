@@ -88,6 +88,10 @@ export default function ProfilePage() {
   const [businessName, setBusinessName] = useState("");
   const [bizInfoOpen, setBizInfoOpen] = useState(false);
 
+  // 연락 수단 (판매자/멘토 공용)
+  const [opentalkUrl, setOpentalkUrl] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+
   // 팔로우
   const [following, setFollowing] = useState<FollowProfile[]>([]);
   const [followers, setFollowers] = useState<FollowProfile[]>([]);
@@ -203,6 +207,8 @@ export default function ProfilePage() {
         setBusinessNumber(profile.business_number || "");
         setBusinessName(profile.business_name || "");
         setPhoneNumber(profile.phone_number || "");
+        setOpentalkUrl(profile.opentalk_url || "");
+        setContactPhone(profile.contact_phone || "");
       } else {
         const defaultNickname = email_?.split("@")[0] || "user";
         await supabase.from("profiles").insert({ id: uid, email: email_ || "", nickname: defaultNickname, bio: "", avatar_url: "" });
@@ -976,6 +982,16 @@ export default function ProfilePage() {
                 </div>
               )}
 
+              {/* ─ 연락 수단 ─ */}
+              {isSeller && (
+                <ContactChannelsSection
+                  userId={userId}
+                  opentalkUrl={opentalkUrl}
+                  contactPhone={contactPhone}
+                  onSaved={(o, p) => { setOpentalkUrl(o); setContactPhone(p); }}
+                />
+              )}
+
               {/* ─ 미신청 or 수정 모드 → 폼 ─ */}
               {(!isSeller || settlementEditing) && !isSellerBanned && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -1094,7 +1110,15 @@ export default function ProfilePage() {
 
           {/* 멘토등록 탭 */}
           {activeTab === "mentor" && (
-            <MentorTab userId={userId} isSeller={isSeller} isMentor={isMentor} setIsMentor={setIsMentor} />
+            <MentorTab
+              userId={userId}
+              isSeller={isSeller}
+              isMentor={isMentor}
+              setIsMentor={setIsMentor}
+              opentalkUrl={opentalkUrl}
+              contactPhone={contactPhone}
+              onContactSaved={(o, p) => { setOpentalkUrl(o); setContactPhone(p); }}
+            />
           )}
 
           {/* 내 등급 탭 */}
@@ -1888,6 +1912,93 @@ function SalesStatCard({ title, value, sub }: { title: string; value: string; su
   );
 }
 
+/* ── 연락 수단 (판매자/멘토 공용) ── */
+function ContactChannelsSection({
+  userId,
+  opentalkUrl,
+  contactPhone,
+  onSaved,
+}: {
+  userId: string;
+  opentalkUrl: string;
+  contactPhone: string;
+  onSaved: (opentalkUrl: string, contactPhone: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [url, setUrl] = useState(opentalkUrl);
+  const [phone, setPhone] = useState(contactPhone);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setUrl(opentalkUrl);
+    setPhone(contactPhone);
+  }, [opentalkUrl, contactPhone]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("profiles").update({
+        opentalk_url: url.trim() || null,
+        contact_phone: phone.trim() || null,
+      }).eq("id", userId);
+      if (error) throw error;
+      onSaved(url.trim(), phone.trim());
+      setEditing(false);
+      showSuccess("연락 수단이 저장되었습니다.");
+    } catch (e: any) {
+      showError(e.message || "저장 실패");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>연락 수단</div>
+      <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>
+        원활한 소통을 위해 오픈톡 또는 연락처 등록을 권장합니다.
+      </p>
+
+      {!editing ? (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
+            <span style={{ color: "#6b7280", fontWeight: 600 }}>오픈톡 URL</span>
+            <span style={{ color: "#111827", fontWeight: 700, wordBreak: "break-all" }}>{opentalkUrl || "—"}</span>
+            <span style={{ color: "#6b7280", fontWeight: 600 }}>휴대폰 번호</span>
+            <span style={{ color: "#111827", fontWeight: 700 }}>{contactPhone || "—"}</span>
+          </div>
+          <button type="button" onClick={() => setEditing(true)} style={{ ...actionBtn, alignSelf: "flex-start" }}>
+            {opentalkUrl || contactPhone ? "정보 수정" : "등록하기"}
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={fieldWrap}>
+            <label style={labelStyle}>카카오 오픈톡방 URL <span style={{ color: "#9ca3af", fontWeight: 500 }}>(선택)</span></label>
+            <input style={inputStyle} placeholder="https://open.kakao.com/o/..." value={url} onChange={(e) => setUrl(e.target.value)} />
+          </div>
+          <div style={fieldWrap}>
+            <label style={labelStyle}>휴대폰 번호 <span style={{ color: "#9ca3af", fontWeight: 500 }}>(선택)</span></label>
+            <input style={inputStyle} placeholder="010-1234-5678" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={handleSave} disabled={saving} style={{ ...actionBtn, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
+              {saving ? "저장 중..." : "저장"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUrl(opentalkUrl); setPhone(contactPhone); setEditing(false); }}
+              style={{ height: 48, padding: "0 20px", borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#374151", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+            >
+              취소
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ── 멘토등록 탭 ── */
 const PLAN_LABELS: Record<string, string> = { basic: "BASIC", pro: "PRO", master: "MASTER" };
 
@@ -1918,7 +2029,7 @@ type MentorWarning = {
   created_at: string;
 };
 
-function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string; isSeller: boolean; isMentor: boolean; setIsMentor: (v: boolean) => void }) {
+function MentorTab({ userId, isSeller, isMentor, setIsMentor, opentalkUrl, contactPhone, onContactSaved }: { userId: string; isSeller: boolean; isMentor: boolean; setIsMentor: (v: boolean) => void; opentalkUrl: string; contactPhone: string; onContactSaved: (opentalkUrl: string, contactPhone: string) => void }) {
   const [mentorData, setMentorData] = useState<MentorData | null>(null);
   const [subscriptions, setSubscriptions] = useState<MentorSub[]>([]);
   const [warnings, setWarnings] = useState<MentorWarning[]>([]);
@@ -2118,6 +2229,14 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor }: { userId: string
               </button>
             </div>
           </div>
+
+          {/* 연락 수단 */}
+          <ContactChannelsSection
+            userId={userId}
+            opentalkUrl={opentalkUrl}
+            contactPhone={contactPhone}
+            onSaved={onContactSaved}
+          />
 
           {/* 진행 중인 구독 목록 */}
           <div>

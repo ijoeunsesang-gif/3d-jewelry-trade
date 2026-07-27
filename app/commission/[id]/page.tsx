@@ -13,6 +13,7 @@ import Image from "next/image";
 import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { GOLD } from "@/lib/constants";
+import ContactButtons from "../../components/ContactButtons";
 
 
 const PRIVATE_STEPS = ["pending", "negotiating", "payment", "working", "completed", "downloaded"];
@@ -249,6 +250,8 @@ export default function CommissionDetailPage() {
   const [sellerNickname, setSellerNickname] = useState<string | null>(null);
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
+  const [sellerOpentalkUrl, setSellerOpentalkUrl] = useState<string | null>(null);
+  const [sellerContactPhone, setSellerContactPhone] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myNickname, setMyNickname] = useState<string | null>(null);
 
@@ -378,6 +381,8 @@ export default function CommissionDetailPage() {
                     setSellerNickname(adminData.seller_nickname || "알 수 없음");
                     setSellerGrade(adminData.seller_grade || null);
                     setSellerPhone(adminData.seller_phone || null);
+                    setSellerOpentalkUrl(adminData.seller_opentalk_url || null);
+                    setSellerContactPhone(adminData.seller_contact_phone || null);
                   }
                   if (adminData.is_private) { fetchNegotiations(); fetchActiveRevision(); }
                   return;
@@ -395,12 +400,14 @@ export default function CommissionDetailPage() {
       if (data.is_private && data.target_seller_id) {
         const { data: sp } = await supabase
           .from("profiles")
-          .select("nickname, grade, phone_number")
+          .select("nickname, grade, phone_number, opentalk_url, contact_phone")
           .eq("id", data.target_seller_id)
           .single();
         setSellerNickname(sp?.nickname || "알 수 없음");
         setSellerGrade((sp as any)?.grade || null);
         setSellerPhone((sp as any)?.phone_number || null);
+        setSellerOpentalkUrl((sp as any)?.opentalk_url || null);
+        setSellerContactPhone((sp as any)?.contact_phone || null);
       }
       if (data.is_private) fetchNegotiations();
       if (data.is_private) fetchActiveRevision();
@@ -1609,6 +1616,13 @@ export default function CommissionDetailPage() {
                   {sellerPhone}
                 </a>
               )}
+            </div>
+          )}
+
+          {/* 판매자 상담 버튼 */}
+          {isAuthor && sellerNickname && (
+            <div style={{ marginBottom: 16 }}>
+              <ContactButtons opentalkUrl={sellerOpentalkUrl} contactPhone={sellerContactPhone} />
             </div>
           )}
 

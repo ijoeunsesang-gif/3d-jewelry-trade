@@ -13,6 +13,7 @@ import Image from "next/image";
 import { Grade } from "@/lib/grades";
 import { Phone } from "lucide-react";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
+import ContactButtons from "../../components/ContactButtons";
 
 const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
   ssr: false,
@@ -616,6 +617,12 @@ export default function SellerPage() {
               <div style={{ marginTop: 10, fontSize: 13, color: "#374151", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                 <Phone size={13} color="#16a34a" strokeWidth={2.5} />
                 {seller.phone_number}
+              </div>
+            )}
+
+            {(seller?.opentalk_url || seller?.contact_phone) && (
+              <div style={{ marginTop: 14, display: "flex", justifyContent: "center" }}>
+                <ContactButtons opentalkUrl={seller?.opentalk_url} contactPhone={seller?.contact_phone} />
               </div>
             )}
           </div>

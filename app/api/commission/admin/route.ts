@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "의뢰를 찾을 수 없습니다." }, { status: 404 });
     }
     const allIds = [data.user_id, data.target_seller_id].filter(Boolean) as string[];
-    const { data: profiles } = await adminSupabase.from("profiles").select("id, nickname, grade, phone_number").in("id", allIds);
+    const { data: profiles } = await adminSupabase.from("profiles").select("id, nickname, grade, phone_number, opentalk_url, contact_phone").in("id", allIds);
     const profileMap: Record<string, any> = {};
     (profiles || []).forEach((p: any) => { profileMap[p.id] = p; });
     return NextResponse.json({
@@ -45,6 +45,8 @@ export async function GET(req: NextRequest) {
         seller_nickname: data.target_seller_id ? (profileMap[data.target_seller_id]?.nickname || "알 수 없음") : undefined,
         seller_grade: data.target_seller_id ? profileMap[data.target_seller_id]?.grade : undefined,
         seller_phone: data.target_seller_id ? profileMap[data.target_seller_id]?.phone_number : undefined,
+        seller_opentalk_url: data.target_seller_id ? profileMap[data.target_seller_id]?.opentalk_url : undefined,
+        seller_contact_phone: data.target_seller_id ? profileMap[data.target_seller_id]?.contact_phone : undefined,
       }
     });
   }
