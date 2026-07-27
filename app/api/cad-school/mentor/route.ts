@@ -17,13 +17,17 @@ export async function POST(req: NextRequest) {
     // 판매자 여부 확인 (판매자 또는 관리자만 멘토 등록 가능)
     const { data: profile } = await adminSupabase
       .from("profiles")
-      .select("role")
+      .select("role, opentalk_url, contact_phone")
       .eq("id", user.id)
       .single();
 
     const role = profile?.role ?? "buyer";
     if (role !== "seller" && role !== "admin") {
       return NextResponse.json({ error: "판매자로 등록된 회원만 멘토 등록이 가능합니다." }, { status: 403 });
+    }
+
+    if (!profile?.opentalk_url?.trim() && !profile?.contact_phone?.trim()) {
+      return NextResponse.json({ error: "원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다." }, { status: 400 });
     }
 
     // 이미 등록된 멘토인지 확인

@@ -448,6 +448,10 @@ export default function ProfilePage() {
       setAccountError("올바른 계좌번호를 입력해주세요. (숫자만 10~14자리)");
       return;
     }
+    if (!opentalkUrl.trim() && !contactPhone.trim()) {
+      showError("원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다.");
+      return;
+    }
     setAccountError("");
     setSellerRegistering(true);
     try {
@@ -460,6 +464,8 @@ export default function ProfilePage() {
         account_number: accountNumber,
         business_number: businessNumber || null,
         business_name: businessName || null,
+        opentalk_url: opentalkUrl.trim() || null,
+        contact_phone: contactPhone.trim() || null,
       }).eq("id", userId);
       if (error) throw error;
       setIsSeller(true);
@@ -1084,6 +1090,24 @@ export default function ProfilePage() {
                       <p style={helperText}>JPG, PNG 이미지 파일</p>
                     </div>
                   </div>
+
+                  {/* 연락 수단 섹션 (최초 등록 시) */}
+                  {!isSeller && (
+                    <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>연락 수단 <span style={{ fontSize: 11, color: "#ef4444" }}>필수</span></div>
+                      <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>
+                        원활한 소통을 위해 오픈톡 또는 연락처 중 하나는 필수입니다.
+                      </p>
+                      <div style={fieldWrap}>
+                        <label style={labelStyle}>카카오 오픈톡방 URL</label>
+                        <input style={inputStyle} placeholder="https://open.kakao.com/o/..." value={opentalkUrl} onChange={(e) => setOpentalkUrl(e.target.value)} />
+                      </div>
+                      <div style={fieldWrap}>
+                        <label style={labelStyle}>휴대폰 번호</label>
+                        <input style={inputStyle} placeholder="010-1234-5678" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+                      </div>
+                    </div>
+                  )}
 
                   {/* 제출 버튼 */}
                   {isSeller ? (
@@ -1935,6 +1959,10 @@ function ContactChannelsSection({
   }, [opentalkUrl, contactPhone]);
 
   const handleSave = async () => {
+    if (!url.trim() && !phone.trim()) {
+      showError("원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다.");
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({

@@ -7,7 +7,6 @@ import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
-import { ImagePlus } from "lucide-react";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import Image from "next/image";
 import GradeBadge from "../../components/GradeBadge";
@@ -236,17 +235,6 @@ export default function CommissionDetailPage() {
   const [widgetLoading, setWidgetLoading] = useState(false);
   const widgetsRef = useRef<any>(null);
 
-  type ChatMsg = { id: string; sender_id: string; message: string | null; image_url: string | null; created_at: string };
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatInput, setChatInput] = useState("");
-  const [chatSending, setChatSending] = useState(false);
-  const [chatNicknames, setChatNicknames] = useState<Record<string, string>>({});
-  const [chatDragOver, setChatDragOver] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const chatImageRef = useRef<HTMLInputElement>(null);
-
   const [sellerNickname, setSellerNickname] = useState<string | null>(null);
   const [sellerGrade, setSellerGrade] = useState<string | null>(null);
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
@@ -317,7 +305,7 @@ export default function CommissionDetailPage() {
     fetchResults();
   }, [id]);
 
-  // 채팅창 밖 파일 드롭 시 브라우저 새 탭 열림 방지
+  // 드롭존 밖 파일 드롭 시 브라우저 새 탭 열림 방지
   useEffect(() => {
     const prevent = (e: DragEvent) => e.preventDefault();
     document.addEventListener("dragover", prevent);
@@ -771,116 +759,10 @@ export default function CommissionDetailPage() {
     return () => { cancelled = true; };
   }, [showPaymentWidget]);
 
-  // ── 채팅 ──────────────────────────────────────────────────
-  const addNicknames = async (senderIds: string[]) => {
-    const newIds = senderIds.filter((sid) => !chatNicknames[sid]);
-    if (!newIds.length) return;
-    const { data } = await supabase.from("profiles").select("id, nickname").in("id", newIds);
-    if (data) setChatNicknames((prev) => {
-      const next = { ...prev };
-      data.forEach((p: any) => { next[p.id] = p.nickname || "알 수 없음"; });
-      return next;
-    });
-  };
-
-  const fetchChats = async () => {
-    setChatLoading(true);
-    const { data } = await supabase
-      .from("commission_chats")
-      .select("id, sender_id, message, image_url, created_at")
-      .eq("commission_id", id)
-      .order("created_at", { ascending: true });
-    const msgs = (data as ChatMsg[]) || [];
-    setChatMessages(msgs);
-    await addNicknames([...new Set(msgs.map((m) => m.sender_id))]);
-    setChatLoading(false);
-  };
-
-  // Realtime 구독 + 초기 로드
-  useEffect(() => {
-    if (!myId || !commission?.is_private) return;
-    const isParticipant = myId === commission.user_id || myId === commission.target_seller_id;
-    if (!isParticipant) return;
-
-    fetchChats();
-
-    const channel = supabase
-      .channel(`chat-${id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "commission_chats", filter: `commission_id=eq.${id}` },
-        async (payload) => {
-          const msg = payload.new as ChatMsg;
-          setChatMessages((prev) => {
-            if (prev.find((m) => m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-          await addNicknames([msg.sender_id]);
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [myId, commission?.is_private, commission?.user_id, commission?.target_seller_id]);
-
-  // 새 메시지 수신 시 자동 스크롤 (컨테이너 직접 제어 — scrollIntoView는 페이지까지 스크롤됨)
-  useEffect(() => {
-    const el = chatContainerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [chatMessages]);
-
   useEffect(() => {
     if (!myId || !commission) return;
     if (isAdmin || myId === commission.user_id) fetchDisputes();
   }, [myId, commission?.id, isAdmin]);
-
-  const handleSendChat = async () => {
-    const msg = chatInput.trim();
-    if (!msg || !myId || chatSending) return;
-    setChatInput("");
-    setChatSending(true);
-    try {
-      await supabase.from("commission_chats").insert({ commission_id: id, sender_id: myId, message: msg, image_url: null });
-    } catch {
-      showError("전송 실패");
-      setChatInput(msg);
-    } finally {
-      setChatSending(false);
-    }
-  };
-
-  const uploadChatImage = async (file: File) => {
-    if (!myId) return;
-    setChatSending(true);
-    try {
-      const path = `commission-chats/${id}/${Date.now()}-${file.name}`;
-      const form = new FormData();
-      form.append("file", file); form.append("bucket", "thumbnails"); form.append("path", path);
-      const token = getAccessToken();
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      if (!res.ok) throw new Error("업로드 실패");
-      const { url } = await res.json();
-      await supabase.from("commission_chats").insert({ commission_id: id, sender_id: myId, message: null, image_url: url });
-    } catch { showError("이미지 전송 실패"); }
-    finally { setChatSending(false); }
-  };
-
-  const handleChatImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) await uploadChatImage(file);
-    e.target.value = "";
-  };
-
-  const handleChatDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setChatDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith("image/")) { showError("이미지 파일만 첨부 가능합니다."); return; }
-    await uploadChatImage(file);
-  };
 
   const handlePaymentRequest = async () => {
     if (!widgetsRef.current || !commission) return;
@@ -2434,128 +2316,6 @@ export default function CommissionDetailPage() {
               </button>
             </>
           )}
-        </div>
-      )}
-
-      {/* ── 개인의뢰 채팅 ── */}
-      {commission.is_private &&
-        (isAuthor || isTargetSeller) &&
-        !(commission.commission_type === "공개모집" && commission.bid_status === "모집중") && (
-        <div style={{ borderTop: "1px solid #e5e7eb", marginTop: 28, paddingTop: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>채팅</span>
-            <span style={{ fontSize: 13, color: "#c9a84c", fontWeight: 600 }}>충분한 대화 후 작업을 진행해주세요.</span>
-          </div>
-
-          {/* 메시지 목록 */}
-          <div
-            ref={chatContainerRef}
-            style={{
-              position: "relative", height: 380, overflowY: "auto",
-              border: chatDragOver ? `2px dashed ${GOLD}` : "1px solid #e5e7eb",
-              borderRadius: 14, padding: "12px 14px",
-              background: chatDragOver ? "#fdf6e3" : "#f9fafb",
-              display: "flex", flexDirection: "column", gap: 10,
-              transition: "border 0.15s, background 0.15s",
-            }}
-            onDragOver={(e) => { e.preventDefault(); setChatDragOver(true); }}
-            onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setChatDragOver(false); }}
-            onDrop={handleChatDrop}
-          >
-            {chatDragOver && (
-              <div style={{
-                position: "absolute", inset: 0, borderRadius: 14,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(253,246,227,0.92)", zIndex: 10, pointerEvents: "none",
-              }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: GOLD }}>🖼 이미지를 여기에 놓으세요</div>
-              </div>
-            )}
-            {chatLoading ? (
-              <div style={{ margin: "auto", color: "#9ca3af", fontSize: 13 }}>불러오는 중...</div>
-            ) : chatMessages.length === 0 ? (
-              <div style={{ margin: "auto", color: "#9ca3af", fontSize: 13 }}>아직 메시지가 없습니다.</div>
-            ) : (
-              chatMessages.map((msg) => {
-                const isMe = msg.sender_id === myId;
-                const nick = chatNicknames[msg.sender_id] || "...";
-                const time = new Date(msg.created_at).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
-                return (
-                  <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start" }}>
-                    <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 3 }}>
-                      {!isMe && <span style={{ marginRight: 6, fontWeight: 600, color: "#6b7280" }}>{nick}</span>}
-                      {time}
-                    </div>
-                    {msg.image_url ? (
-                      <Image src={msg.image_url} alt="첨부 이미지"
-                        width={220} height={220}
-                        style={{ objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb", cursor: "pointer" }}
-                        onClick={() => window.open(msg.image_url!, "_blank")}
-                      />
-                    ) : (
-                      <div style={{
-                        maxWidth: "72%", padding: "9px 13px", borderRadius: 14,
-                        background: isMe ? GOLD : "white",
-                        color: isMe ? "white" : "#111827",
-                        fontSize: 14, lineHeight: 1.5, wordBreak: "break-word",
-                        border: isMe ? "none" : "1px solid #e5e7eb",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                      }}>
-                        {msg.message}
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* 입력창 */}
-          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "flex-end" }}>
-            <button
-              type="button"
-              onClick={() => chatImageRef.current?.click()}
-              disabled={chatSending}
-              style={{
-                flexShrink: 0, background: "none", border: "1px solid #ccc",
-                borderRadius: 8, padding: "6px 10px", cursor: chatSending ? "not-allowed" : "pointer",
-                display: "flex", alignItems: "center", gap: 4,
-                opacity: chatSending ? 0.5 : 1,
-              }}
-              title="이미지 첨부"
-            >
-              <ImagePlus size={20} color="#666" />
-            </button>
-            <input ref={chatImageRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleChatImage} />
-            <textarea
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendChat(); } }}
-              placeholder="메시지 입력 (Shift+Enter 줄바꿈)"
-              rows={2}
-              disabled={chatSending}
-              style={{
-                flex: 1, borderRadius: 10, border: "1px solid #d1d5db",
-                padding: "10px 12px", fontSize: 14, resize: "none",
-                outline: "none", fontFamily: "system-ui, -apple-system, sans-serif",
-                boxSizing: "border-box",
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleSendChat}
-              disabled={chatSending || !chatInput.trim()}
-              style={{
-                flexShrink: 0, height: 40, padding: "0 18px", borderRadius: 10,
-                border: "none", background: chatSending || !chatInput.trim() ? "#d1d5db" : GOLD,
-                color: "white", fontSize: 13, fontWeight: 700,
-                cursor: chatSending || !chatInput.trim() ? "not-allowed" : "pointer",
-              }}
-            >
-              {chatSending ? "..." : "전송"}
-            </button>
-          </div>
         </div>
       )}
 

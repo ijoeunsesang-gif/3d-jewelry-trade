@@ -93,7 +93,6 @@ export async function DELETE(req: NextRequest) {
 
   // 관리자 삭제 → hard delete. Delete child records first (FK constraints without CASCADE)
   await adminSupabase.from("commission_disputes").delete().eq("commission_id", commissionId);
-  await adminSupabase.from("commission_chats").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_negotiations").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_results").delete().eq("commission_id", commissionId);
   await adminSupabase.from("commission_comments").delete().eq("commission_id", commissionId);

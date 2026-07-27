@@ -25,6 +25,7 @@ export default function MentorRegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [isSeller, setIsSeller] = useState(false);
   const [existing, setExisting] = useState(false);
+  const [hasContact, setHasContact] = useState(true);
 
   const [intro, setIntro] = useState("");
   const [careerStartYear, setCareerStartYear] = useState<string>("");
@@ -42,9 +43,10 @@ export default function MentorRegisterPage() {
     const uid = payload?.sub;
     if (!uid) { router.push("/auth"); return; }
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", uid).single();
+    const { data: profile } = await supabase.from("profiles").select("role, opentalk_url, contact_phone").eq("id", uid).single();
     const role = profile?.role ?? "buyer";
     setIsSeller(role === "seller" || role === "admin");
+    setHasContact(!!(profile?.opentalk_url?.trim() || profile?.contact_phone?.trim()));
 
     const { data: m } = await supabase
       .from("cad_mentors")
@@ -75,6 +77,7 @@ export default function MentorRegisterPage() {
 
   const handleSubmit = async () => {
     if (!intro.trim()) { showError("소개글을 입력해주세요."); return; }
+    if (!hasContact) { showError("원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다."); return; }
     const token = getAccessToken();
     if (!token) { showError("로그인이 필요합니다."); return; }
     setSubmitting(true);
@@ -143,6 +146,15 @@ export default function MentorRegisterPage() {
           💡 현재는 <strong>판매자로 등록된 회원</strong>이라면 누구나 멘토 활동이 가능합니다.<br />
           추후 멘토 등록 조건이 변경될 수 있습니다.
         </div>
+
+        {!hasContact && (
+          <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 16px", marginBottom: 22, fontSize: 13, color: "#dc2626", lineHeight: 1.8 }}>
+            ⚠️ 원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다.{" "}
+            <Link href="/profile?tab=seller" style={{ color: "#dc2626", fontWeight: 800, textDecoration: "underline" }}>
+              내 정보에서 연락 수단 등록하기
+            </Link>
+          </div>
+        )}
 
         {/* 멘토 활동 안내 접이식 */}
         <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginBottom: 22 }}>
