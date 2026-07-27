@@ -19,9 +19,20 @@ type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "poi
 type UserListSubTab = "sellers" | "mentors" | "all";
 type UserListItem = { id: string; nickname: string | null; avatar_url: string | null; grade: Grade | null; mentor_grade?: string };
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
-type PurchaseRow = { id: string; model_id: string; price: number; created_at: string };
 type ModelRow = { id: string; title: string; thumbnail: string; thumbnail_path?: string | null; seller_id: string };
 type PeriodType = "7days" | "30days" | "all" | "monthly";
+type SaleEntry = {
+  id: string;
+  type: "model" | "commission";
+  model_id: string | null;
+  title: string;
+  price: number;            // 판매액(공급가, 세전) — 매출 집계 기준. 모델은 sale_records.amount, 의뢰는 final_price
+  settlementAmount: number; // 정산액(수수료 차감 + 부가세 가산)
+  vatAmount: number;
+  taxInvoice: boolean;
+  created_at: string;
+};
+const RATE_COMMISSION_STATS = 0.2; // 의뢰 수수료율 20% (관리자 정산관리와 동일)
 
 const DARK = "#111827";
 
@@ -1894,7 +1905,7 @@ function TaxInvoiceRequestsTab({ userId }: { userId: string }) {
 function SalesTab({ userId }: { userId: string }) {
   const [salesLoading, setSalesLoading] = useState(true);
   const [salesModels, setSalesModels] = useState<ModelRow[]>([]);
-  const [salesPurchases, setSalesPurchases] = useState<PurchaseRow[]>([]);
+  const [salesEntries, setSalesEntries] = useState<SaleEntry[]>([]);
   const [period, setPeriod] = useState<PeriodType>("7days");
   const salesLoadedRef = useRef(false);
 
@@ -1907,11 +1918,76 @@ function SalesTab({ userId }: { userId: string }) {
         const { data: myModels, error: modelError } = await sbAuthFetch("models", `?select=id,title,thumbnail,thumbnail_path,seller_id&seller_id=eq.${userId}`);
         if (modelError) { setSalesLoading(false); return; }
         setSalesModels((myModels as ModelRow[]) || []);
+
         // purchases는 구매자 본인만 조회 가능한 RLS라 판매자 관점에서는 항상 0건으로 보임.
         // 정산관리와 동일하게 seller_id로 직접 조회 가능한 sale_records를 사용한다.
-        const { data: saleData, error: saleError } = await sbAuthFetch("sale_records", `?select=id,model_id,price:amount,created_at&seller_id=eq.${userId}&order=created_at.desc`);
+        const { data: saleData, error: saleError } = await sbAuthFetch("sale_records", `?select=id,model_id,amount,created_at&seller_id=eq.${userId}&order=created_at.desc`);
         if (saleError) { setSalesLoading(false); return; }
-        setSalesPurchases((saleData as PurchaseRow[]) || []);
+
+        const modelMapForTitle = new Map<string, ModelRow>((myModels as ModelRow[] ?? []).map((m) => [m.id, m]));
+        const modelEntries: SaleEntry[] = ((saleData as any[]) ?? []).map((r) => ({
+          id: r.id, type: "model", model_id: r.model_id,
+          title: modelMapForTitle.get(r.model_id)?.title || "알 수 없는 모델",
+          price: r.amount ?? 0, settlementAmount: r.amount ?? 0,
+          vatAmount: 0, taxInvoice: false, created_at: r.created_at,
+        }));
+
+        // ── 의뢰 정산 (commissions) — 관리자 정산관리와 동일한 계산/부가세 매칭 방식 ──
+        const { data: commData, error: commError } = await sbAuthFetch(
+          "commissions",
+          `?select=id,title,final_price,created_at,paid_at&target_seller_id=eq.${userId}&payment_key=not.is.null&final_price=not.is.null&status=in.(working,completed,downloaded)&order=created_at.desc`
+        );
+        if (commError) console.error("의뢰 정산 불러오기 실패:", commError);
+
+        const comms = (commData as any[]) ?? [];
+        const vatByCommission: Record<string, number> = {};
+        const orderCreatedAtByCommission: Record<string, string> = {};
+
+        if (comms.length > 0) {
+          const commissionIds = comms.map((c) => c.id);
+          // orders는 orders_select_seller 정책으로 "본인 order_items가 포함된 주문"만 조회 가능
+          const { data: sellerOrders } = await sbAuthFetch("orders", `?select=id,order_code,created_at&order_code=like.commission-*`);
+          const orderIdToCommissionId: Record<string, string> = {};
+          ((sellerOrders as any[]) ?? []).forEach((o) => {
+            const matchedId = commissionIds.find((cid) => o.order_code.startsWith(`commission-${cid}-`));
+            if (matchedId) {
+              orderIdToCommissionId[o.id] = matchedId;
+              orderCreatedAtByCommission[matchedId] = o.created_at;
+            }
+          });
+
+          const matchedOrderIds = Object.keys(orderIdToCommissionId);
+          if (matchedOrderIds.length > 0) {
+            const { data: commOrderItems } = await sbAuthFetch(
+              "order_items",
+              `?select=order_id,vat_amount&order_id=in.(${matchedOrderIds.join(",")})&model_id=is.null`
+            );
+            ((commOrderItems as any[]) ?? []).forEach((oi) => {
+              const cid = orderIdToCommissionId[oi.order_id];
+              if (cid) vatByCommission[cid] = oi.vat_amount ?? 0;
+            });
+          }
+        }
+
+        const commissionEntries: SaleEntry[] = comms
+          .filter((c) => c.final_price)
+          .map((c) => {
+            const amt = c.final_price as number;
+            const comm = Math.round(amt * RATE_COMMISSION_STATS);
+            const vat = vatByCommission[c.id] ?? 0;
+            const paidAt = c.paid_at ?? orderCreatedAtByCommission[c.id] ?? c.created_at;
+            return {
+              id: c.id, type: "commission", model_id: null,
+              title: c.title || "개인 의뢰",
+              price: amt, settlementAmount: (amt - comm) + vat,
+              vatAmount: vat, taxInvoice: vat > 0, created_at: paidAt,
+            } as SaleEntry;
+          });
+
+        const combined = [...modelEntries, ...commissionEntries].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setSalesEntries(combined);
       } catch (e) {
         console.error("판매 통계 불러오기 오류:", e);
       } finally {
@@ -1921,18 +1997,12 @@ function SalesTab({ userId }: { userId: string }) {
   }, [userId]);
 
   const filteredPurchases = useMemo(() => {
-    if (period === "all" || period === "monthly") return salesPurchases;
+    if (period === "all" || period === "monthly") return salesEntries;
     const days = period === "7days" ? 7 : 30;
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
-    return salesPurchases.filter((row) => new Date(row.created_at) >= cutoff);
-  }, [salesPurchases, period]);
-
-  const modelMap = useMemo(() => {
-    const map = new Map<string, ModelRow>();
-    salesModels.forEach((m) => map.set(m.id, m));
-    return map;
-  }, [salesModels]);
+    return salesEntries.filter((row) => new Date(row.created_at) >= cutoff);
+  }, [salesEntries, period]);
 
   const totalSalesCount = filteredPurchases.length;
   const totalRevenue = filteredPurchases.reduce((sum, row) => sum + (row.price || 0), 0);
@@ -1940,19 +2010,19 @@ function SalesTab({ userId }: { userId: string }) {
 
   const topModels = useMemo(() => {
     const grouped = new Map<string, { modelId: string; title: string; count: number; revenue: number }>();
-    filteredPurchases.forEach((purchase) => {
-      const model = modelMap.get(purchase.model_id);
-      const current = grouped.get(purchase.model_id);
-      if (current) { current.count += 1; current.revenue += purchase.price || 0; }
-      else { grouped.set(purchase.model_id, { modelId: purchase.model_id, title: model?.title || "알 수 없는 모델", count: 1, revenue: purchase.price || 0 }); }
+    filteredPurchases.filter((row) => row.type === "model").forEach((row) => {
+      const modelId = row.model_id as string;
+      const current = grouped.get(modelId);
+      if (current) { current.count += 1; current.revenue += row.price || 0; }
+      else { grouped.set(modelId, { modelId, title: row.title, count: 1, revenue: row.price || 0 }); }
     });
     return Array.from(grouped.values()).sort((a, b) => b.revenue - a.revenue);
-  }, [filteredPurchases, modelMap]);
+  }, [filteredPurchases]);
 
   const chartData = useMemo(() => {
     if (period === "monthly") {
       const monthMap = new Map<string, { label: string; revenue: number; count: number }>();
-      salesPurchases.forEach((row) => {
+      salesEntries.forEach((row) => {
         const date = new Date(row.created_at);
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
         const current = monthMap.get(key);
@@ -1974,12 +2044,14 @@ function SalesTab({ userId }: { userId: string }) {
       result.push({ label: `${mm}/${dd}`, revenue: dayRows.reduce((sum, row) => sum + (row.price || 0), 0), count: dayRows.length });
     }
     return result;
-  }, [filteredPurchases, salesPurchases, period]);
+  }, [filteredPurchases, salesEntries, period]);
 
   const maxRevenue = Math.max(...chartData.map((d) => d.revenue), 1);
 
-  const getThumbUrl = (model?: ModelRow) =>
-    model ? getModelThumbnailUrl(model) : "";
+  const getThumbUrl = (modelId: string | null) => {
+    const model = modelId ? salesModels.find((m) => m.id === modelId) : undefined;
+    return model ? getModelThumbnailUrl(model) : "";
+  };
 
   if (salesLoading) {
     return <div style={{ padding: "20px 0" }}><p style={{ color: "#6b7280" }}>판매 통계 불러오는 중...</p></div>;
@@ -2002,7 +2074,7 @@ function SalesTab({ userId }: { userId: string }) {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }} className="sales-summary-grid">
-        <SalesStatCard title="총 판매 수" value={`${totalSalesCount}건`} sub="선택한 기간 기준" />
+        <SalesStatCard title="총 판매 수" value={`${totalSalesCount}건`} sub="모델판매 + 의뢰, 선택한 기간 기준" />
         <SalesStatCard title="총 매출" value={`${totalRevenue.toLocaleString("ko-KR")}원`} sub="선택한 기간 기준" />
         <SalesStatCard title="평균 판매가" value={`${averagePrice.toLocaleString("ko-KR")}원`} sub="판매 1건당 평균" />
         <SalesStatCard title="등록 모델 수" value={`${salesModels.length}개`} sub="현재 등록된 모델" />
@@ -2055,23 +2127,38 @@ function SalesTab({ userId }: { userId: string }) {
         </div>
 
         <div style={{ border: "1px solid #e5e7eb", borderRadius: 18, background: "white", padding: 18 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 12 }}>최근 판매 내역</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 12 }}>최근 판매/의뢰 내역</div>
           {filteredPurchases.length === 0 ? (
             <p style={{ color: "#6b7280", fontSize: 13 }}>표시할 판매 내역이 없습니다.</p>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {filteredPurchases.slice(0, 5).map((row) => {
-                const model = modelMap.get(row.model_id);
-                const thumb = getThumbUrl(model);
+                const thumb = getThumbUrl(row.model_id);
                 return (
-                  <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eef2f7" }}>
+                  <div key={`${row.type}-${row.id}`} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #eef2f7" }}>
                     {thumb
-                      ? <Image src={thumb} alt={model?.title || "thumb"} width={48} height={48} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
-                      : <div style={{ width: 48, height: 48, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6", color: "#111827", fontWeight: 900, flexShrink: 0, fontSize: 11 }}>3D</div>
+                      ? <Image src={thumb} alt={row.title} width={48} height={48} style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e5e7eb" }} />
+                      : <div style={{ width: 48, height: 48, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: "#f3f4f6", color: "#111827", fontWeight: 900, flexShrink: 0, fontSize: 11 }}>{row.type === "commission" ? "의뢰" : "3D"}</div>
                     }
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{model?.title || "알 수 없는 모델"}</div>
+                      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 800, color: "#111827" }}>
+                        {row.title}
+                        <span style={{
+                          marginLeft: 8, display: "inline-block", padding: "1px 7px", borderRadius: 999,
+                          fontSize: 10, fontWeight: 700,
+                          color: row.type === "commission" ? "#7c3aed" : "#2563eb",
+                          background: row.type === "commission" ? "#7c3aed18" : "#2563eb18",
+                          border: `1px solid ${row.type === "commission" ? "#7c3aed40" : "#2563eb40"}`,
+                        }}>
+                          {row.type === "commission" ? "의뢰" : "모델판매"}
+                        </span>
+                      </div>
                       <div style={{ marginTop: 3, color: "#6b7280", fontSize: 11 }}>{new Date(row.created_at).toLocaleDateString("ko-KR")}</div>
+                      {row.taxInvoice && (
+                        <div style={{ marginTop: 3, fontSize: 10, fontWeight: 700, color: "#0f766e" }}>
+                          세금계산서 · 부가세 {row.vatAmount.toLocaleString("ko-KR")}원 포함 · 정산액 {row.settlementAmount.toLocaleString("ko-KR")}원
+                        </div>
+                      )}
                     </div>
                     <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>{row.price.toLocaleString("ko-KR")}원</div>
                   </div>

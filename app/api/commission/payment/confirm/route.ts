@@ -111,10 +111,10 @@ export async function POST(req: NextRequest) {
     console.error("[commission/payment/confirm] 주문 기록 중 오류:", e);
   }
 
-  // 5. 커미션 상태 → working 업데이트
+  // 5. 커미션 상태 → working 업데이트 (paid_at: 실제 결제 승인 시점, 정산 월 필터 기준일)
   const { error: updateErr } = await serviceSupabase
     .from("commissions")
-    .update({ status: "working", payment_key: paymentKey })
+    .update({ status: "working", payment_key: paymentKey, paid_at: new Date().toISOString() })
     .eq("id", commissionId);
 
   if (updateErr) {

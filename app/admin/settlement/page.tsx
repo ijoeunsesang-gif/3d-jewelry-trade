@@ -168,36 +168,40 @@ export default function SettlementPage() {
       }
 
       /* ── 2. 의뢰 결제 (commissions) — 수수료율 20%
-         주의: created_at은 의뢰 생성일이며 실제 결제일이 아닙니다.
-               결제 타임스탬프 컬럼이 없어 생성일로 근사 필터링합니다. */
+         주의: created_at은 의뢰 생성일이며 실제 결제일이 아닙니다. 결제 승인 시점에
+         기록되는 paid_at을 정산 월 필터 기준일로 쓴다(월 필터는 아래에서 별도 적용).
+         paid_at이 없는 과거 결제 건은 매칭되는 orders.created_at → 그마저 없으면
+         commissions.created_at 순으로 폴백한다. */
       const { data: comms } = await supabase
         .from("commissions")
-        .select("id, user_id, target_seller_id, final_price, created_at")
+        .select("id, user_id, target_seller_id, final_price, created_at, paid_at")
         .not("payment_key", "is", null)
         .not("target_seller_id", "is", null)
         .not("final_price", "is", null)
-        .in("status", ["working", "completed", "downloaded"])
-        .gte("created_at", start)
-        .lt("created_at", end);
+        .in("status", ["working", "completed", "downloaded"]);
 
-      /* ── 2-1. 의뢰별 부가세 조회 — commissions에는 결제 트랜잭션 FK가 없어
-         orders.order_code(형식: commission-{id}-{timestamp})로 역추적한다.
-         세금계산서 미신청 건은 매칭되는 order_item이 없거나 vat_amount가 null →
-         0원으로 처리되어 기존 정산액과 동일하게 유지된다. */
+      /* ── 2-1. 의뢰별 결제일(orders.created_at)/부가세 조회 — commissions에는
+         결제 트랜잭션 FK가 없어 orders.order_code(형식: commission-{id}-{timestamp})로
+         역추적한다. 세금계산서 미신청 건은 매칭되는 order_item이 없거나 vat_amount가
+         null → 0원으로 처리되어 기존 정산액과 동일하게 유지된다. */
       const commissionIds = (comms ?? []).map((c) => c.id);
       const commissionBuyerIds = [...new Set((comms ?? []).map((c) => c.user_id))];
       const vatByCommission: Record<string, number> = {};
+      const orderCreatedAtByCommission: Record<string, string> = {};
       if (commissionIds.length > 0 && commissionBuyerIds.length > 0) {
         const { data: commOrders } = await supabase
           .from("orders")
-          .select("id, order_code, buyer_id")
+          .select("id, order_code, buyer_id, created_at")
           .in("buyer_id", commissionBuyerIds)
           .like("order_code", "commission-%");
 
         const orderIdToCommissionId: Record<string, string> = {};
         (commOrders ?? []).forEach((o) => {
           const matchedId = commissionIds.find((cid) => o.order_code.startsWith(`commission-${cid}-`));
-          if (matchedId) orderIdToCommissionId[o.id] = matchedId;
+          if (matchedId) {
+            orderIdToCommissionId[o.id] = matchedId;
+            orderCreatedAtByCommission[matchedId] = o.created_at;
+          }
         });
 
         const matchedOrderIds = Object.keys(orderIdToCommissionId);
@@ -214,8 +218,13 @@ export default function SettlementPage() {
         }
       }
 
+      const startTime = new Date(start).getTime();
+      const endTime   = new Date(end).getTime();
       for (const c of comms ?? []) {
         if (!c.target_seller_id || !c.final_price) continue;
+        const paidAt = c.paid_at ?? orderCreatedAtByCommission[c.id] ?? c.created_at;
+        const paidTime = new Date(paidAt).getTime();
+        if (paidTime < startTime || paidTime >= endTime) continue;
         recipientIds.add(c.target_seller_id);
         const amt  = c.final_price;
         const comm = Math.round(amt * RATE_COMMISSION);
@@ -225,7 +234,7 @@ export default function SettlementPage() {
           recipientId: c.target_seller_id, buyerId: c.user_id,
           amount: amt, commissionRate: RATE_COMMISSION,
           commissionAmount: comm, settlementAmount: (amt - comm) + vat,
-          createdAt: c.created_at, detail: "",
+          createdAt: paidAt, detail: "",
           taxInvoice: vat > 0, vatAmount: vat,
         });
       }
