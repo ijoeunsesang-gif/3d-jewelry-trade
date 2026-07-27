@@ -19,13 +19,13 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. 요청 파싱
-  let body: { paymentKey?: string; orderId?: string; amount?: number; commissionId?: string };
+  let body: { paymentKey?: string; orderId?: string; amount?: number; commissionId?: string; taxInvoice?: boolean };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 });
   }
-  const { paymentKey, orderId, amount, commissionId } = body;
+  const { paymentKey, orderId, amount, commissionId, taxInvoice } = body;
   if (!paymentKey || !orderId || typeof amount !== "number" || !commissionId) {
     return NextResponse.json({ error: "paymentKey, orderId, amount, commissionId가 필요합니다." }, { status: 400 });
   }
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   // 4. 의뢰 조회 및 소유권 확인
   const { data: commission, error: fetchErr } = await serviceSupabase
     .from("commissions")
-    .select("id, user_id, target_seller_id, status, title")
+    .select("id, user_id, target_seller_id, status, title, final_price")
     .eq("id", commissionId)
     .single();
 
@@ -68,6 +68,47 @@ export async function POST(req: NextRequest) {
   }
   if (commission.status !== "payment") {
     return NextResponse.json({ error: "결제 가능한 상태가 아닙니다." }, { status: 400 });
+  }
+
+  // 4.4. 세금계산서 옵션 검증 — 부가세 10%는 서버에서 재계산 (클라이언트 값 신뢰하지 않음)
+  const supplyAmount = commission.final_price ?? 0;
+  const vatAmount = taxInvoice ? Math.round(supplyAmount * 0.1) : 0;
+  if (amount !== supplyAmount + vatAmount) {
+    return NextResponse.json({ error: "결제 금액이 협의금액과 일치하지 않습니다." }, { status: 400 });
+  }
+
+  // 4.5. 주문(orders) + 주문 항목(order_items) 기록
+  //      개인 의뢰는 특정 모델에 연결되지 않으므로 model_id는 null.
+  //      실패해도 결제 처리는 계속 진행 (에러만 로깅)
+  try {
+    const { data: orderRow, error: orderErr } = await serviceSupabase
+      .from("orders")
+      .insert({
+        order_code: orderId,
+        buyer_id: commission.user_id,
+        payment_key: paymentKey,
+        total_amount: amount,
+        status: "paid",
+      })
+      .select("id")
+      .single();
+
+    if (orderErr) {
+      console.error("[commission/payment/confirm] 주문 기록 실패:", orderErr);
+    } else {
+      const { error: itemErr } = await serviceSupabase.from("order_items").insert({
+        order_id: orderRow.id,
+        model_id: null,
+        seller_id: commission.target_seller_id ?? null,
+        price: amount,
+        tax_invoice_requested: !!taxInvoice,
+        supply_amount: taxInvoice ? supplyAmount : null,
+        vat_amount: taxInvoice ? vatAmount : null,
+      });
+      if (itemErr) console.error("[commission/payment/confirm] 주문 항목 기록 실패:", itemErr);
+    }
+  } catch (e) {
+    console.error("[commission/payment/confirm] 주문 기록 중 오류:", e);
   }
 
   // 5. 커미션 상태 → working 업데이트

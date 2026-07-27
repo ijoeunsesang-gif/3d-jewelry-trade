@@ -41,6 +41,7 @@ interface PaymentRecord {
   settlementAmount: number;
   createdAt: string;
   detail: string;
+  orderId?: string | null;
 }
 
 interface RecipientInfo {
@@ -75,6 +76,7 @@ export default function SettlementPage() {
   const [recipientMap, setRecipientMap] = useState<Record<string, RecipientInfo>>({});
   const [fetching, setFetching]     = useState(false);
   const [activeType, setActiveType] = useState<PaymentType | "all">("all");
+  const [viewMode, setViewMode]     = useState<"list" | "seller">("list");
 
   /* ── 관리자 인증 ── */
   useEffect(() => {
@@ -125,7 +127,7 @@ export default function SettlementPage() {
       /* ── 1. 모델판매 (sale_records) ── */
       const { data: sales } = await supabase
         .from("sale_records")
-        .select("id, seller_id, buyer_id, amount, commission_rate, settlement_amount, created_at")
+        .select("id, seller_id, buyer_id, amount, commission_rate, settlement_amount, created_at, order_id")
         .gte("created_at", start)
         .lt("created_at", end);
 
@@ -139,6 +141,7 @@ export default function SettlementPage() {
           commissionAmount: Math.round(r.amount * r.commission_rate),
           settlementAmount: r.settlement_amount,
           createdAt: r.created_at, detail: "",
+          orderId: r.order_id ?? null,
         });
       }
 
@@ -155,17 +158,52 @@ export default function SettlementPage() {
         .gte("created_at", start)
         .lt("created_at", end);
 
+      /* ── 2-1. 의뢰별 부가세 조회 — commissions에는 결제 트랜잭션 FK가 없어
+         orders.order_code(형식: commission-{id}-{timestamp})로 역추적한다.
+         세금계산서 미신청 건은 매칭되는 order_item이 없거나 vat_amount가 null →
+         0원으로 처리되어 기존 정산액과 동일하게 유지된다. */
+      const commissionIds = (comms ?? []).map((c) => c.id);
+      const commissionBuyerIds = [...new Set((comms ?? []).map((c) => c.user_id))];
+      const vatByCommission: Record<string, number> = {};
+      if (commissionIds.length > 0 && commissionBuyerIds.length > 0) {
+        const { data: commOrders } = await supabase
+          .from("orders")
+          .select("id, order_code, buyer_id")
+          .in("buyer_id", commissionBuyerIds)
+          .like("order_code", "commission-%");
+
+        const orderIdToCommissionId: Record<string, string> = {};
+        (commOrders ?? []).forEach((o) => {
+          const matchedId = commissionIds.find((cid) => o.order_code.startsWith(`commission-${cid}-`));
+          if (matchedId) orderIdToCommissionId[o.id] = matchedId;
+        });
+
+        const matchedOrderIds = Object.keys(orderIdToCommissionId);
+        if (matchedOrderIds.length > 0) {
+          const { data: commOrderItems } = await supabase
+            .from("order_items")
+            .select("order_id, vat_amount")
+            .in("order_id", matchedOrderIds)
+            .is("model_id", null);
+          (commOrderItems ?? []).forEach((oi: any) => {
+            const cid = orderIdToCommissionId[oi.order_id];
+            if (cid) vatByCommission[cid] = oi.vat_amount ?? 0;
+          });
+        }
+      }
+
       for (const c of comms ?? []) {
         if (!c.target_seller_id || !c.final_price) continue;
         recipientIds.add(c.target_seller_id);
         const amt  = c.final_price;
         const comm = Math.round(amt * RATE_COMMISSION);
+        const vat  = vatByCommission[c.id] ?? 0;
         all.push({
           id: c.id, type: "commission",
           recipientId: c.target_seller_id, buyerId: c.user_id,
           amount: amt, commissionRate: RATE_COMMISSION,
-          commissionAmount: comm, settlementAmount: amt - comm,
-          createdAt: c.created_at, detail: "",
+          commissionAmount: comm, settlementAmount: (amt - comm) + vat,
+          createdAt: c.created_at, detail: vat > 0 ? `부가세 ${vat.toLocaleString("ko-KR")}원 포함` : "",
         });
       }
 
@@ -270,6 +308,26 @@ export default function SettlementPage() {
         });
       }
 
+      /* ── 주문번호(order_code) 조회 — 모델판매 정산이 어떤 결제 건에서 나왔는지 추적용 ── */
+      const orderIds = [...new Set(
+        all.filter((r) => r.type === "model" && r.orderId).map((r) => r.orderId as string)
+      )];
+      if (orderIds.length > 0) {
+        const { data: orders } = await supabase
+          .from("orders")
+          .select("id, order_code")
+          .in("id", orderIds);
+        const orderCodeMap: Record<string, string> = {};
+        (orders ?? []).forEach((o: { id: string; order_code: string }) => {
+          orderCodeMap[o.id] = o.order_code;
+        });
+        all.forEach((r) => {
+          if (r.type === "model" && r.orderId && orderCodeMap[r.orderId]) {
+            r.detail = orderCodeMap[r.orderId];
+          }
+        });
+      }
+
       all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setRecords(all);
       setRecipientMap(pMap);
@@ -287,6 +345,24 @@ export default function SettlementPage() {
   const totalAmount     = filtered.reduce((s, r) => s + r.amount, 0);
   const totalCommission = filtered.reduce((s, r) => s + r.commissionAmount, 0);
   const totalSettlement = filtered.reduce((s, r) => s + r.settlementAmount, 0);
+
+  /* ── 판매자(수령인)별 통합 집계 — 모델판매+의뢰+캐드스쿨을 한 명 단위로 합산 ──
+     주의: filtered의 개별 레코드 금액을 그대로 합산할 뿐, 계산 로직은 건드리지 않음 */
+  const sellerGroups = useMemo(() => {
+    const map = new Map<string, { count: number; amount: number; commission: number; settlement: number; types: Set<PaymentType> }>();
+    for (const r of filtered) {
+      const g = map.get(r.recipientId) ?? { count: 0, amount: 0, commission: 0, settlement: 0, types: new Set<PaymentType>() };
+      g.count += 1;
+      g.amount += r.amount;
+      g.commission += r.commissionAmount;
+      g.settlement += r.settlementAmount;
+      g.types.add(r.type);
+      map.set(r.recipientId, g);
+    }
+    return [...map.entries()]
+      .map(([recipientId, v]) => ({ recipientId, ...v }))
+      .sort((a, b) => b.settlement - a.settlement);
+  }, [filtered]);
 
   /* ── CSV 내보내기 ── */
   const downloadCsv = () => {
@@ -351,6 +427,22 @@ export default function SettlementPage() {
         >
           {fetching ? "..." : "↻ 새로고침"}
         </button>
+        <div style={{ display: "flex", border: "1px solid #d1d5db", borderRadius: 12, overflow: "hidden", height: 42 }}>
+          {([["list", "결제내역"], ["seller", "판매자별"]] as [typeof viewMode, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setViewMode(key)}
+              style={{
+                height: "100%", padding: "0 16px", border: "none", cursor: "pointer",
+                fontWeight: 800, fontSize: 13,
+                background: viewMode === key ? "#111827" : "white",
+                color: viewMode === key ? "white" : "#374151",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <button
           onClick={() => router.push("/admin")}
           style={{ height: 42, padding: "0 18px", borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 13 }}
@@ -399,6 +491,75 @@ export default function SettlementPage() {
         ) : filtered.length === 0 ? (
           <div style={{ padding: 48, textAlign: "center", color: "#6b7280" }}>
             {month} {activeType !== "all" ? `· ${TYPE_LABELS[activeType]}` : ""} 정산 데이터가 없습니다.
+          </div>
+        ) : viewMode === "seller" ? (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
+                  {["수령인", "등급", "결제유형", "건수", "판매액", "수수료", "정산액"].map((h) => (
+                    <th key={h} style={{
+                      padding: "12px 16px", fontWeight: 800, color: "#374151", whiteSpace: "nowrap",
+                      textAlign: ["수령인", "등급", "결제유형"].includes(h) ? "left" : "right",
+                    }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sellerGroups.map((g, i) => {
+                  const info = recipientMap[g.recipientId];
+                  return (
+                    <tr key={g.recipientId} style={{ borderBottom: i < sellerGroups.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                      <td style={{ padding: "11px 16px", fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
+                        {info?.nickname ?? g.recipientId.slice(0, 8)}
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        {info && <GradeBadge grade={info.grade} size="sm" />}
+                      </td>
+                      <td style={{ padding: "11px 16px" }}>
+                        {[...g.types].map((t) => (
+                          <span key={t} style={{
+                            display: "inline-block", padding: "2px 8px", borderRadius: 999, marginRight: 4,
+                            fontSize: 11, fontWeight: 700,
+                            color: TYPE_COLOR[t], background: `${TYPE_COLOR[t]}18`, border: `1px solid ${TYPE_COLOR[t]}40`,
+                          }}>
+                            {TYPE_LABELS[t]}
+                          </span>
+                        ))}
+                      </td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", color: "#6b7280" }}>{g.count}건</td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "#374151" }}>
+                        {g.amount.toLocaleString("ko-KR")}원
+                      </td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", color: "#dc2626", fontWeight: 700 }}>
+                        {g.commission.toLocaleString("ko-KR")}원
+                      </td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 900, color: "#111827" }}>
+                        {g.settlement.toLocaleString("ko-KR")}원
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: "2px solid #e5e7eb", background: "#f9fafb" }}>
+                  <td colSpan={4} style={{ padding: "12px 16px", fontWeight: 900, color: "#111827" }}>
+                    합계 ({sellerGroups.length}명)
+                  </td>
+                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 900, color: "#111827" }}>
+                    {totalAmount.toLocaleString("ko-KR")}원
+                  </td>
+                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 900, color: "#dc2626" }}>
+                    {totalCommission.toLocaleString("ko-KR")}원
+                  </td>
+                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 900, color: "#111827" }}>
+                    {totalSettlement.toLocaleString("ko-KR")}원
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>

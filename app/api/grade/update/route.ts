@@ -20,8 +20,9 @@ export async function POST(req: NextRequest) {
     const { data: { user }, error: authErr } = await publicSupabase.auth.getUser(token);
     if (authErr || !user) return NextResponse.json({ error: "유효하지 않은 토큰" }, { status: 401 });
 
-    const { purchases } = await req.json() as {
-      purchases: { modelId: string; amount: number }[];
+    const { purchases, orderId } = await req.json() as {
+      purchases: { modelId: string; amount: number; vatAmount?: number }[];
+      orderId?: string | null;
     };
     if (!purchases?.length) return NextResponse.json({ ok: true });
 
@@ -76,10 +77,11 @@ export async function POST(req: NextRequest) {
       }
 
       // sale_records 삽입
+      // 수수료는 공급가(amount, 부가세 제외) 기준으로 계산하고, 부가세는 판매자 정산액에 전액 통과시킨다.
       const commissionRate = GRADE_CONFIG[newGrade].commission;
       const saleRows = delta.modelIds.map((modelId) => {
         const purchase = purchases.find((p) => p.modelId === modelId)!;
-        const settlement = Math.round(purchase.amount * (1 - commissionRate));
+        const settlement = Math.round(purchase.amount * (1 - commissionRate)) + (purchase.vatAmount ?? 0);
         return {
           seller_id:         sellerId,
           buyer_id:          user.id,
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
           amount:            purchase.amount,
           commission_rate:   commissionRate,
           settlement_amount: settlement,
+          order_id:          orderId ?? null,
         };
       });
       await adminSupabase.from("sale_records").insert(saleRows);

@@ -12,7 +12,11 @@ type OrderItem = {
   price: number;
   thumbUrl: string;
   category: string;
+  taxInvoice?: boolean;
 };
+
+const VAT_RATE = 0.1;
+const vatOf = (item: OrderItem) => (item.taxInvoice ? Math.round(item.price * VAT_RATE) : 0);
 
 type PendingPayment = {
   items: OrderItem[];
@@ -92,10 +96,63 @@ function PaymentSuccessContent() {
 
       // 구매 내역 Supabase 저장
       if (userId) {
+        // 모델별 판매자 조회 (order_items / purchases의 seller_id 기록용)
+        const modelIds = pending.items.map((item) => item.id);
+        const { data: modelSellers } = await supabase
+          .from("models")
+          .select("id, seller_id")
+          .in("id", modelIds);
+        const sellerIdOf = (modelId: string): string | null =>
+          (modelSellers as { id: string; seller_id: string | null }[] | null)?.find(
+            (m) => m.id === modelId
+          )?.seller_id ?? null;
+
+        // 주문(orders) + 주문 항목(order_items) 기록
+        // 실패해도 결제 자체는 완료 처리 (에러만 로깅)
+        let createdOrderId: string | null = null;
+        try {
+          const { data: orderRow, error: orderErr } = await supabase
+            .from("orders")
+            .insert({
+              order_code: orderId,
+              buyer_id: userId,
+              payment_key: paymentKey,
+              total_amount: amount,
+              status: "paid",
+            })
+            .select("id")
+            .single();
+
+          if (orderErr) {
+            console.error("주문 기록 실패:", orderErr);
+          } else {
+            createdOrderId = (orderRow as { id: string }).id;
+            const orderItemRows = pending.items.map((item) => {
+              const vat = vatOf(item);
+              return {
+                order_id: createdOrderId,
+                model_id: item.id,
+                seller_id: sellerIdOf(item.id),
+                price: item.price + vat,
+                tax_invoice_requested: !!item.taxInvoice,
+                supply_amount: item.taxInvoice ? item.price : null,
+                vat_amount: item.taxInvoice ? vat : null,
+              };
+            });
+            const { error: itemsErr } = await supabase.from("order_items").insert(orderItemRows);
+            if (itemsErr) console.error("주문 항목 기록 실패:", itemsErr);
+          }
+        } catch (e) {
+          console.error("주문 기록 중 오류:", e);
+        }
+
         const purchaseRows = pending.items.map((item) => ({
           user_id: userId,
           model_id: item.id,
           price: item.price,
+          order_id: createdOrderId,
+          payment_key: paymentKey,
+          seller_id: sellerIdOf(item.id),
         }));
 
         const { error: dbError } = await supabase
@@ -110,6 +167,7 @@ function PaymentSuccessContent() {
         const gradePayload = pending.items.map((item) => ({
           modelId: item.id,
           amount: item.price,
+          vatAmount: vatOf(item),
         }));
         const gradeToken = getAccessToken();
         if (gradeToken) {
@@ -119,7 +177,7 @@ function PaymentSuccessContent() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${gradeToken}`,
             },
-            body: JSON.stringify({ purchases: gradePayload }),
+            body: JSON.stringify({ purchases: gradePayload, orderId: createdOrderId }),
           }).catch((e) => console.error("등급 업데이트 실패:", e));
         }
 

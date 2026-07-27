@@ -10,6 +10,7 @@ import { getAccessToken, sbAuthFetch, sbFetch, decodeJwt } from "@/lib/supabase-
 import { showError, showInfo } from "../lib/toast";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import { startProgress, updateProgress, completeProgress, errorProgress } from "@/app/lib/progressStore";
+import TaxInvoiceRequestModal from "@/app/components/TaxInvoiceRequestModal";
 
 type PurchasedModel = {
   id: string;
@@ -24,7 +25,10 @@ type PurchasedModel = {
   category: string;
   created_at: string;
   purchased_at: string;
+  orderItemId?: string;
 };
+
+type TaxInvoiceStatus = "pending" | "issued";
 
 type CompletedCommission = {
   id: string;
@@ -52,6 +56,8 @@ function LibraryPageInner() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [commissionItems, setCommissionItems] = useState<CompletedCommission[]>([]);
   const [commissionsLoading, setCommissionsLoading] = useState(false);
+  const [taxInvoiceStatus, setTaxInvoiceStatus] = useState<Record<string, TaxInvoiceStatus>>({});
+  const [taxInvoiceModalItem, setTaxInvoiceModalItem] = useState<PurchasedModel | null>(null);
 
   // 검색 / 카테고리 필터
   const [search, setSearch] = useState("");
@@ -86,7 +92,7 @@ function LibraryPageInner() {
       if (!token) { showInfo("로그인이 필요합니다."); window.location.href = "/auth"; return; }
       const userId = (decodeJwt(token) as any)?.sub as string;
 
-      const { data: purchases, error: purchaseError } = await sbAuthFetch("purchases", `?select=model_id,created_at&user_id=eq.${userId}&order=created_at.desc`);
+      const { data: purchases, error: purchaseError } = await sbAuthFetch("purchases", `?select=model_id,created_at,order_id&user_id=eq.${userId}&order=created_at.desc`);
       if (purchaseError) { console.error(purchaseError); return; }
       if (!purchases || (purchases as any[]).length === 0) { setItems([]); return; }
 
@@ -94,14 +100,47 @@ function LibraryPageInner() {
       const { data: models, error: modelError } = await sbFetch("models", `?id=in.(${modelIds.join(',')})`);
       if (modelError) { console.error(modelError); return; }
 
+      // 세금계산서 옵션으로 결제된 항목인지 확인 (order_items.tax_invoice_requested)
+      const orderIds = [...new Set((purchases as any[]).map((p: any) => p.order_id).filter(Boolean))];
+      const orderItemMap = new Map<string, { id: string; tax_invoice_requested: boolean }>();
+      if (orderIds.length > 0) {
+        const { data: orderItemRows } = await supabase
+          .from("order_items")
+          .select("id, order_id, model_id, tax_invoice_requested")
+          .in("order_id", orderIds);
+        (orderItemRows ?? []).forEach((oi: any) => {
+          orderItemMap.set(`${oi.order_id}::${oi.model_id}`, { id: oi.id, tax_invoice_requested: oi.tax_invoice_requested });
+        });
+      }
+
       const ordered = (purchases as any[])
         .map((p: any) => {
           const m = (models as any[])?.find((mm: any) => mm.id === p.model_id);
           if (!m) return null;
-          return { ...m, purchased_at: p.created_at };
+          const oi = p.order_id ? orderItemMap.get(`${p.order_id}::${p.model_id}`) : null;
+          return {
+            ...m,
+            purchased_at: p.created_at,
+            orderItemId: oi?.tax_invoice_requested ? oi.id : undefined,
+          };
         })
         .filter(Boolean) || [];
-      setItems(Array.from(new Map(ordered.map((i: any) => [i.id, i])).values()) as PurchasedModel[]);
+      const finalItems = Array.from(new Map(ordered.map((i: any) => [i.id, i])).values()) as PurchasedModel[];
+      setItems(finalItems);
+
+      // 이미 요청된 건의 상태(대기/발행완료) 조회
+      const orderItemIds = finalItems.map((i) => i.orderItemId).filter(Boolean) as string[];
+      if (orderItemIds.length > 0) {
+        const { data: requests } = await supabase
+          .from("tax_invoice_requests")
+          .select("order_item_id, status")
+          .in("order_item_id", orderItemIds);
+        const statusMap: Record<string, TaxInvoiceStatus> = {};
+        (requests ?? []).forEach((r: any) => {
+          if (r.order_item_id) statusMap[r.order_item_id] = r.status;
+        });
+        setTaxInvoiceStatus(statusMap);
+      }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -399,6 +438,24 @@ function LibraryPageInner() {
                         상세 보기
                       </Link>
                     </div>
+                    {item.orderItemId && (
+                      taxInvoiceStatus[item.orderItemId] === "issued" ? (
+                        <div style={{ height: 34, borderRadius: 10, background: "#dcfce7", color: "#16a34a", fontWeight: 800, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          🧾 세금계산서 발행 완료
+                        </div>
+                      ) : taxInvoiceStatus[item.orderItemId] === "pending" ? (
+                        <div style={{ height: 34, borderRadius: 10, background: "#fef3c7", color: "#92400e", fontWeight: 800, fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          🧾 발행 대기 중
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setTaxInvoiceModalItem(item)}
+                          style={{ height: 34, borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, cursor: "pointer", fontSize: 12 }}
+                        >
+                          🧾 세금계산서 요청
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               );
@@ -421,6 +478,17 @@ function LibraryPageInner() {
           </div>
         )}
       </main>
+
+      <TaxInvoiceRequestModal
+        open={!!taxInvoiceModalItem}
+        onClose={() => setTaxInvoiceModalItem(null)}
+        onSuccess={() => {
+          if (taxInvoiceModalItem?.orderItemId) {
+            setTaxInvoiceStatus((prev) => ({ ...prev, [taxInvoiceModalItem.orderItemId!]: "pending" }));
+          }
+        }}
+        requestBody={{ type: "purchase", orderItemId: taxInvoiceModalItem?.orderItemId || "" }}
+      />
     </>
   );
 }

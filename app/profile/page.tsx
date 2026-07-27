@@ -14,7 +14,7 @@ import { compressThumbnail } from "@/lib/imageCompression";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import { GOLD } from "@/lib/constants";
 
-type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users";
+type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users" | "taxInvoices";
 type UserListSubTab = "sellers" | "mentors" | "all";
 type UserListItem = { id: string; nickname: string | null; avatar_url: string | null; grade: Grade | null; mentor_grade?: string };
 type FollowProfile = { id: string; nickname: string; avatar_url: string | null; bio: string | null; grade?: string | null; phone_number?: string | null };
@@ -87,6 +87,7 @@ export default function ProfilePage() {
   const [businessNumber, setBusinessNumber] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [bizInfoOpen, setBizInfoOpen] = useState(false);
+  const [isBusinessVerified, setIsBusinessVerified] = useState(false);
 
   // 연락 수단 (판매자/멘토 공용)
   const [opentalkUrl, setOpentalkUrl] = useState("");
@@ -206,6 +207,7 @@ export default function ProfilePage() {
         setAccountNumber(profile.account_number || "");
         setBusinessNumber(profile.business_number || "");
         setBusinessName(profile.business_name || "");
+        setIsBusinessVerified(!!profile.is_business_verified);
         setPhoneNumber(profile.phone_number || "");
         setOpentalkUrl(profile.opentalk_url || "");
         setContactPhone(profile.contact_phone || "");
@@ -622,6 +624,7 @@ export default function ProfilePage() {
     { id: "seller", label: isSeller ? "판매자 정보" : "판매자 등록" },
     { id: "mentor", label: isMentor ? "멘토 정보" : "멘토 등록" },
     { id: "stats", label: "판매 통계", sellerOnly: true },
+    { id: "taxInvoices", label: "세금계산서 요청", sellerOnly: true },
     { id: "points", label: "포인트" },
     { id: "users", label: "유저 목록" },
   ];
@@ -975,6 +978,17 @@ export default function ProfilePage() {
                     </button>
                     {bizInfoOpen && (
                       <div style={{ padding: "0 20px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+                        {bizRegUrl && (
+                          isBusinessVerified ? (
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 12, fontWeight: 700 }}>
+                              ✓ 세금계산서 발행 가능 (관리자 승인 완료)
+                            </div>
+                          ) : (
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#92400e", fontSize: 12, fontWeight: 700 }}>
+                              ⏳ 관리자 승인 대기 중
+                            </div>
+                          )
+                        )}
                         <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "6px 16px", fontSize: 14 }}>
                           <span style={{ color: "#6b7280", fontWeight: 600 }}>사업자번호</span>
                           <span style={{ color: "#111827", fontWeight: 700, fontFamily: "monospace" }}>
@@ -1057,6 +1071,14 @@ export default function ProfilePage() {
                   {/* 사업자 정보 섹션 */}
                   <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>사업자 정보 <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "1px 7px", borderRadius: 999 }}>선택</span></div>
+                    <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.6 }}>
+                      사업자 정보 등록 후 관리자 승인 시 세금계산서 발행이 가능합니다.
+                      {bizRegUrl && (
+                        isBusinessVerified
+                          ? <span style={{ color: "#16a34a", fontWeight: 700 }}> (✓ 승인 완료)</span>
+                          : <span style={{ color: "#92400e", fontWeight: 700 }}> (⏳ 승인 대기 중)</span>
+                      )}
+                    </p>
 
                     <div style={fieldWrap}>
                       <label style={labelStyle}>사업자등록번호</label>
@@ -1169,6 +1191,11 @@ export default function ProfilePage() {
           {/* 판매 통계 탭 (seller 전용) */}
           {activeTab === "stats" && isSeller && (
             <SalesTab userId={userId} />
+          )}
+
+          {/* 세금계산서 요청 탭 (seller 전용) */}
+          {activeTab === "taxInvoices" && isSeller && (
+            <TaxInvoiceRequestsTab userId={userId} />
           )}
 
           {/* 포인트 탭 */}
@@ -1736,6 +1763,127 @@ function ProgressBar({ label, current, target, pct, color, unit = "건" }: {
 }
 
 /* ── 판매 통계 탭 ── */
+type TaxInvoiceRequestRow = {
+  id: string;
+  business_name: string;
+  business_number: string;
+  ceo_name: string;
+  business_address: string;
+  email: string;
+  supply_amount: number;
+  vat_amount: number;
+  status: string;
+  requested_at: string;
+  issued_at: string | null;
+};
+
+function TaxInvoiceRequestsTab({ userId }: { userId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<TaxInvoiceRequestRow[]>([]);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!userId || loadedRef.current) return;
+    loadedRef.current = true;
+    fetchRows();
+  }, [userId]);
+
+  const fetchRows = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("tax_invoice_requests")
+        .select("*")
+        .eq("seller_id", userId)
+        .order("requested_at", { ascending: false });
+      if (error) throw error;
+      setRows((data as TaxInvoiceRequestRow[]) || []);
+    } catch (e) {
+      console.error("세금계산서 요청 목록 불러오기 실패:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkIssued = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const token = getAccessToken();
+      const res = await fetch("/api/tax-invoice/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || "처리 실패"); return; }
+      showSuccess("발행 완료로 처리되었습니다.");
+      fetchRows();
+    } catch {
+      showError("처리 중 오류가 발생했습니다.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  if (loading) return <p style={{ color: "#6b7280", fontSize: 14 }}>불러오는 중...</p>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <h2 className="pf-section-title" style={sectionTitle}>세금계산서 요청</h2>
+      {rows.length === 0 ? (
+        <p style={{ color: "#9ca3af", fontSize: 14 }}>접수된 세금계산서 요청이 없습니다.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {rows.map((r) => (
+            <div key={r.id} style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{r.business_name}</div>
+                  <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                    {r.business_number} · 대표 {r.ceo_name}
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 999,
+                  background: r.status === "issued" ? "#dcfce7" : "#fef3c7",
+                  color: r.status === "issued" ? "#16a34a" : "#92400e",
+                }}>
+                  {r.status === "issued" ? "발행 완료" : "발행 대기"}
+                </span>
+              </div>
+              <div style={{ fontSize: 13, color: "#374151" }}>
+                공급가 {r.supply_amount.toLocaleString("ko-KR")}원 + 부가세 {r.vat_amount.toLocaleString("ko-KR")}원 = 합계 {(r.supply_amount + r.vat_amount).toLocaleString("ko-KR")}원
+              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                {r.business_address} · {r.email}
+              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                요청일 {new Date(r.requested_at).toLocaleDateString("ko-KR")}
+                {r.issued_at && ` · 발행일 ${new Date(r.issued_at).toLocaleDateString("ko-KR")}`}
+              </div>
+              {r.status !== "issued" && (
+                <button
+                  type="button"
+                  onClick={() => handleMarkIssued(r.id)}
+                  disabled={processingId === r.id}
+                  style={{
+                    alignSelf: "flex-start", height: 38, padding: "0 16px", borderRadius: 10, border: "none",
+                    background: processingId === r.id ? "#d1d5db" : "#111827", color: "white",
+                    fontWeight: 700, fontSize: 13, cursor: processingId === r.id ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {processingId === r.id ? "처리 중..." : "홈택스에서 발행 완료 처리"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SalesTab({ userId }: { userId: string }) {
   const [salesLoading, setSalesLoading] = useState(true);
   const [salesModels, setSalesModels] = useState<ModelRow[]>([]);

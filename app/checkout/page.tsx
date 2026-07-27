@@ -15,7 +15,13 @@ type OrderItem = {
   thumbUrl: string;
   category: string;
   downloadUrl?: string;
+  seller_id?: string;
+  taxInvoice?: boolean;
 };
+
+const UNKNOWN_SELLER_KEY = "__unknown__";
+const VAT_RATE = 0.1;
+const vatOf = (item: OrderItem) => (item.taxInvoice ? Math.round(item.price * VAT_RATE) : 0);
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
@@ -31,11 +37,81 @@ function CheckoutContent() {
 
   const [myPoints, setMyPoints] = useState(0);
   const [usedPoints, setUsedPoints] = useState(0);
+  const [sellerNames, setSellerNames] = useState<Record<string, string>>({});
+  const [sellerVerified, setSellerVerified] = useState<Record<string, boolean>>({});
 
-  const totalPrice = useMemo(
+  const supplyTotal = useMemo(
     () => items.reduce((sum, item) => sum + item.price, 0),
     [items]
   );
+  const vatTotal = useMemo(
+    () => items.reduce((sum, item) => sum + vatOf(item), 0),
+    [items]
+  );
+  const totalPrice = supplyTotal + vatTotal;
+
+  const mode = searchParams.get("mode");
+
+  const sellerGroups = useMemo(() => {
+    if (mode === "cad") return null; // 캐드스쿨 결제는 판매자 그룹핑 대상 아님
+    const map = new Map<string, OrderItem[]>();
+    for (const item of items) {
+      const key = item.seller_id || UNKNOWN_SELLER_KEY;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return [...map.entries()];
+  }, [items, mode]);
+
+  useEffect(() => {
+    if (!sellerGroups) return;
+    const sellerIds = sellerGroups
+      .map(([key]) => key)
+      .filter((key) => key !== UNKNOWN_SELLER_KEY);
+    if (sellerIds.length === 0) return;
+    supabase
+      .from("profiles")
+      .select("id, nickname, is_business_verified")
+      .in("id", sellerIds)
+      .then(({ data }) => {
+        const names: Record<string, string> = {};
+        const verified: Record<string, boolean> = {};
+        (data as { id: string; nickname: string | null; is_business_verified: boolean }[] | null)?.forEach((p) => {
+          names[p.id] = p.nickname || "판매자";
+          verified[p.id] = !!p.is_business_verified;
+        });
+        setSellerNames(names);
+        setSellerVerified(verified);
+      });
+  }, [sellerGroups]);
+
+  const toggleDirectTaxInvoice = async (groupItems: OrderItem[], checked: boolean) => {
+    const ids = new Set(groupItems.map((i) => i.id));
+    const updated = items.map((item) => (ids.has(item.id) ? { ...item, taxInvoice: checked } : item));
+    setItems(updated);
+
+    try {
+      const pendingOrder = JSON.parse(localStorage.getItem("pendingOrder") || "null");
+      if (pendingOrder?.items) {
+        pendingOrder.items = (pendingOrder.items as OrderItem[]).map((item) =>
+          ids.has(item.id) ? { ...item, taxInvoice: checked } : item
+        );
+        localStorage.setItem("pendingOrder", JSON.stringify(pendingOrder));
+      }
+    } catch (e) {
+      console.error("바로구매 세금계산서 옵션 저장 실패:", e);
+    }
+
+    if (widgetsRef.current) {
+      const newSupply = updated.reduce((sum, i) => sum + i.price, 0);
+      const newVat = updated.reduce((sum, i) => sum + vatOf(i), 0);
+      try {
+        await widgetsRef.current.setAmount({ currency: "KRW", value: Math.max(1, newSupply + newVat - usedPoints) });
+      } catch (e) {
+        console.error("위젯 금액 업데이트 실패:", e);
+      }
+    }
+  };
 
   const maxUsable = Math.floor(totalPrice * 0.5);
   const finalPrice = Math.max(0, totalPrice - usedPoints);
@@ -48,7 +124,7 @@ function CheckoutContent() {
   useEffect(() => {
     if (!loading && items.length > 0 && !widgetInitRef.current) {
       widgetInitRef.current = true;
-      initWidgets(items.reduce((sum, item) => sum + item.price, 0));
+      initWidgets(totalPrice);
     }
   }, [loading, items]);
 
@@ -313,21 +389,54 @@ function CheckoutContent() {
             {/* 주문 상품 */}
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 24, padding: 24, background: "white" }}>
               <h2 style={{ fontSize: 22, fontWeight: 900, marginBottom: 18, color: "#111827" }}>주문 상품</h2>
-              <div style={{ display: "grid", gap: 14 }}>
-                {items.map((item) => (
-                  <article key={item.id} style={{ display: "grid", gridTemplateColumns: "90px minmax(0, 1fr) auto", gap: 14, alignItems: "center", border: "1px solid #f3f4f6", borderRadius: 18, padding: 12 }}>
-                    {item.thumbUrl ? (
-                      <Image src={item.thumbUrl} alt={item.title} width={90} height={70} style={{ objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
-                    ) : (
-                      <div style={{ width: 90, height: 70, borderRadius: 12, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎓</div>
+              <div style={{ display: "grid", gap: 20 }}>
+                {(sellerGroups ?? [[UNKNOWN_SELLER_KEY, items] as [string, OrderItem[]]]).map(([sellerKey, groupItems]) => {
+                  const groupSupply = groupItems.reduce((sum, i) => sum + i.price, 0);
+                  const groupVat = groupItems.reduce((sum, i) => sum + vatOf(i), 0);
+                  return (
+                  <div key={sellerKey} style={{ display: "grid", gap: 14 }}>
+                    {sellerGroups && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "8px 4px", borderBottom: "1px solid #f3f4f6" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: "#374151" }}>
+                            🏪 {sellerKey === UNKNOWN_SELLER_KEY ? "판매자 정보 없음" : sellerNames[sellerKey] ?? "판매자"}
+                          </span>
+                          <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
+                            {groupVat > 0
+                              ? `공급가 ${groupSupply.toLocaleString("ko-KR")}원 + 부가세 ${groupVat.toLocaleString("ko-KR")}원 = ${(groupSupply + groupVat).toLocaleString("ko-KR")}원`
+                              : `소계 ${groupSupply.toLocaleString("ko-KR")}원`}
+                          </span>
+                        </div>
+                        {mode === "direct" && sellerKey !== UNKNOWN_SELLER_KEY && sellerVerified[sellerKey] && (
+                          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "#374151", fontWeight: 700 }}>
+                            <input
+                              type="checkbox"
+                              checked={groupItems.every((i) => i.taxInvoice)}
+                              onChange={(e) => toggleDirectTaxInvoice(groupItems, e.target.checked)}
+                              style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#111827" }}
+                            />
+                            🧾 세금계산서 발행
+                          </label>
+                        )}
+                      </div>
                     )}
-                    <div>
-                      <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 4 }}>{item.title}</div>
-                      <div style={{ fontSize: 13, color: "#6b7280" }}>{item.category}</div>
-                    </div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}원</div>
-                  </article>
-                ))}
+                    {groupItems.map((item) => (
+                      <article key={item.id} style={{ display: "grid", gridTemplateColumns: "90px minmax(0, 1fr) auto", gap: 14, alignItems: "center", border: "1px solid #f3f4f6", borderRadius: 18, padding: 12 }}>
+                        {item.thumbUrl ? (
+                          <Image src={item.thumbUrl} alt={item.title} width={90} height={70} style={{ objectFit: "cover", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+                        ) : (
+                          <div style={{ width: 90, height: 70, borderRadius: 12, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🎓</div>
+                        )}
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", marginBottom: 4 }}>{item.title}</div>
+                          <div style={{ fontSize: 13, color: "#6b7280" }}>{item.category}</div>
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 900, color: "#111827" }}>{item.price.toLocaleString("ko-KR")}원</div>
+                      </article>
+                    ))}
+                  </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -347,8 +456,13 @@ function CheckoutContent() {
               <span>상품 수</span><span>{items.length}개</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
-              <span>상품 금액</span><span>{totalPrice.toLocaleString("ko-KR")}원</span>
+              <span>상품 금액 (공급가)</span><span>{supplyTotal.toLocaleString("ko-KR")}원</span>
             </div>
+            {vatTotal > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 15, color: "#6b7280" }}>
+                <span>부가세 (10%)</span><span>{vatTotal.toLocaleString("ko-KR")}원</span>
+              </div>
+            )}
 
             {/* 포인트 사용 */}
             <div style={{ margin: "14px 0", padding: "16px", borderRadius: 14, background: "#fdf8ec", border: "1px solid #c9a84c44" }}>

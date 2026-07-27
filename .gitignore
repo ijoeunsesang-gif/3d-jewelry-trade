@@ -42,6 +42,7 @@ next-env.d.ts
 
 # sensitive files
 중요/
+.claude/settings.local.json
 
 # documents
 *.pptx

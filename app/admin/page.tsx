@@ -1376,6 +1376,9 @@ export default function AdminPage() {
           <Link href="/admin/settlement" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
             정산 관리 →
           </Link>
+          <Link href="/admin/business-verification" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
+            사업자 승인 →
+          </Link>
           <Link href="/" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
             ← 사이트로
           </Link>

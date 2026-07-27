@@ -37,6 +37,15 @@ export default function PaymentSuccessPage() {
         const token = getAccessToken();
         if (!token) throw new Error("로그인이 필요합니다.");
 
+        const pendingTaxInvoice = (() => {
+          try {
+            const raw = JSON.parse(localStorage.getItem("pendingCommissionTaxInvoice") || "null");
+            return raw?.commissionId === id ? !!raw.taxInvoice : false;
+          } catch {
+            return false;
+          }
+        })();
+
         setPayStep(0);
         const res = await fetch("/api/commission/payment/confirm", {
           method: "POST",
@@ -49,8 +58,10 @@ export default function PaymentSuccessPage() {
             orderId,
             amount: Number(amount),
             commissionId: id,
+            taxInvoice: pendingTaxInvoice,
           }),
         });
+        localStorage.removeItem("pendingCommissionTaxInvoice");
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "결제 처리에 실패했습니다.");

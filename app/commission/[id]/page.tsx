@@ -13,6 +13,7 @@ import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import { GOLD } from "@/lib/constants";
 import ContactButtons from "../../components/ContactButtons";
+import TaxInvoiceRequestModal from "../../components/TaxInvoiceRequestModal";
 
 
 const PRIVATE_STEPS = ["pending", "negotiating", "payment", "working", "completed", "downloaded"];
@@ -240,6 +241,10 @@ export default function CommissionDetailPage() {
   const [sellerPhone, setSellerPhone] = useState<string | null>(null);
   const [sellerOpentalkUrl, setSellerOpentalkUrl] = useState<string | null>(null);
   const [sellerContactPhone, setSellerContactPhone] = useState<string | null>(null);
+  const [sellerBusinessVerified, setSellerBusinessVerified] = useState(false);
+  const [wantTaxInvoice, setWantTaxInvoice] = useState(false);
+  const [postPaymentTaxInvoiceStatus, setPostPaymentTaxInvoiceStatus] = useState<"none" | "pending" | "issued">("none");
+  const [showTaxInvoiceModal, setShowTaxInvoiceModal] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [myNickname, setMyNickname] = useState<string | null>(null);
 
@@ -388,7 +393,7 @@ export default function CommissionDetailPage() {
       if (data.is_private && data.target_seller_id) {
         const { data: sp } = await supabase
           .from("profiles")
-          .select("nickname, grade, phone_number, opentalk_url, contact_phone")
+          .select("nickname, grade, phone_number, opentalk_url, contact_phone, is_business_verified")
           .eq("id", data.target_seller_id)
           .single();
         setSellerNickname(sp?.nickname || "알 수 없음");
@@ -396,6 +401,7 @@ export default function CommissionDetailPage() {
         setSellerPhone((sp as any)?.phone_number || null);
         setSellerOpentalkUrl((sp as any)?.opentalk_url || null);
         setSellerContactPhone((sp as any)?.contact_phone || null);
+        setSellerBusinessVerified(!!(sp as any)?.is_business_verified);
       }
       if (data.is_private) fetchNegotiations();
       if (data.is_private) fetchActiveRevision();
@@ -734,6 +740,10 @@ export default function CommissionDetailPage() {
     setNegSubmitting(false);
   };
 
+  // 협의금액 + (세금계산서 발행 시) 부가세 10% — 수정 불가, 최종 결제금액에 자동 반영
+  const commissionVat = wantTaxInvoice && commission?.final_price ? Math.round(commission.final_price * 0.1) : 0;
+  const commissionPayAmount = (commission?.final_price ?? 0) + commissionVat;
+
   // 결제위젯 초기화 (showPaymentWidget이 true가 된 직후 DOM이 마운트된 뒤 실행)
   useEffect(() => {
     if (!showPaymentWidget || !commission?.final_price || !myId) return;
@@ -743,7 +753,7 @@ export default function CommissionDetailPage() {
       try {
         const tossPayments = await loadTossPayments(process.env.NEXT_PUBLIC_TOSSPAYMENTS_CLIENT_KEY!);
         const widgets = tossPayments.widgets({ customerKey: myId });
-        await widgets.setAmount({ currency: "KRW", value: commission.final_price! });
+        await widgets.setAmount({ currency: "KRW", value: commissionPayAmount });
         await Promise.all([
           widgets.renderPaymentMethods({ selector: "#toss-payment-method", variantKey: "DEFAULT" }),
           widgets.renderAgreement({ selector: "#toss-agreement", variantKey: "AGREEMENT" }),
@@ -764,11 +774,29 @@ export default function CommissionDetailPage() {
     if (isAdmin || myId === commission.user_id) fetchDisputes();
   }, [myId, commission?.id, isAdmin]);
 
+  // 결제 완료 이후 세금계산서 요청 상태 조회
+  useEffect(() => {
+    if (!commission || myId !== commission.user_id) return;
+    if (!["working", "completed", "downloaded"].includes(commission.status)) return;
+    supabase
+      .from("tax_invoice_requests")
+      .select("status")
+      .eq("commission_id", commission.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setPostPaymentTaxInvoiceStatus((data?.status as "pending" | "issued" | undefined) ?? "none");
+      });
+  }, [commission?.id, commission?.status, myId]);
+
   const handlePaymentRequest = async () => {
     if (!widgetsRef.current || !commission) return;
     setNegSubmitting(true);
     try {
       const orderId = `commission-${commission.id}-${Date.now()}`;
+      localStorage.setItem(
+        "pendingCommissionTaxInvoice",
+        JSON.stringify({ commissionId: commission.id, taxInvoice: wantTaxInvoice })
+      );
       await widgetsRef.current.requestPayment({
         orderId,
         orderName: `개인의뢰: ${commission.title}`,
@@ -1181,6 +1209,25 @@ export default function CommissionDetailPage() {
 
   const canReject = isTargetSeller && ["pending", "negotiating"].includes(status);
   const canCancel = isAuthor && ["pending", "negotiating"].includes(status);
+
+  const taxInvoiceSection = isAuthor && sellerBusinessVerified && (
+    postPaymentTaxInvoiceStatus === "issued" ? (
+      <div style={{ padding: "10px 14px", borderRadius: 10, background: "#dcfce7", color: "#16a34a", fontWeight: 700, fontSize: 13 }}>
+        🧾 세금계산서 발행 완료
+      </div>
+    ) : postPaymentTaxInvoiceStatus === "pending" ? (
+      <div style={{ padding: "10px 14px", borderRadius: 10, background: "#fef3c7", color: "#92400e", fontWeight: 700, fontSize: 13 }}>
+        🧾 세금계산서 발행 대기 중
+      </div>
+    ) : (
+      <button
+        onClick={() => setShowTaxInvoiceModal(true)}
+        style={{ height: 40, padding: "0 16px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 700, fontSize: 13, cursor: "pointer", alignSelf: "flex-start" }}
+      >
+        🧾 세금계산서 요청
+      </button>
+    )
+  );
 
   const isOverdue = (() => {
     if (status !== "working" || !commission.final_days || !commission.updated_at) return false;
@@ -1719,12 +1766,34 @@ export default function CommissionDetailPage() {
                   </div>
                 </div>
               </div>
+
+              {isAuthor && !showPaymentWidget && sellerBusinessVerified && (
+                <label style={{
+                  display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                  fontSize: 13, color: "#374151", fontWeight: 700, marginBottom: 12,
+                  padding: "10px 12px", background: "#f9fafb", borderRadius: 10, border: "1px solid #f3f4f6",
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={wantTaxInvoice}
+                    onChange={(e) => setWantTaxInvoice(e.target.checked)}
+                    style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#111827" }}
+                  />
+                  🧾 세금계산서 발행
+                  {wantTaxInvoice && commission.final_price != null && (
+                    <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                      (협의금액 {commission.final_price.toLocaleString()}원 + 부가세 {commissionVat.toLocaleString()}원 = 합계 {commissionPayAmount.toLocaleString()}원)
+                    </span>
+                  )}
+                </label>
+              )}
+
               {isAuthor && !showPaymentWidget && (
                 <button onClick={() => setShowPaymentWidget(true)} style={{
                   width: "100%", height: 44, borderRadius: 10, border: "none",
                   background: GOLD, color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer",
                 }}>
-                  결제하기
+                  결제하기{wantTaxInvoice ? ` (${commissionPayAmount.toLocaleString()}원)` : ""}
                 </button>
               )}
               {isAuthor && showPaymentWidget && (
@@ -1807,6 +1876,7 @@ export default function CommissionDetailPage() {
                   작업 진행 중... 판매자가 결과물을 업로드하면 알림을 드립니다.
                 </div>
               )}
+              {taxInvoiceSection && <div style={{ marginTop: 12 }}>{taxInvoiceSection}</div>}
             </div>
           )}
 
@@ -1823,6 +1893,7 @@ export default function CommissionDetailPage() {
                   <button onClick={handleDownload} style={{ width: "100%", height: 44, borderRadius: 10, border: "none", background: "#111827", color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
                     파일 다운로드
                   </button>
+                  {taxInvoiceSection}
 
                   {/* 활성 수정요청 없을 때: 요청 버튼 or 폼 */}
                   {!activeRevision && (
@@ -2078,6 +2149,7 @@ export default function CommissionDetailPage() {
                   다운로드에서 받기 →
                 </a>
               )}
+              {taxInvoiceSection}
             </div>
           )}
 
@@ -2605,6 +2677,15 @@ export default function CommissionDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {commission && (
+        <TaxInvoiceRequestModal
+          open={showTaxInvoiceModal}
+          onClose={() => setShowTaxInvoiceModal(false)}
+          onSuccess={() => setPostPaymentTaxInvoiceStatus("pending")}
+          requestBody={{ type: "commission", commissionId: commission.id }}
+        />
       )}
     </div>
   );

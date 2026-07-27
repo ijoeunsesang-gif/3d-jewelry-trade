@@ -373,6 +373,7 @@ export default function SellerPage() {
       thumbUrl,
       category: item.category,
       downloadUrl: item.file_url,
+      seller_id: item.seller_id ?? id,
     };
 
     const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");

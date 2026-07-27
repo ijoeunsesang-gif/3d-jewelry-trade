@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { scrollToTop } from "@/lib/scroll";
 import { getThumbnailUrl } from "@/lib/imageUrl";
+import { supabase } from "../lib/supabase-browser";
 
 type CartItem = {
   id: string;
@@ -13,9 +14,14 @@ type CartItem = {
   thumbUrl: string;
   category: string;
   downloadUrl?: string;
+  seller_id?: string;
+  taxInvoice?: boolean;
 };
 
+const VAT_RATE = 0.1;
+
 const ITEMS_PER_PAGE = 20;
+const UNKNOWN_SELLER_KEY = "__unknown__";
 
 const OLD_SUPABASE_THUMB = "https://fvhotaxjdacfulxjahon.supabase.co/storage/v1/object/public/thumbnails/";
 
@@ -41,21 +47,63 @@ function CartPageInner() {
   };
 
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [sellerNames, setSellerNames] = useState<Record<string, string>>({});
+  const [sellerVerified, setSellerVerified] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const allCheckboxRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const savedCart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const migratedCart = savedCart.map((i: CartItem) => ({ ...i, thumbUrl: migrateThumbUrl(i.thumbUrl) }));
-    if (JSON.stringify(migratedCart) !== JSON.stringify(savedCart)) {
-      localStorage.setItem("cart", JSON.stringify(migratedCart));
-    }
-    if (migratedCart.length > 0) {
-      console.log("[cart] thumbUrl 형태 확인:", migratedCart.map((i: CartItem) => ({ id: i.id, thumbUrl: i.thumbUrl })));
-    }
-    setCartItems(migratedCart);
-    window.dispatchEvent(new Event("cart-reset"));
+    (async () => {
+      const savedCart: CartItem[] = JSON.parse(localStorage.getItem("cart") || "[]");
+      let cart: CartItem[] = savedCart.map((i) => ({ ...i, thumbUrl: migrateThumbUrl(i.thumbUrl) ?? i.thumbUrl }));
+
+      // 하위 호환: seller_id 없이 담긴 기존 아이템은 models 테이블에서 조회해 보강
+      const missingIds = cart.filter((i) => !i.seller_id).map((i) => i.id);
+      if (missingIds.length > 0) {
+        const { data: models } = await supabase
+          .from("models")
+          .select("id, seller_id")
+          .in("id", missingIds);
+        const sellerOf: Record<string, string> = {};
+        (models ?? []).forEach((m: { id: string; seller_id: string }) => {
+          sellerOf[m.id] = m.seller_id;
+        });
+        cart = cart.map((i) => (i.seller_id ? i : { ...i, seller_id: sellerOf[i.id] }));
+      }
+
+      if (JSON.stringify(cart) !== JSON.stringify(savedCart)) {
+        localStorage.setItem("cart", JSON.stringify(cart));
+      }
+
+      setCartItems(cart);
+      window.dispatchEvent(new Event("cart-reset"));
+
+      const sellerIds = [...new Set(cart.map((i) => i.seller_id).filter(Boolean))] as string[];
+      if (sellerIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, nickname, is_business_verified")
+          .in("id", sellerIds);
+        const names: Record<string, string> = {};
+        const verified: Record<string, boolean> = {};
+        (profiles ?? []).forEach((p: { id: string; nickname: string | null; is_business_verified: boolean }) => {
+          names[p.id] = p.nickname || "판매자";
+          verified[p.id] = !!p.is_business_verified;
+        });
+        setSellerNames(names);
+        setSellerVerified(verified);
+      }
+    })();
   }, []);
+
+  const toggleGroupTaxInvoice = (items: CartItem[], checked: boolean) => {
+    const ids = new Set(items.map((i) => i.id));
+    setCartItems((prev) => {
+      const updated = prev.map((i) => (ids.has(i.id) ? { ...i, taxInvoice: checked } : i));
+      localStorage.setItem("cart", JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const allSelected = cartItems.length > 0 && cartItems.every(i => selectedIds.has(i.id));
   const someSelected = selectedIds.size > 0 && !allSelected;
@@ -72,7 +120,7 @@ function CartPageInner() {
   );
   const selectedCount = selectedItems.length;
   const selectedTotal = useMemo(
-    () => selectedItems.reduce((sum, i) => sum + i.price, 0),
+    () => selectedItems.reduce((sum, i) => sum + i.price + (i.taxInvoice ? Math.round(i.price * VAT_RATE) : 0), 0),
     [selectedItems]
   );
 
@@ -89,6 +137,17 @@ function CartPageInner() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleGroup = (items: CartItem[]) => {
+    const ids = items.map((i) => i.id);
+    const allSel = ids.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allSel) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
       return next;
     });
   };
@@ -110,6 +169,18 @@ function CartPageInner() {
     const ids = [...selectedIds].join(",");
     window.location.href = `/checkout?mode=selected&ids=${encodeURIComponent(ids)}`;
   };
+
+  const pagedItems = cartItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const sellerGroups = useMemo(() => {
+    const map = new Map<string, CartItem[]>();
+    for (const item of pagedItems) {
+      const key = item.seller_id || UNKNOWN_SELLER_KEY;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return [...map.entries()];
+  }, [pagedItems]);
 
   return (
     <main
@@ -199,101 +270,171 @@ function CartPageInner() {
               </span>
             </div>
 
-            {cartItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((item) => (
-              <article
-                key={item.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "28px 120px minmax(0, 1fr) auto",
-                  gap: 16,
-                  border: `1px solid ${selectedIds.has(item.id) ? "#6366f1" : "#e5e7eb"}`,
-                  borderRadius: 20,
-                  padding: 16,
-                  background: selectedIds.has(item.id) ? "#fafafe" : "white",
-                  alignItems: "center",
-                  transition: "border-color 0.15s, background 0.15s",
-                  cursor: "pointer",
-                }}
-                onClick={() => toggleItem(item.id)}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(item.id)}
-                  onChange={() => toggleItem(item.id)}
-                  onClick={e => e.stopPropagation()}
-                  style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }}
-                />
+            {sellerGroups.map(([sellerKey, items]) => {
+              const groupSelected = items.every((i) => selectedIds.has(i.id));
+              const groupSubtotal = items.reduce((sum, i) => sum + i.price, 0);
+              const sellerLabel =
+                sellerKey === UNKNOWN_SELLER_KEY
+                  ? "판매자 정보 없음"
+                  : sellerNames[sellerKey] ?? "판매자";
+              const canTaxInvoice = sellerKey !== UNKNOWN_SELLER_KEY && !!sellerVerified[sellerKey];
+              const taxInvoiceChecked = canTaxInvoice && items.every((i) => i.taxInvoice);
+              const groupVat = taxInvoiceChecked ? Math.round(groupSubtotal * VAT_RATE) : 0;
 
-                <img
-                  src={getThumbnailUrl(item.thumbUrl)}
-                  alt={item.title}
-                  style={{
-                    width: 120,
-                    height: 90,
-                    objectFit: "cover",
-                    borderRadius: 14,
-                    border: "1px solid #e5e7eb",
-                  }}
-                />
-
-                <div>
+              return (
+                <div key={sellerKey} style={{ display: "grid", gap: 10 }}>
                   <div
                     style={{
-                      display: "inline-block",
-                      padding: "5px 9px",
-                      borderRadius: 999,
-                      background: "#eef2ff",
-                      color: "#3730a3",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {item.category}
-                  </div>
-
-                  <h2
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 900,
-                      margin: "0 0 8px",
-                      color: "#111827",
-                    }}
-                  >
-                    {item.title}
-                  </h2>
-                </div>
-
-                <div style={{ textAlign: "right" }} onClick={e => e.stopPropagation()}>
-                  <div
-                    style={{
-                      fontSize: 24,
-                      fontWeight: 900,
-                      color: "#111827",
-                      marginBottom: 12,
-                    }}
-                  >
-                    {item.price.toLocaleString("ko-KR")}원
-                  </div>
-
-                  <button
-                    onClick={() => removeItem(item.id)}
-                    style={{
-                      height: 42,
-                      padding: "0 14px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      padding: "10px 16px",
+                      background: "#f9fafb",
                       borderRadius: 12,
-                      border: "1px solid #fecaca",
-                      background: "#fff1f2",
-                      color: "#b91c1c",
-                      fontWeight: 800,
-                      cursor: "pointer",
+                      border: "1px solid #f3f4f6",
                     }}
                   >
-                    삭제
-                  </button>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          cursor: "pointer",
+                          fontSize: 14,
+                          fontWeight: 800,
+                          color: "#374151",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={groupSelected}
+                          onChange={() => toggleGroup(items)}
+                          style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#111827" }}
+                        />
+                        🏪 {sellerLabel}
+                      </label>
+                      <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
+                        소계 {groupSubtotal.toLocaleString("ko-KR")}원
+                      </span>
+                    </div>
+
+                    {canTaxInvoice && (
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "#374151", fontWeight: 700 }}>
+                        <input
+                          type="checkbox"
+                          checked={taxInvoiceChecked}
+                          onChange={(e) => toggleGroupTaxInvoice(items, e.target.checked)}
+                          style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#111827" }}
+                        />
+                        🧾 세금계산서 발행
+                        {taxInvoiceChecked && (
+                          <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600 }}>
+                            (공급가 {groupSubtotal.toLocaleString("ko-KR")}원 + 부가세 {groupVat.toLocaleString("ko-KR")}원 = 합계 {(groupSubtotal + groupVat).toLocaleString("ko-KR")}원)
+                          </span>
+                        )}
+                      </label>
+                    )}
+                  </div>
+
+                  {items.map((item) => (
+                    <article
+                      key={item.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "28px 120px minmax(0, 1fr) auto",
+                        gap: 16,
+                        border: `1px solid ${selectedIds.has(item.id) ? "#6366f1" : "#e5e7eb"}`,
+                        borderRadius: 20,
+                        padding: 16,
+                        background: selectedIds.has(item.id) ? "#fafafe" : "white",
+                        alignItems: "center",
+                        transition: "border-color 0.15s, background 0.15s",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => toggleItem(item.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleItem(item.id)}
+                        onClick={e => e.stopPropagation()}
+                        style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#111827", flexShrink: 0 }}
+                      />
+
+                      <img
+                        src={getThumbnailUrl(item.thumbUrl)}
+                        alt={item.title}
+                        style={{
+                          width: 120,
+                          height: 90,
+                          objectFit: "cover",
+                          borderRadius: 14,
+                          border: "1px solid #e5e7eb",
+                        }}
+                      />
+
+                      <div>
+                        <div
+                          style={{
+                            display: "inline-block",
+                            padding: "5px 9px",
+                            borderRadius: 999,
+                            background: "#eef2ff",
+                            color: "#3730a3",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            marginBottom: 8,
+                          }}
+                        >
+                          {item.category}
+                        </div>
+
+                        <h2
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 900,
+                            margin: "0 0 8px",
+                            color: "#111827",
+                          }}
+                        >
+                          {item.title}
+                        </h2>
+                      </div>
+
+                      <div style={{ textAlign: "right" }} onClick={e => e.stopPropagation()}>
+                        <div
+                          style={{
+                            fontSize: 24,
+                            fontWeight: 900,
+                            color: "#111827",
+                            marginBottom: 12,
+                          }}
+                        >
+                          {item.price.toLocaleString("ko-KR")}원
+                        </div>
+
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          style={{
+                            height: 42,
+                            padding: "0 14px",
+                            borderRadius: 12,
+                            border: "1px solid #fecaca",
+                            background: "#fff1f2",
+                            color: "#b91c1c",
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
-              </article>
-            ))}
+              );
+            })}
 
             {Math.ceil(cartItems.length / ITEMS_PER_PAGE) > 1 && (
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, marginTop: 16 }}>

@@ -455,6 +455,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
       thumbUrl: thumbnailUrl,
       category: model.category,
       downloadUrl: model.file_url,
+      seller_id: model.seller_id,
     };
 
     const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
@@ -484,6 +485,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
           thumbUrl: thumbnailUrl,
           category: model.category,
           downloadUrl: model.file_url,
+          seller_id: model.seller_id,
         },
       ],
       totalPrice: model.price,
