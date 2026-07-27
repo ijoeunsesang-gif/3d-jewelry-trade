@@ -13,6 +13,7 @@ import { showError, showSuccess, showInfo } from "../lib/toast";
 import { GOLD } from "@/lib/constants";
 import { EmptyState } from "../components/EmptyState";
 import Image from "next/image";
+import { getProfilesMap } from "../lib/getProfile";
 
 const GOLD_LIGHT = "#fdf6e3";
 const PER_PAGE = 10;
@@ -130,21 +131,40 @@ function CadSchoolPage() {
     const [subRes, sessionRes] = await Promise.all([
       supabase
         .from("cad_subscriptions")
-        .select("id, plan_type, status, expires_at, cad_revision_remaining, review_remaining, combo_remaining, mentor:profiles!mentor_id(nickname)")
+        .select("id, plan_type, status, expires_at, cad_revision_remaining, review_remaining, combo_remaining, mentor_id")
         .eq("subscriber_id", uid)
         .eq("status", "active"),
       supabase
         .from("cad_mentoring_sessions")
-        .select("id, title, status, mentor_id, mentee_id, mentor_profile:profiles!mentor_id(nickname)")
+        .select("id, title, status, mentor_id, mentee_id")
         .or(`mentee_id.eq.${uid},mentor_id.eq.${uid}`)
         .in("status", ["pending", "accepted"]),
     ]);
 
+    // mentor_id는 cad_mentors.id를 가리키므로 cad_mentors → profiles_public 2단계로
+    // 멘토 닉네임을 조회한다 (FK 임베딩은 profiles RLS 잠금 후 타인 행에 null을 반환한다).
+    const mentorIds = [
+      ...new Set([...(subRes.data ?? []).map((s: any) => s.mentor_id), ...(sessionRes.data ?? []).map((s: any) => s.mentor_id)]),
+    ].filter(Boolean);
+    let mentorNicknameByMentorId: Record<string, string | null> = {};
+    if (mentorIds.length > 0) {
+      const { data: mentorRows } = await supabase.from("cad_mentors").select("id, user_id").in("id", mentorIds);
+      const userIds = (mentorRows ?? []).map((m: any) => m.user_id);
+      const profilesMap = await getProfilesMap(userIds);
+      (mentorRows ?? []).forEach((m: any) => {
+        mentorNicknameByMentorId[m.id] = profilesMap[m.user_id]?.nickname ?? null;
+      });
+    }
+
     if (subRes.data) {
-      setMySubscriptions(subRes.data as unknown as MySubscription[]);
+      setMySubscriptions(
+        (subRes.data as any[]).map((s) => ({ ...s, mentor: { nickname: mentorNicknameByMentorId[s.mentor_id] ?? null } })) as MySubscription[]
+      );
     }
     if (sessionRes.data) {
-      setMySessions(sessionRes.data as unknown as MySession[]);
+      setMySessions(
+        (sessionRes.data as any[]).map((s) => ({ ...s, mentor_profile: { nickname: mentorNicknameByMentorId[s.mentor_id] ?? null } })) as MySession[]
+      );
     }
 
     // 내 open 질문 중 답변이 달린 것
@@ -182,11 +202,13 @@ function CadSchoolPage() {
     setLoadingPosts(true);
     const { data } = await supabase
       .from("cad_posts")
-      .select("id, title, content, status, created_at, user_id, profiles(nickname, avatar_url, grade)")
+      .select("id, title, content, status, created_at, user_id")
       .order("created_at", { ascending: false });
 
     if (data) {
-      const postList = data as unknown as Omit<Post, "comment_count">[];
+      // 작성자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      const profilesMap = await getProfilesMap(data.map((p: any) => p.user_id));
+      const postList = data.map((p: any) => ({ ...p, profiles: profilesMap[p.user_id] ?? null })) as unknown as Omit<Post, "comment_count">[];
       const postIds = postList.map((p) => p.id);
 
       const { data: commentData } = await supabase
@@ -209,12 +231,16 @@ function CadSchoolPage() {
     setLoadingMentors(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
+      .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate")
       .eq("is_active", true)
       .eq("is_suspended", false)
       .order("avg_rating", { ascending: false });
 
-    if (data) setMentors(data as unknown as Mentor[]);
+    if (data) {
+      // 멘토 닉네임/아바타/등급은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      const profilesMap = await getProfilesMap(data.map((m: any) => m.user_id));
+      setMentors(data.map((m: any) => ({ ...m, profiles: profilesMap[m.user_id] ?? null })) as unknown as Mentor[]);
+    }
     setLoadingMentors(false);
   };
 
@@ -1025,7 +1051,7 @@ function MissionTab({ isMentor, page, onPage }: { isMentor: boolean; page: numbe
     (async () => {
       const { data } = await supabase
         .from("cad_missions")
-        .select("id, title, description, difficulty, created_at, mentor:cad_mentors(id, profiles(nickname))")
+        .select("id, title, description, difficulty, created_at, mentor_id")
         .eq("status", "active")
         .order("created_at", { ascending: false });
 
@@ -1039,7 +1065,17 @@ function MissionTab({ isMentor, page, onPage }: { isMentor: boolean; page: numbe
         (subData ?? []).forEach((s: { mission_id: string }) => {
           countMap[s.mission_id] = (countMap[s.mission_id] ?? 0) + 1;
         });
-        setMissions((data as unknown as Mission[]).map((m) => ({ ...m, submission_count: countMap[m.id] ?? 0 })));
+        // 출제 멘토 닉네임은 FK 임베딩 대신 cad_mentors → profiles_public 2단계로 조회한다.
+        const mentorIds = [...new Set(data.map((m: any) => m.mentor_id).filter(Boolean))];
+        const { data: mentorRows } = mentorIds.length > 0
+          ? await supabase.from("cad_mentors").select("id, user_id").in("id", mentorIds)
+          : { data: [] as { id: string; user_id: string }[] };
+        const profilesMap = await getProfilesMap((mentorRows ?? []).map((m: any) => m.user_id));
+        const mentorMap: Record<string, { id: string; profiles: { nickname: string | null } | null }> = {};
+        (mentorRows ?? []).forEach((m: any) => {
+          mentorMap[m.id] = { id: m.id, profiles: { nickname: profilesMap[m.user_id]?.nickname ?? null } };
+        });
+        setMissions((data as any[]).map((m) => ({ ...m, mentor: mentorMap[m.mentor_id] ?? null, submission_count: countMap[m.id] ?? 0 })) as Mission[]);
       } else {
         setMissions([]);
       }

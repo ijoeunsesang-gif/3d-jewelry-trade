@@ -8,6 +8,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
 import Image from "next/image";
 import ContactButtons from "../../../components/ContactButtons";
+import { getProfilesMap } from "../../../lib/getProfile";
 
 type FileItem = { name: string; url: string; ext: string };
 
@@ -65,13 +66,26 @@ export default function SessionDetailPage() {
     setLoading(true);
     const { data } = await supabase
       .from("cad_mentoring_sessions")
-      .select("id, title, description, files, price, status, result_files, created_at, mentor_id, mentee_id, mentor:cad_mentors(user_id, profiles(nickname, avatar_url, opentalk_url, contact_phone)), mentee_profile:profiles!cad_mentoring_sessions_mentee_id_fkey(nickname, avatar_url)")
+      .select("id, title, description, files, price, status, result_files, created_at, mentor_id, mentee_id")
       .eq("id", id)
       .single();
 
     if (!data) { router.push("/cad-school/my"); return; }
-    setSession(data as unknown as Session);
-    setResultFiles((data as unknown as Session).result_files ?? []);
+
+    // 멘토/멘티 닉네임 등은 FK 임베딩 대신 cad_mentors → profiles_public 2단계로 조회한다.
+    const { data: mentorRow } = await supabase
+      .from("cad_mentors")
+      .select("user_id")
+      .eq("id", data.mentor_id)
+      .maybeSingle();
+    const profilesMap = await getProfilesMap([mentorRow?.user_id, data.mentee_id]);
+    const session = {
+      ...data,
+      mentor: mentorRow ? { user_id: mentorRow.user_id, profiles: profilesMap[mentorRow.user_id] ?? null } : null,
+      mentee_profile: profilesMap[data.mentee_id] ?? null,
+    } as unknown as Session;
+    setSession(session);
+    setResultFiles(session.result_files ?? []);
     setLoading(false);
   };
 

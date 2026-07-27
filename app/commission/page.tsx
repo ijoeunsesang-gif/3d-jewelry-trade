@@ -157,7 +157,7 @@ export default function CommissionListPage() {
       const allIds = [...new Set([...userIds, ...sellerIds])];
 
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("profiles_public")
         .select("id, nickname, grade")
         .in("id", allIds);
 

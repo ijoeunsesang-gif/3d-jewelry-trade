@@ -9,7 +9,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
 import Image from "next/image";
-
+import { getProfile, getProfilesMap } from "../../../lib/getProfile";
 
 type FileItem = { name: string; url: string; ext: string };
 
@@ -76,21 +76,31 @@ export default function MissionDetailPage() {
   const loadData = async () => {
     const { data: missionData } = await supabase
       .from("cad_missions")
-      .select("id, title, description, hint_commands, difficulty, files, created_at, mentor:cad_mentors(id, user_id, profiles(nickname, avatar_url))")
+      .select("id, title, description, hint_commands, difficulty, files, created_at, mentor:cad_mentors(id, user_id)")
       .eq("id", id)
       .single();
 
     if (!missionData) { router.push("/cad-school"); return; }
-    setMission(missionData as unknown as Mission);
+    // 출제 멘토 닉네임은 FK 임베딩 대신 profiles_public 단건 조회로 가져온다.
+    const mentorRaw = (missionData as any).mentor as { id: string; user_id: string } | null;
+    const mentorProfile = mentorRaw ? await getProfile(mentorRaw.user_id) : null;
+    setMission({
+      ...missionData,
+      mentor: mentorRaw ? { ...mentorRaw, profiles: mentorProfile } : null,
+    } as unknown as Mission);
 
     const { data: subData } = await supabase
       .from("cad_mission_submissions")
-      .select("id, mission_id, user_id, files, comment, is_best, point_given, created_at, profiles(nickname, avatar_url)")
+      .select("id, mission_id, user_id, files, comment, is_best, point_given, created_at")
       .eq("mission_id", id)
       .order("is_best", { ascending: false })
       .order("created_at", { ascending: false });
 
-    setSubmissions((subData ?? []) as unknown as Submission[]);
+    // 제출자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+    const submitterMap = await getProfilesMap((subData ?? []).map((s: any) => s.user_id));
+    setSubmissions(
+      (subData ?? []).map((s: any) => ({ ...s, profiles: submitterMap[s.user_id] ?? null })) as unknown as Submission[]
+    );
   };
 
   useEffect(() => {

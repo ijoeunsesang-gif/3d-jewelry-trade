@@ -166,7 +166,7 @@ function LibraryPageInner() {
       const sellerIds = [...new Set(data.filter((c: any) => c.target_seller_id).map((c: any) => c.target_seller_id as string))];
       const nicknameMap: Record<string, string> = {};
       if (sellerIds.length > 0) {
-        const { data: profiles } = await supabase.from("profiles").select("id, nickname").in("id", sellerIds);
+        const { data: profiles } = await supabase.from("profiles_public").select("id, nickname").in("id", sellerIds);
         if (profiles) profiles.forEach((p: any) => { nicknameMap[p.id] = p.nickname || "알 수 없음"; });
       }
 

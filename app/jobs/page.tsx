@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { GOLD } from "@/lib/constants";
+import { getProfilesMap } from "../lib/getProfile";
 
 
 type JobPost = {
@@ -29,15 +30,17 @@ export default function JobsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("job_posts")
-      .select("id, user_id, title, is_recruiting, is_closed, created_at, profiles(nickname)")
+      .select("id, user_id, title, is_recruiting, is_closed, created_at")
       .eq("is_recruiting", recruiting)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
+      // 작성자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      const profilesMap = await getProfilesMap((data as any[]).map((p) => p.user_id));
       setPosts(
         (data as any[]).map((p) => ({
           ...p,
-          nickname: (p.profiles as any)?.nickname || "익명",
+          nickname: profilesMap[p.user_id]?.nickname || "익명",
         }))
       );
     }

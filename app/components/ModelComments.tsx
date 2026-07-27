@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase-browser";
 import { showError, showSuccess } from "../lib/toast";
 import AvatarImage from "./AvatarImage";
-
-type CommentProfile = { nickname: string | null; avatar_url: string | null };
+import { getProfilesMap, PublicProfile } from "../lib/getProfile";
 
 type Comment = {
   id: string;
@@ -16,7 +15,6 @@ type Comment = {
   likes: number;
   created_at: string;
   updated_at: string;
-  profiles: CommentProfile | null;
 };
 
 type Props = {
@@ -40,6 +38,7 @@ function timeAgo(iso: string) {
 
 export default function ModelComments({ modelId, currentUserId, isAdmin, onCountChange }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
+  const [profilesMap, setProfilesMap] = useState<Record<string, PublicProfile>>({});
   const [myLikedIds, setMyLikedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -77,7 +76,7 @@ export default function ModelComments({ modelId, currentUserId, isAdmin, onCount
     setLoading(true);
     const { data, error } = await supabase
       .from("model_comments")
-      .select("*, profiles(nickname, avatar_url)")
+      .select("*")
       .eq("model_id", modelId)
       .order("created_at", { ascending: true });
 
@@ -89,6 +88,9 @@ export default function ModelComments({ modelId, currentUserId, isAdmin, onCount
 
     const list = (data || []) as Comment[];
     setComments(list);
+    // 작성자 정보는 FK 임베딩(profiles(...)) 대신 profiles_public을 배치 조회해 merge한다.
+    // (profiles 원본은 본인+관리자만 SELECT 가능해 임베딩 시 타인 행이 null로 빠짐)
+    getProfilesMap(list.map((c) => c.user_id)).then(setProfilesMap);
 
     if (currentUserId && list.length > 0) {
       const ids = list.map((c) => c.id);
@@ -224,6 +226,7 @@ export default function ModelComments({ modelId, currentUserId, isAdmin, onCount
     const isLiked = myLikedIds.has(c.id);
     const isEditing = editingId === c.id;
     const isReplying = replyingToId === c.id;
+    const authorProfile = profilesMap[c.user_id];
 
     return (
       <div
@@ -243,10 +246,10 @@ export default function ModelComments({ modelId, currentUserId, isAdmin, onCount
         >
           {/* 헤더 */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-            <AvatarImage avatarUrl={c.profiles?.avatar_url} nickname={c.profiles?.nickname} size={32} />
+            <AvatarImage avatarUrl={authorProfile?.avatar_url} nickname={authorProfile?.nickname} size={32} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>
-                {c.profiles?.nickname || "익명"}
+                {authorProfile?.nickname || "익명"}
               </span>
               <span style={{ marginLeft: 8, fontSize: 12, color: "#9ca3af" }}>
                 {timeAgo(c.created_at)}

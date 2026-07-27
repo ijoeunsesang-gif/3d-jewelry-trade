@@ -161,7 +161,8 @@ function MessagesContent() {
       );
 
       if (otherIds.length > 0) {
-        const { data: profileRows } = await sbFetch("profiles", `?select=id,nickname,avatar_url,bio,grade,phone_number&id=in.(${otherIds.join(",")})`);
+        // 타인(대화상대) 프로필이라 공개 컬럼만 담은 profiles_public을 조회한다.
+        const { data: profileRows } = await sbFetch("profiles_public", `?select=id,nickname,avatar_url,bio,grade,phone_number&id=in.(${otherIds.join(",")})`);
 
         const nextMap: Record<string, ProfileItem> = {};
         (profileRows || []).forEach((row: ProfileItem) => {

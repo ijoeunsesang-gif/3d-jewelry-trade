@@ -9,6 +9,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import { GOLD } from "@/lib/constants";
 import { EmptyState } from "../../components/EmptyState";
+import { getProfilesMap } from "../../lib/getProfile";
 
 const GOLD_LIGHT = "#fdf6e3";
 const PER_PAGE = 10;
@@ -117,26 +118,39 @@ function MyActivityPage() {
 
     const { data: asMentee } = await supabase
       .from("cad_mentoring_sessions")
-      .select("id, title, status, price, created_at, mentor:cad_mentors(id, profiles(nickname))")
+      .select("id, title, status, price, created_at, mentor_id")
       .eq("mentee_id", uid)
       .order("created_at", { ascending: false });
 
-    const mentee: Session[] = (asMentee ?? []).map((s: unknown) => {
-      const sess = s as { id: string; title: string; status: string; price: number; created_at: string; mentor: { id: string; profiles: { nickname: string } | null } | null };
-      return { id: sess.id, title: sess.title, status: sess.status, price: sess.price, created_at: sess.created_at, role: "mentee", other_name: sess.mentor?.profiles?.nickname ?? "멘토", mentor_cad_id: sess.mentor?.id };
+    // 상대(멘토) 닉네임은 FK 임베딩 대신 cad_mentors → profiles_public 2단계로 조회한다.
+    const menteeMentorIds = [...new Set((asMentee ?? []).map((s: any) => s.mentor_id).filter(Boolean))];
+    const { data: menteeMentorRows } = menteeMentorIds.length > 0
+      ? await supabase.from("cad_mentors").select("id, user_id").in("id", menteeMentorIds)
+      : { data: [] as { id: string; user_id: string }[] };
+    const menteeMentorProfiles = await getProfilesMap((menteeMentorRows ?? []).map((m: any) => m.user_id));
+    const mentorNicknameByCadId: Record<string, string> = {};
+    (menteeMentorRows ?? []).forEach((m: any) => {
+      mentorNicknameByCadId[m.id] = menteeMentorProfiles[m.user_id]?.nickname ?? "멘토";
     });
+
+    const mentee: Session[] = (asMentee ?? []).map((s: any) => ({
+      id: s.id, title: s.title, status: s.status, price: s.price, created_at: s.created_at,
+      role: "mentee", other_name: mentorNicknameByCadId[s.mentor_id] ?? "멘토", mentor_cad_id: s.mentor_id,
+    }));
 
     let mentor: Session[] = [];
     if (mentorId) {
       const { data: asMentor } = await supabase
         .from("cad_mentoring_sessions")
-        .select("id, title, status, price, created_at, mentee_profile:profiles!cad_mentoring_sessions_mentee_id_fkey(nickname)")
+        .select("id, title, status, price, created_at, mentee_id")
         .eq("mentor_id", mentorId)
         .order("created_at", { ascending: false });
-      mentor = (asMentor ?? []).map((s: unknown) => {
-        const sess = s as { id: string; title: string; status: string; price: number; created_at: string; mentee_profile: { nickname: string } | null };
-        return { id: sess.id, title: sess.title, status: sess.status, price: sess.price, created_at: sess.created_at, role: "mentor", other_name: sess.mentee_profile?.nickname ?? "멘티" };
-      });
+      // 상대(멘티)는 profiles를 직접 참조하므로 profiles_public 배치 조회로 바로 가져온다.
+      const menteeProfiles = await getProfilesMap((asMentor ?? []).map((s: any) => s.mentee_id));
+      mentor = (asMentor ?? []).map((s: any) => ({
+        id: s.id, title: s.title, status: s.status, price: s.price, created_at: s.created_at,
+        role: "mentor", other_name: menteeProfiles[s.mentee_id]?.nickname ?? "멘티",
+      }));
     }
 
     setSessions([...mentor, ...mentee].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
@@ -148,44 +162,43 @@ function MyActivityPage() {
 
     const { data: asSubscriber } = await supabase
       .from("cad_subscriptions")
-      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, post_review_cad_count, mentor_id, mentor:cad_mentors(user_id, is_suspended, profiles(nickname))")
+      .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, post_review_cad_count, mentor_id")
       .eq("subscriber_id", uid)
       .order("created_at", { ascending: false });
 
-    const subscriber: Subscription[] = (asSubscriber ?? []).map((s: unknown) => {
-      const sub = s as {
-        id: string; plan_type: string; status: string; expires_at: string; price: number;
-        mentor_change_count: number; checklist_count: number; review_count: number; post_review_cad_count: number; mentor_id: string;
-        mentor: { user_id: string; is_suspended: boolean; profiles: { nickname: string } | null } | null;
-      };
-      return {
-        id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
-        mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count,
-        post_review_cad_count: sub.post_review_cad_count ?? 0, mentor_id: sub.mentor_id,
-        role: "subscriber", other_name: sub.mentor?.profiles?.nickname ?? "멘토", is_mentor_suspended: sub.mentor?.is_suspended ?? false,
-      };
+    // 상대(멘토) 닉네임/정지여부는 FK 임베딩 대신 cad_mentors → profiles_public 2단계로 조회한다.
+    const subMentorIds = [...new Set((asSubscriber ?? []).map((s: any) => s.mentor_id).filter(Boolean))];
+    const { data: subMentorRows } = subMentorIds.length > 0
+      ? await supabase.from("cad_mentors").select("id, user_id, is_suspended").in("id", subMentorIds)
+      : { data: [] as { id: string; user_id: string; is_suspended: boolean }[] };
+    const subMentorProfiles = await getProfilesMap((subMentorRows ?? []).map((m: any) => m.user_id));
+    const mentorInfoByCadId: Record<string, { nickname: string; is_suspended: boolean }> = {};
+    (subMentorRows ?? []).forEach((m: any) => {
+      mentorInfoByCadId[m.id] = { nickname: subMentorProfiles[m.user_id]?.nickname ?? "멘토", is_suspended: !!m.is_suspended };
     });
+
+    const subscriber: Subscription[] = (asSubscriber ?? []).map((s: any) => ({
+      id: s.id, plan_type: s.plan_type, status: s.status, expires_at: s.expires_at, price: s.price,
+      mentor_change_count: s.mentor_change_count, checklist_count: s.checklist_count, review_count: s.review_count,
+      post_review_cad_count: s.post_review_cad_count ?? 0, mentor_id: s.mentor_id,
+      role: "subscriber", other_name: mentorInfoByCadId[s.mentor_id]?.nickname ?? "멘토", is_mentor_suspended: mentorInfoByCadId[s.mentor_id]?.is_suspended ?? false,
+    }));
 
     let mentorSubs: Subscription[] = [];
     if (mentorId) {
       const { data: asMentor } = await supabase
         .from("cad_subscriptions")
-        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, post_review_cad_count, mentor_id, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
+        .select("id, plan_type, status, expires_at, price, mentor_change_count, checklist_count, review_count, post_review_cad_count, mentor_id, subscriber_id")
         .eq("mentor_id", mentorId)
         .order("created_at", { ascending: false });
-      mentorSubs = (asMentor ?? []).map((s: unknown) => {
-        const sub = s as {
-          id: string; plan_type: string; status: string; expires_at: string; price: number;
-          mentor_change_count: number; checklist_count: number; review_count: number; post_review_cad_count: number; mentor_id: string;
-          subscriber_profile: { nickname: string } | null;
-        };
-        return {
-          id: sub.id, plan_type: sub.plan_type, status: sub.status, expires_at: sub.expires_at, price: sub.price,
-          mentor_change_count: sub.mentor_change_count, checklist_count: sub.checklist_count, review_count: sub.review_count,
-          post_review_cad_count: sub.post_review_cad_count ?? 0, mentor_id: sub.mentor_id,
-          role: "mentor", other_name: sub.subscriber_profile?.nickname ?? "수강생", is_mentor_suspended: false,
-        };
-      });
+      // 상대(수강생)는 profiles를 직접 참조하므로 profiles_public 배치 조회로 바로 가져온다.
+      const subscriberProfiles = await getProfilesMap((asMentor ?? []).map((s: any) => s.subscriber_id));
+      mentorSubs = (asMentor ?? []).map((s: any) => ({
+        id: s.id, plan_type: s.plan_type, status: s.status, expires_at: s.expires_at, price: s.price,
+        mentor_change_count: s.mentor_change_count, checklist_count: s.checklist_count, review_count: s.review_count,
+        post_review_cad_count: s.post_review_cad_count ?? 0, mentor_id: s.mentor_id,
+        role: "mentor", other_name: subscriberProfiles[s.subscriber_id]?.nickname ?? "수강생", is_mentor_suspended: false,
+      }));
     }
 
     setSubscriptions([...subscriber, ...mentorSubs].sort((a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime()));

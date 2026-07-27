@@ -100,7 +100,8 @@ export default function SellerPage() {
       const currentUserId_ = token ? ((decodeJwt(token) as any)?.sub as string) : "";
       setCurrentUserId(currentUserId_);
 
-      const { data: _sellerArr, error: sellerError } = await sbFetch("profiles", `?id=eq.${id}&limit=1`);
+      // 타인(판매자) 공개 프로필이라 profiles가 아닌 공개 컬럼만 담은 profiles_public을 조회한다.
+      const { data: _sellerArr, error: sellerError } = await sbFetch("profiles_public", `?id=eq.${id}&limit=1`);
       const sellerData = (_sellerArr as any[])?.[0] ?? null;
 
       if (sellerError) {

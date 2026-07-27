@@ -97,7 +97,8 @@ export default function NotificationsPage() {
 
       const idArray = Array.from(ids);
       if (idArray.length > 0) {
-        const { data: profileRows } = await sbFetch("profiles", `?id=in.(${idArray.join(",")})`);
+        // 타인(팔로워/대화상대) 프로필이라 공개 컬럼만 담은 profiles_public을 조회한다.
+        const { data: profileRows } = await sbFetch("profiles_public", `?id=in.(${idArray.join(",")})`);
         const nextMap: Record<string, ProfileItem> = {};
         (profileRows || []).forEach((row: ProfileItem) => { nextMap[row.id] = row; });
         setProfilesMap(nextMap);

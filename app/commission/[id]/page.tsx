@@ -14,6 +14,7 @@ import { Grade } from "@/lib/grades";
 import { GOLD } from "@/lib/constants";
 import ContactButtons from "../../components/ContactButtons";
 import TaxInvoiceRequestModal from "../../components/TaxInvoiceRequestModal";
+import { getProfilesMap, PublicProfile } from "../../lib/getProfile";
 
 
 const PRIVATE_STEPS = ["pending", "negotiating", "payment", "working", "completed", "downloaded"];
@@ -144,7 +145,6 @@ type Comment = {
   user_id: string;
   content: string;
   created_at: string;
-  profiles: { nickname: string | null } | { nickname: string | null }[] | null;
 };
 
 type Negotiation = {
@@ -198,6 +198,7 @@ export default function CommissionDetailPage() {
   const [linkPanelOpen, setLinkPanelOpen] = useState(false);
 
   const [comments, setComments] = useState<Comment[]>([]);
+  const [commentProfiles, setCommentProfiles] = useState<Record<string, PublicProfile>>({});
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
@@ -388,11 +389,11 @@ export default function CommissionDetailPage() {
         return;
       }
 
-      const { data: profile } = await supabase.from("profiles").select("nickname").eq("id", data.user_id).single();
+      const { data: profile } = await supabase.from("profiles_public").select("nickname").eq("id", data.user_id).single();
       setCommission({ ...data, nickname: profile?.nickname || "익명" });
       if (data.is_private && data.target_seller_id) {
         const { data: sp } = await supabase
-          .from("profiles")
+          .from("profiles_public")
           .select("nickname, grade, phone_number, opentalk_url, contact_phone, is_business_verified")
           .eq("id", data.target_seller_id)
           .single();
@@ -414,7 +415,7 @@ export default function CommissionDetailPage() {
     const { data } = await supabase.from("commission_results").select("id, commission_id, seller_id, result_link").eq("commission_id", id);
     const rows = data || [];
     if (!rows.length) { setResults([]); return; }
-    const { data: profilesData } = await supabase.from("profiles").select("id, nickname, grade").in("id", rows.map((r: any) => r.seller_id));
+    const { data: profilesData } = await supabase.from("profiles_public").select("id, nickname, grade").in("id", rows.map((r: any) => r.seller_id));
     const pm = Object.fromEntries((profilesData || []).map((p: any) => [p.id, p]));
     setResults(rows.map((r: any) => ({ ...r, nickname: pm[r.seller_id]?.nickname || "판매자", grade: pm[r.seller_id]?.grade || null })));
   };
@@ -505,7 +506,7 @@ export default function CommissionDetailPage() {
         .order("created_at", { ascending: true });
       if (error || !bids || bids.length === 0) { setAllBids([]); return; }
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("profiles_public")
         .select("id, nickname, grade")
         .in("id", bids.map((b: any) => b.seller_id));
       const pm = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
@@ -596,9 +597,12 @@ export default function CommissionDetailPage() {
     setCommentsLoading(true);
     try {
       const { data } = await supabase.from("commission_comments")
-        .select("id, commission_id, user_id, content, created_at, profiles(nickname)")
+        .select("id, commission_id, user_id, content, created_at")
         .eq("commission_id", id).order("created_at", { ascending: false });
-      setComments((data as Comment[]) || []);
+      const rows = (data as Comment[]) || [];
+      setComments(rows);
+      // 댓글 작성자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      getProfilesMap(rows.map((c) => c.user_id)).then(setCommentProfiles);
     } finally { setCommentsLoading(false); }
   };
 
@@ -2526,7 +2530,7 @@ export default function CommissionDetailPage() {
                 <div key={comment.id} style={{ borderBottom: "1px solid #f3f4f6", padding: "12px 0" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ fontWeight: 700, fontSize: 13, color: "#111827" }}>
-                      {(Array.isArray(comment.profiles) ? comment.profiles[0]?.nickname : comment.profiles?.nickname) || "익명"}
+                      {commentProfiles[comment.user_id]?.nickname || "익명"}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontSize: 11, color: "#9ca3af" }}>{fd(comment.created_at)}</span>

@@ -3,7 +3,7 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
-import { sbFetch, sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
+import { sbAuthFetch, getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo, showSuccess } from "../lib/toast";
 import GradeBadge from "../components/GradeBadge";
 import Image from "next/image";
@@ -13,6 +13,7 @@ import { Phone } from "lucide-react";
 import { compressThumbnail } from "@/lib/imageCompression";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import { GOLD } from "@/lib/constants";
+import { getProfilesMap } from "../lib/getProfile";
 
 type TabId = "basic" | "follow" | "seller" | "mentor" | "stats" | "grade" | "points" | "users" | "taxInvoices";
 type UserListSubTab = "sellers" | "mentors" | "all";
@@ -178,7 +179,9 @@ export default function ProfilePage() {
       setEmail(finalEmail);
       initialEmailRef.current = finalEmail;
 
-      const { data: profileArr } = await sbFetch("profiles", `?id=eq.${uid}&limit=1`);
+      // 본인 프로필(계좌/사업자 정보 등 비공개 컬럼 포함)이라 sbFetch(anon)가 아닌
+      // sbAuthFetch(본인 토큰)로 조회해야 profiles RLS(본인만 SELECT)를 통과한다.
+      const { data: profileArr } = await sbAuthFetch("profiles", `?id=eq.${uid}&limit=1`);
       const profile = (profileArr as any[])?.[0] ?? null;
 
       if (profile) {
@@ -243,7 +246,7 @@ export default function ProfilePage() {
       const allIds = [...new Set([...followingIds, ...followerIds])];
       if (allIds.length === 0) { setFollowing([]); setFollowers([]); return; }
       const { data: profiles } = await supabase
-        .from("profiles").select("id, nickname, avatar_url, bio, grade, phone_number").in("id", allIds);
+        .from("profiles_public").select("id, nickname, avatar_url, bio, grade, phone_number").in("id", allIds);
       const map: Record<string, FollowProfile> = {};
       (profiles || []).forEach((p: any) => { map[p.id] = { id: p.id, nickname: p.nickname || "익명", avatar_url: p.avatar_url, bio: p.bio, grade: p.grade, phone_number: p.phone_number }; });
       setFollowing(followingIds.map((id: string) => map[id]).filter(Boolean));
@@ -379,7 +382,8 @@ export default function ProfilePage() {
     setPhoneError("");
     setSaving(true);
     try {
-      const { data: existingArr } = await sbFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
+      // 본인 프로필 존재 여부 확인 — 마찬가지로 sbAuthFetch(본인 토큰) 사용
+      const { data: existingArr } = await sbAuthFetch("profiles", `?select=id&id=eq.${userId}&limit=1`);
       const exists = (existingArr as any[])?.[0];
 
       const coreFields = { nickname, bio, avatar_url: avatarUrl };
@@ -581,34 +585,36 @@ export default function ProfilePage() {
     setUserListLoading(true);
     try {
       if (sub === "sellers") {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, nickname, avatar_url, grade")
-          .eq("role", "seller")
-          .is("deleted_at", null)
-          .eq("is_seller_banned", false)
-          .order("created_at", { ascending: false });
+        // deleted_at/is_seller_banned은 profiles RLS(본인+관리자만)로 잠겨 있어
+        // 서버(service_role)에서 필터링하는 /api/users/directory를 경유한다.
+        const token = getAccessToken();
+        const res = await fetch("/api/users/directory?sub=sellers", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const { users: data } = await res.json();
         setSellersList((data || []).map((u: any) => ({ ...u, grade: u.grade as Grade | null })));
       } else if (sub === "mentors") {
         const { data } = await supabase
           .from("cad_mentors")
-          .select("user_id, mentor_grade, profiles(id, nickname, avatar_url)")
+          .select("user_id, mentor_grade")
           .eq("is_active", true)
           .eq("is_suspended", false);
+        // 멘토 닉네임/아바타는 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+        const profilesMap = await getProfilesMap((data || []).map((m: any) => m.user_id));
         setMentorsList((data || []).map((m: any) => ({
           id: m.user_id,
-          nickname: (m.profiles as any)?.nickname ?? "—",
-          avatar_url: (m.profiles as any)?.avatar_url ?? null,
+          nickname: profilesMap[m.user_id]?.nickname ?? "—",
+          avatar_url: profilesMap[m.user_id]?.avatar_url ?? null,
           grade: null,
           mentor_grade: m.mentor_grade ?? "normal",
         })));
       } else {
-        const { data } = await supabase
-          .from("profiles")
-          .select("id, nickname, avatar_url, grade")
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(200);
+        // deleted_at도 마찬가지로 비공개 컬럼이라 서버 라우트를 경유한다.
+        const token = getAccessToken();
+        const res = await fetch("/api/users/directory?sub=all", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const { users: data } = await res.json();
         setAllUsersList((data || []).map((u: any) => ({ ...u, grade: u.grade as Grade | null })));
       }
     } catch (e) {
@@ -2255,7 +2261,7 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor, opentalkUrl, conta
       const [{ data: subs }, { data: warns }] = await Promise.all([
         supabase
           .from("cad_subscriptions")
-          .select("id, plan_type, status, started_at, expires_at, checklist_count, review_count, subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname)")
+          .select("id, plan_type, status, started_at, expires_at, checklist_count, review_count, subscriber_id")
           .eq("mentor_id", mentor.id)
           .order("created_at", { ascending: false }),
         supabase
@@ -2265,7 +2271,11 @@ function MentorTab({ userId, isSeller, isMentor, setIsMentor, opentalkUrl, conta
           .order("created_at", { ascending: false }),
       ]);
 
-      setSubscriptions((subs ?? []) as unknown as MentorSub[]);
+      // 수강생 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      const subscriberProfiles = await getProfilesMap((subs ?? []).map((s: any) => s.subscriber_id));
+      setSubscriptions(
+        (subs ?? []).map((s: any) => ({ ...s, subscriber_profile: { nickname: subscriberProfiles[s.subscriber_id]?.nickname ?? null } })) as unknown as MentorSub[]
+      );
       setWarnings((warns ?? []) as MentorWarning[]);
     }
     setTabLoading(false);

@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   const [profiles, commentCounts] = await Promise.all([
     sellerIds.length > 0
       ? fetch(
-          `${SUPABASE_URL}/rest/v1/profiles?select=id,nickname,grade&id=in.(${sellerIds.join(",")})`,
+          `${SUPABASE_URL}/rest/v1/profiles_public?select=id,nickname,grade&id=in.(${sellerIds.join(",")})`,
           { headers: authHeaders, next: { revalidate: 60 } }
         ).then((r) => r.json())
       : Promise.resolve([]),

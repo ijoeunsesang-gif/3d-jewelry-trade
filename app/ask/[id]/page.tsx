@@ -7,9 +7,9 @@ import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import Image from "next/image";
 import { GOLD } from "@/lib/constants";
+import { getProfilesMap } from "../../lib/getProfile";
 
 const MAX_IMAGES = 5;
-const DAILY_POINT_LIMIT = 100;
 const MIN_ANSWER_LENGTH = 20;
 const REPORT_THRESHOLD = 3;
 
@@ -48,34 +48,23 @@ type AskAnswer = {
   reported: boolean;
 };
 
-// 포인트 지급 가능 여부를 확인 후 지급하는 내부 헬퍼
-const tryAddAskPoints = async (
-  userId: string,
-  amount: number,
-  reason: string,
-  referenceId?: string
-): Promise<boolean> => {
-  // 1. is_point_blocked 확인
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("is_point_blocked")
-    .eq("id", userId)
-    .single();
-  if (profile?.is_point_blocked) return false;
-
-  // 2. 일일 한도 확인
-  const { data: todayRows } = await supabase
-    .from("points")
-    .select("amount")
-    .eq("user_id", userId)
-    .in("reason", ["답변 등록", "답변 좋아요", "답변 채택"])
-    .gte("created_at", new Date(new Date().setHours(0, 0, 0, 0)).toISOString());
-  const todayTotal = (todayRows || []).reduce((s: number, r: any) => s + (r.amount > 0 ? r.amount : 0), 0);
-  if (todayTotal >= DAILY_POINT_LIMIT) return false;
-
-  await supabase.from("points").insert({ user_id: userId, amount, reason, reference_id: referenceId || null });
-  await supabase.rpc("increment_profile_points", { uid: userId, delta: amount });
-  return true;
+// 포인트 지급(등록/좋아요/채택)은 is_point_blocked 확인이 필요해 서버(service_role)에서 처리한다.
+// (profiles의 is_point_blocked는 비공개 컬럼이라 클라이언트에서 타인 행을 조회할 수 없고,
+//  amount/reason을 클라이언트가 그대로 넘기면 임의로 포인트를 받아갈 수 있어 서버가 직접 검증/결정한다.)
+const awardAskPoints = async (action: "register" | "like" | "accept", answerId: string): Promise<boolean> => {
+  const token = getAccessToken();
+  if (!token) return false;
+  try {
+    const res = await fetch("/api/ask/award-points", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, answerId }),
+    });
+    const data = await res.json();
+    return !!data.awarded;
+  } catch {
+    return false;
+  }
 };
 
 export default function AskDetailPage() {
@@ -141,12 +130,14 @@ export default function AskDetailPage() {
 
     const { data: postData } = await supabase
       .from("ask_posts")
-      .select("*, profiles(nickname)")
+      .select("*")
       .eq("id", id)
       .single();
 
     if (!postData) { setLoading(false); return; }
-    setPost({ ...postData, nickname: (postData.profiles as any)?.nickname || "익명" });
+    // 작성자 닉네임은 FK 임베딩 대신 profiles_public 단건 조회로 가져온다.
+    const authorMap = await getProfilesMap([postData.user_id]);
+    setPost({ ...postData, nickname: authorMap[postData.user_id]?.nickname || "익명" });
 
     await fetchAnswers();
     setLoading(false);
@@ -155,7 +146,7 @@ export default function AskDetailPage() {
   const fetchAnswers = async () => {
     const { data: answersData } = await supabase
       .from("ask_answers")
-      .select("*, profiles(nickname)")
+      .select("*")
       .eq("post_id", id)
       .order("is_accepted", { ascending: false })
       .order("likes", { ascending: false })
@@ -174,10 +165,13 @@ export default function AskDetailPage() {
       reportedSet = new Set((reports || []).map((r: any) => r.answer_id));
     }
 
+    // 답변 작성자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+    const authorMap = await getProfilesMap((answersData as any[]).map((a) => a.user_id));
+
     setAnswers(
       (answersData as any[]).map((a) => ({
         ...a,
-        nickname: (a.profiles as any)?.nickname || "익명",
+        nickname: authorMap[a.user_id]?.nickname || "익명",
         liked: likedSet.has(a.id),
         reported: reportedSet.has(a.id),
         report_count: a.report_count ?? 0,
@@ -231,39 +225,8 @@ export default function AskDetailPage() {
       .single();
 
     if (!error && data) {
-      // 포인트 지급 조건 검사
-      const meetsLength = answerContent.trim().length >= MIN_ANSWER_LENGTH;
-      const isSolved = post?.is_solved ?? false;
-
-      const isSelfAnswer = post?.user_id === myId;
-
-      if (meetsLength && !isSolved && !isSelfAnswer) {
-        // 이 post_id에 이미 포인트를 받은 적 있는지 확인
-        await supabase
-          .from("points")
-          .select("id")
-          .eq("user_id", myId)
-          .eq("reason", "답변 등록")
-          .like("reference_id", `%`) // reference_id는 answer.id — post_id와 맞춰 조회
-          .limit(1);
-
-        // answer.id 기반이므로 post 내 기존 답변 id들로 확인
-        const myPrevAnswers = answers.filter((a) => a.user_id === myId);
-        const alreadyEarned = myPrevAnswers.length > 0
-          ? (await supabase
-              .from("points")
-              .select("id")
-              .eq("user_id", myId)
-              .eq("reason", "답변 등록")
-              .in("reference_id", myPrevAnswers.map((a) => a.id))
-              .limit(1)
-            ).data?.length ?? 0
-          : 0;
-
-        if (alreadyEarned === 0) {
-          await tryAddAskPoints(myId, 5, "답변 등록", data.id);
-        }
-      }
+      // 등록 포인트 지급 조건(길이/미해결/본인글 아님/중복 아님)은 서버에서 검증한다.
+      await awardAskPoints("register", data.id);
 
       setAnswerContent("");
       setAnswerImages([]);
@@ -282,7 +245,7 @@ export default function AskDetailPage() {
       const { error } = await supabase.from("ask_answer_likes").insert({ answer_id: answer.id, user_id: myId });
       if (!error) {
         await supabase.from("ask_answers").update({ likes: answer.likes + 1 }).eq("id", answer.id);
-        await tryAddAskPoints(answer.user_id, 2, "답변 좋아요", answer.id);
+        await awardAskPoints("like", answer.id);
       }
     }
     await fetchAnswers();
@@ -298,7 +261,7 @@ export default function AskDetailPage() {
       updated_at: new Date().toISOString(),
     }).eq("id", post.id);
 
-    await tryAddAskPoints(answer.user_id, 20, "답변 채택", answer.id);
+    await awardAskPoints("accept", answer.id);
     await fetchPost();
   };
 
@@ -326,37 +289,16 @@ export default function AskDetailPage() {
     if (!myId || !reportTarget || !reportReason || reportSubmitting) return;
     setReportSubmitting(true);
 
-    const { error } = await supabase.from("ask_reports").insert({
-      answer_id: reportTarget.id,
-      reporter_id: myId,
-      reason: reportReason,
+    // 신고 누적 3회 시 포인트 회수 + is_point_blocked 설정은 "남의 비공개 컬럼 수정"이라
+    // 서버(service_role)에서 처리한다.
+    const token = getAccessToken();
+    const res = await fetch("/api/ask/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ answerId: reportTarget.id, reason: reportReason }),
     });
 
-    if (!error) {
-      // 신고 3회 이상이면 포인트 회수 + is_point_blocked 설정
-      const newCount = (reportTarget.report_count ?? 0) + 1;
-      if (newCount >= REPORT_THRESHOLD) {
-        // 이 답변으로 받은 포인트 회수 (답변 등록 +5)
-        const { data: earnedRows } = await supabase
-          .from("points")
-          .select("amount")
-          .eq("user_id", reportTarget.user_id)
-          .eq("reference_id", reportTarget.id)
-          .gt("amount", 0);
-        const earnedTotal = (earnedRows || []).reduce((s: number, r: any) => s + r.amount, 0);
-        if (earnedTotal > 0) {
-          await supabase.from("points").insert({
-            user_id: reportTarget.user_id,
-            amount: -earnedTotal,
-            reason: "신고 누적 포인트 회수",
-            reference_id: reportTarget.id,
-          });
-          await supabase.rpc("increment_profile_points", { uid: reportTarget.user_id, delta: -earnedTotal });
-        }
-        // 포인트 차단
-        await supabase.from("profiles").update({ is_point_blocked: true }).eq("id", reportTarget.user_id);
-      }
-
+    if (res.ok) {
       await fetchAnswers();
     }
 

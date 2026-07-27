@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { GOLD } from "@/lib/constants";
+import { getProfilesMap } from "../../lib/getProfile";
 
 
 type JobPost = {
@@ -59,12 +60,14 @@ export default function JobDetailPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("job_posts")
-      .select("*, profiles(nickname)")
+      .select("*")
       .eq("id", id)
       .single();
 
     if (!error && data) {
-      setPost({ ...data, nickname: (data.profiles as any)?.nickname || "익명" });
+      // 작성자 닉네임은 FK 임베딩 대신 profiles_public 단건 조회로 가져온다.
+      const authorMap = await getProfilesMap([data.user_id]);
+      setPost({ ...data, nickname: authorMap[data.user_id]?.nickname || "익명" });
     }
     setLoading(false);
   };

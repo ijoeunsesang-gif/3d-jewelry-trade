@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { GOLD } from "@/lib/constants";
+import { getProfilesMap } from "../lib/getProfile";
 
 
 type AskPost = {
@@ -42,7 +43,7 @@ export default function AskPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("ask_posts")
-      .select("id, title, is_solved, view_count, created_at, profiles(nickname)")
+      .select("id, title, is_solved, view_count, created_at, user_id")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
@@ -57,6 +58,8 @@ export default function AskPage() {
           counts[a.post_id] = (counts[a.post_id] || 0) + 1;
         });
       }
+      // 작성자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      const profilesMap = await getProfilesMap((data as any[]).map((p) => p.user_id));
       setPosts(
         (data as any[]).map((p) => ({
           id: p.id,
@@ -64,7 +67,7 @@ export default function AskPage() {
           is_solved: p.is_solved,
           view_count: p.view_count,
           created_at: p.created_at,
-          nickname: (p.profiles as any)?.nickname || "익명",
+          nickname: profilesMap[p.user_id]?.nickname || "익명",
           answer_count: counts[p.id] || 0,
         }))
       );

@@ -9,6 +9,7 @@ import { showError, showSuccess, showInfo } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
 import Image from "next/image";
 import ContactButtons from "../../../components/ContactButtons";
+import { getProfilesMap } from "../../../lib/getProfile";
 
 const GOLD_LIGHT = "#fdf6e3";
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg", "avif"];
@@ -147,12 +148,24 @@ export default function SubscriptionChatPage() {
   const loadData = useCallback(async () => {
     const { data: subData } = await supabase
       .from("cad_subscriptions")
-      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at, mentor:cad_mentors(id, user_id, avg_rating, total_ratings, is_suspended, profiles(nickname, avatar_url, opentalk_url, contact_phone)), subscriber_profile:profiles!cad_subscriptions_subscriber_id_fkey(nickname, avatar_url)")
+      .select("id, subscriber_id, mentor_id, plan_type, status, mentor_change_count, checklist_count, review_count, post_review_cad_count, expires_at")
       .eq("id", id)
       .single();
 
     if (!subData) { router.push("/cad-school/my"); return; }
-    setSub(subData as unknown as Subscription);
+
+    // 멘토/구독자 닉네임 등은 FK 임베딩 대신 cad_mentors → profiles_public 2단계로 조회한다.
+    const { data: mentorRow } = await supabase
+      .from("cad_mentors")
+      .select("id, user_id, avg_rating, total_ratings, is_suspended")
+      .eq("id", subData.mentor_id)
+      .maybeSingle();
+    const profilesMap = await getProfilesMap([mentorRow?.user_id, subData.subscriber_id]);
+    setSub({
+      ...subData,
+      mentor: mentorRow ? { ...mentorRow, profiles: profilesMap[mentorRow.user_id] ?? null } : null,
+      subscriber_profile: profilesMap[subData.subscriber_id] ?? null,
+    } as unknown as Subscription);
 
     const { data: msgData } = await supabase
       .from("cad_subscription_chats")
@@ -439,9 +452,13 @@ export default function SubscriptionChatPage() {
     setShowChangeMentor(true); setLoadingMentors(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, user_id, avg_rating, total_ratings, is_suspended, profiles(nickname, avatar_url)")
+      .select("id, user_id, avg_rating, total_ratings, is_suspended")
       .eq("is_active", true).eq("is_suspended", false).neq("id", sub?.mentor_id ?? "");
-    setAvailableMentors((data ?? []) as unknown as AvailableMentor[]);
+    // 닉네임/아바타는 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+    const profilesMap = await getProfilesMap((data ?? []).map((m: any) => m.user_id));
+    setAvailableMentors(
+      (data ?? []).map((m: any) => ({ ...m, profiles: profilesMap[m.user_id] ?? null })) as unknown as AvailableMentor[]
+    );
     setLoadingMentors(false);
   };
 

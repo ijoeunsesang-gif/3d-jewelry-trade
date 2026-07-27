@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase-browser";
 import { GOLD } from "@/lib/constants";
+import { getProfile } from "../lib/getProfile";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -51,10 +52,12 @@ export default function MentorNickname({ mentorId, nickname, isMentor, inModal =
       setLoading(true);
       const { data } = await supabase
         .from("cad_mentors")
-        .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate, programs, work_types, profiles(nickname, avatar_url, grade)")
+        .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate, programs, work_types")
         .eq("id", mentorId)
         .single();
-      setMentorData(data as unknown as MentorMiniData);
+      // 멘토 닉네임/아바타/등급은 FK 임베딩 대신 profiles_public 조회로 가져온다.
+      const profile = data ? await getProfile(data.user_id) : null;
+      setMentorData(data ? ({ ...data, profiles: profile } as unknown as MentorMiniData) : null);
       setLoading(false);
     }
     setShowPopover(true);

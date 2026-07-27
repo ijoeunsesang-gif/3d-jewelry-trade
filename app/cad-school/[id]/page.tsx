@@ -11,6 +11,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "../../lib/toast";
 import { GOLD } from "@/lib/constants";
 import Image from "next/image";
+import { getProfilesMap } from "../../lib/getProfile";
 
 
 type FileItem = { name: string; url: string; ext: string };
@@ -105,20 +106,24 @@ export default function CadPostDetailPage() {
     setLoading(true);
     const { data: postData } = await supabase
       .from("cad_posts")
-      .select("id, title, content, status, files, created_at, user_id, profiles(nickname, avatar_url, grade)")
+      .select("id, title, content, status, files, created_at, user_id")
       .eq("id", id)
       .single();
 
     if (!postData) { router.push("/cad-school"); return; }
-    setPost(postData as unknown as Post);
 
     const { data: commentData } = await supabase
       .from("cad_post_comments")
-      .select("id, content, files, is_best_answer, point_reward, created_at, user_id, parent_id, profiles(nickname, avatar_url, grade)")
+      .select("id, content, files, is_best_answer, point_reward, created_at, user_id, parent_id")
       .eq("post_id", id)
       .order("created_at", { ascending: true });
 
-    setAllComments((commentData ?? []) as unknown as Comment[]);
+    // 게시글/댓글 작성자 닉네임은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+    const profilesMap = await getProfilesMap([postData.user_id, ...(commentData ?? []).map((c: any) => c.user_id)]);
+    setPost({ ...postData, profiles: profilesMap[postData.user_id] ?? null } as unknown as Post);
+    setAllComments(
+      (commentData ?? []).map((c: any) => ({ ...c, profiles: profilesMap[c.user_id] ?? null })) as unknown as Comment[]
+    );
     setLoading(false);
   };
 

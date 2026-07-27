@@ -11,6 +11,7 @@ import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
 import { GOLD } from "@/lib/constants";
 import Image from "next/image";
+import { getProfilesMap } from "../../../lib/getProfile";
 
 const GOLD_LIGHT = "#fdf6e3";
 const CURRENT_YEAR = new Date().getFullYear();
@@ -62,12 +63,16 @@ export default function SubscribePlanPage() {
     setLoading(true);
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate, profiles(nickname, avatar_url, grade)")
+      .select("id, user_id, intro, career_start_year, avg_rating, total_ratings, response_rate")
       .eq("is_active", true)
       .eq("is_suspended", false)
       .order("avg_rating", { ascending: false });
 
-    if (data) setMentors(data as unknown as Mentor[]);
+    if (data) {
+      // 멘토 닉네임/아바타/등급은 FK 임베딩 대신 profiles_public 배치 조회로 가져온다.
+      const profilesMap = await getProfilesMap(data.map((m: any) => m.user_id));
+      setMentors(data.map((m: any) => ({ ...m, profiles: profilesMap[m.user_id] ?? null })) as unknown as Mentor[]);
+    }
     setLoading(false);
   };
 

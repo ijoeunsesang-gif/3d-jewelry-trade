@@ -9,6 +9,7 @@ import { Grade, MentorGrade, MENTOR_GRADE_CONFIG, mentorGradeOrder } from "@/lib
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showInfo } from "../../../lib/toast";
 import Image from "next/image";
+import { getProfile } from "../../../lib/getProfile";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -76,13 +77,15 @@ export default function MentorDetailPage() {
   const loadMentor = async () => {
     const { data } = await supabase
       .from("cad_mentors")
-      .select("id, intro, user_id, career_start_year, programs, work_types, can_cpx, mentor_grade, completed_count, avg_rating, profiles(nickname, avatar_url, grade)")
+      .select("id, intro, user_id, career_start_year, programs, work_types, can_cpx, mentor_grade, completed_count, avg_rating")
       .eq("id", id)
       .eq("is_active", true)
       .single();
 
     if (!data) { router.push("/cad-school"); return; }
-    setMentor(data as unknown as Mentor);
+    // 멘토 닉네임/아바타/등급은 FK 임베딩 대신 profiles_public 단건 조회로 가져온다.
+    const profile = await getProfile(data.user_id);
+    setMentor({ ...data, profiles: profile } as unknown as Mentor);
     setLoading(false);
   };
 

@@ -256,15 +256,13 @@ function CommissionNewInner() {
       return;
     }
     const ids = follows.map((f: any) => f.following_id);
-    const { data: profiles, error } = await supabase
-      .from("profiles")
-      .select("id, nickname, avatar_url, grade")
-      .in("id", ids)
-      .eq("role", "seller")
-      .neq("role", "admin")
-      .neq("id", uid)
-      .eq("is_seller_banned", false)
-      .is("deleted_at", null);
+    // is_seller_banned/deleted_at은 profiles RLS(본인+관리자만)로 잠겨 있어
+    // 서버(service_role)에서 필터링하는 /api/users/directory를 경유한다.
+    const token = getAccessToken();
+    const res = await fetch(`/api/users/directory?sub=commission_sellers&ids=${ids.join(",")}&exclude=${uid}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const { users: profiles, error } = await res.json();
     console.log("[팔로우 판매자] 쿼리 결과:", profiles, "에러:", error);
     setFollowedSellers((profiles || []).map((p: any) => ({
       id: p.id,
@@ -276,15 +274,13 @@ function CommissionNewInner() {
 
   const loadAllSellers = async () => {
     if (allSellersLoaded) return;
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, nickname, avatar_url, grade")
-      .eq("role", "seller")
-      .neq("role", "admin")
-      .neq("id", userId)
-      .eq("is_seller_banned", false)
-      .is("deleted_at", null)
-      .order("nickname", { ascending: true });
+    // is_seller_banned/deleted_at은 profiles RLS(본인+관리자만)로 잠겨 있어
+    // 서버(service_role)에서 필터링하는 /api/users/directory를 경유한다.
+    const token = getAccessToken();
+    const res = await fetch(`/api/users/directory?sub=commission_sellers${userId ? `&exclude=${userId}` : ""}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const { users: data, error } = await res.json();
     console.log("[전체 판매자] 쿼리 결과:", data, "에러:", error);
     setAllSellers((data || []).map((p: any) => ({
       id: p.id,

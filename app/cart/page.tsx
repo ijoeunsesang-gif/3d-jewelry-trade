@@ -81,7 +81,7 @@ function CartPageInner() {
       const sellerIds = [...new Set(cart.map((i) => i.seller_id).filter(Boolean))] as string[];
       if (sellerIds.length > 0) {
         const { data: profiles } = await supabase
-          .from("profiles")
+          .from("profiles_public")
           .select("id, nickname, is_business_verified")
           .in("id", sellerIds);
         const names: Record<string, string> = {};

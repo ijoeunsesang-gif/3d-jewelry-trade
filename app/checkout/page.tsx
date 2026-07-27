@@ -70,7 +70,7 @@ function CheckoutContent() {
       .filter((key) => key !== UNKNOWN_SELLER_KEY);
     if (sellerIds.length === 0) return;
     supabase
-      .from("profiles")
+      .from("profiles_public")
       .select("id, nickname, is_business_verified")
       .in("id", sellerIds)
       .then(({ data }) => {
