@@ -448,8 +448,18 @@ export default function ProfilePage() {
       setAccountError("올바른 계좌번호를 입력해주세요. (숫자만 10~14자리)");
       return;
     }
-    if (!opentalkUrl.trim() && !contactPhone.trim()) {
+    const trimmedOpentalkUrl = opentalkUrl.trim();
+    const trimmedContactPhone = contactPhone.trim();
+    if (!trimmedOpentalkUrl && !trimmedContactPhone) {
       showError("원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다.");
+      return;
+    }
+    if (trimmedContactPhone && !isValidContactPhone(trimmedContactPhone)) {
+      showError("올바른 휴대폰 번호를 입력해주세요. (예: 010-1234-5678)");
+      return;
+    }
+    if (trimmedOpentalkUrl && !isValidContactUrl(trimmedOpentalkUrl)) {
+      showError("올바른 URL을 입력해주세요.");
       return;
     }
     setAccountError("");
@@ -464,8 +474,8 @@ export default function ProfilePage() {
         account_number: accountNumber,
         business_number: businessNumber || null,
         business_name: businessName || null,
-        opentalk_url: opentalkUrl.trim() || null,
-        contact_phone: contactPhone.trim() || null,
+        opentalk_url: trimmedOpentalkUrl || null,
+        contact_phone: trimmedContactPhone ? formatPhoneNumber(trimmedContactPhone) : null,
       }).eq("id", userId);
       if (error) throw error;
       setIsSeller(true);
@@ -1104,7 +1114,7 @@ export default function ProfilePage() {
                       </div>
                       <div style={fieldWrap}>
                         <label style={labelStyle}>휴대폰 번호</label>
-                        <input style={inputStyle} placeholder="010-1234-5678" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+                        <input style={inputStyle} placeholder="010-1234-5678" value={contactPhone} onChange={(e) => setContactPhone(formatPhoneNumber(e.target.value))} />
                       </div>
                     </div>
                   )}
@@ -1959,18 +1969,28 @@ function ContactChannelsSection({
   }, [opentalkUrl, contactPhone]);
 
   const handleSave = async () => {
-    if (!url.trim() && !phone.trim()) {
+    const trimmedUrl = url.trim();
+    const trimmedPhone = phone.trim();
+    if (!trimmedUrl && !trimmedPhone) {
       showError("원활한 소통을 위해 전화번호 또는 오픈톡 URL 중 하나는 필수입니다.");
+      return;
+    }
+    if (trimmedPhone && !isValidContactPhone(trimmedPhone)) {
+      showError("올바른 휴대폰 번호를 입력해주세요. (예: 010-1234-5678)");
+      return;
+    }
+    if (trimmedUrl && !isValidContactUrl(trimmedUrl)) {
+      showError("올바른 URL을 입력해주세요.");
       return;
     }
     setSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({
-        opentalk_url: url.trim() || null,
-        contact_phone: phone.trim() || null,
+        opentalk_url: trimmedUrl || null,
+        contact_phone: trimmedPhone ? formatPhoneNumber(trimmedPhone) : null,
       }).eq("id", userId);
       if (error) throw error;
-      onSaved(url.trim(), phone.trim());
+      onSaved(trimmedUrl, trimmedPhone ? formatPhoneNumber(trimmedPhone) : "");
       setEditing(false);
       showSuccess("연락 수단이 저장되었습니다.");
     } catch (e: any) {
@@ -1984,7 +2004,7 @@ function ContactChannelsSection({
     <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>연락 수단</div>
       <p style={{ margin: 0, fontSize: 13, color: "#6b7280", lineHeight: 1.6 }}>
-        원활한 소통을 위해 오픈톡 또는 연락처 등록을 권장합니다.
+        원활한 소통을 위해 오픈톡 또는 연락처 중 하나는 필수입니다.
       </p>
 
       {!editing ? (
@@ -2002,12 +2022,12 @@ function ContactChannelsSection({
       ) : (
         <>
           <div style={fieldWrap}>
-            <label style={labelStyle}>카카오 오픈톡방 URL <span style={{ color: "#9ca3af", fontWeight: 500 }}>(선택)</span></label>
+            <label style={labelStyle}>카카오 오픈톡방 URL</label>
             <input style={inputStyle} placeholder="https://open.kakao.com/o/..." value={url} onChange={(e) => setUrl(e.target.value)} />
           </div>
           <div style={fieldWrap}>
-            <label style={labelStyle}>휴대폰 번호 <span style={{ color: "#9ca3af", fontWeight: 500 }}>(선택)</span></label>
-            <input style={inputStyle} placeholder="010-1234-5678" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <label style={labelStyle}>휴대폰 번호</label>
+            <input style={inputStyle} placeholder="010-1234-5678" value={phone} onChange={(e) => setPhone(formatPhoneNumber(e.target.value))} />
           </div>
           <div style={{ display: "flex", gap: 10 }}>
             <button type="button" onClick={handleSave} disabled={saving} style={{ ...actionBtn, opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
@@ -2372,6 +2392,22 @@ function formatBusinessNumber(val: string) {
   if (d.length <= 3) return d;
   if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
   return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+}
+
+const PHONE_REGEX = /^01[016789]-?\d{3,4}-?\d{4}$/;
+
+function isValidContactPhone(val: string) {
+  return PHONE_REGEX.test(val);
+}
+
+function isValidContactUrl(val: string) {
+  if (!/^https?:\/\//i.test(val)) return false;
+  try {
+    new URL(val);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /* ── 스타일 상수 ── */
