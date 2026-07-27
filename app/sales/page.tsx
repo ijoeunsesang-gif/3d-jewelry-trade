@@ -50,23 +50,17 @@ export default function SalesPage() {
 
       setModels((myModels as ModelRow[]) || []);
 
-      const modelIds = ((myModels as ModelRow[]) || []).map((m) => m.id);
+      // purchases는 구매자 본인만 조회 가능한 RLS라 판매자 관점에서는 항상 0건으로 보임.
+      // 정산관리와 동일하게 seller_id로 직접 조회 가능한 sale_records를 사용한다.
+      const { data: saleData, error: saleError } = await sbAuthFetch("sale_records", `?select=id,model_id,price:amount,created_at&seller_id=eq.${userId}&order=created_at.desc`);
 
-      if (modelIds.length === 0) {
-        setPurchases([]);
+      if (saleError) {
+        console.error("판매 내역 불러오기 실패:", saleError);
         setLoading(false);
         return;
       }
 
-      const { data: purchaseData, error: purchaseError } = await sbAuthFetch("purchases", `?select=id,model_id,price,created_at&model_id=in.(${modelIds.join(',')})&order=created_at.desc`);
-
-      if (purchaseError) {
-        console.error("판매 내역 불러오기 실패:", purchaseError);
-        setLoading(false);
-        return;
-      }
-
-      setPurchases((purchaseData as PurchaseRow[]) || []);
+      setPurchases((saleData as PurchaseRow[]) || []);
     } catch (error) {
       console.error("판매 통계 불러오기 오류:", error);
     } finally {

@@ -560,9 +560,10 @@ export default function ProfilePage() {
       });
       if (!res.ok) throw new Error("업로드 실패");
       const { url } = await res.json();
-      await supabase.from("profiles").update({ business_registration_url: url }).eq("id", userId);
+      await supabase.from("profiles").update({ business_registration_url: url, is_business_verified: true }).eq("id", userId);
       setBizRegUrl(url);
-      showSuccess("사업자 등록증이 업로드되었습니다.");
+      setIsBusinessVerified(true);
+      showSuccess("사업자 등록증이 업로드되었습니다. 자동 승인되어 세금계산서 발행이 가능합니다.");
     } catch (e: any) {
       showError(e.message || "업로드 실패");
     } finally {
@@ -981,11 +982,11 @@ export default function ProfilePage() {
                         {bizRegUrl && (
                           isBusinessVerified ? (
                             <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, alignSelf: "flex-start", background: "#dcfce7", color: "#16a34a", fontSize: 12, fontWeight: 700 }}>
-                              ✓ 세금계산서 발행 가능 (관리자 승인 완료)
+                              ✓ 세금계산서 발행 가능 (사업자 등록 완료)
                             </div>
                           ) : (
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, alignSelf: "flex-start", background: "#fef3c7", color: "#92400e", fontSize: 12, fontWeight: 700 }}>
-                              ⏳ 관리자 승인 대기 중
+                            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, alignSelf: "flex-start", background: "#fee2e2", color: "#b91c1c", fontSize: 12, fontWeight: 700 }}>
+                              ⚠ 인증이 취소되었습니다 (관리자 문의)
                             </div>
                           )
                         )}
@@ -1072,11 +1073,11 @@ export default function ProfilePage() {
                   <div style={{ border: "1px solid #e5e7eb", borderRadius: 14, padding: "18px 20px", background: "white", display: "flex", flexDirection: "column", gap: 16 }}>
                     <div style={{ fontSize: 14, fontWeight: 800, color: "#111827" }}>사업자 정보 <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", background: "#dcfce7", padding: "1px 7px", borderRadius: 999 }}>선택</span></div>
                     <p style={{ margin: 0, fontSize: 12, color: "#6b7280", lineHeight: 1.6 }}>
-                      사업자 정보 등록 후 관리자 승인 시 세금계산서 발행이 가능합니다.
+                      사업자등록증 등록 시 자동으로 승인되어 세금계산서 발행이 가능합니다.
                       {bizRegUrl && (
                         isBusinessVerified
-                          ? <span style={{ color: "#16a34a", fontWeight: 700 }}> (✓ 승인 완료)</span>
-                          : <span style={{ color: "#92400e", fontWeight: 700 }}> (⏳ 승인 대기 중)</span>
+                          ? <span style={{ color: "#16a34a", fontWeight: 700 }}> (✓ 등록 완료)</span>
+                          : <span style={{ color: "#b91c1c", fontWeight: 700 }}> (⚠ 인증 취소됨)</span>
                       )}
                     </p>
 
@@ -1900,11 +1901,11 @@ function SalesTab({ userId }: { userId: string }) {
         const { data: myModels, error: modelError } = await sbAuthFetch("models", `?select=id,title,thumbnail,thumbnail_path,seller_id&seller_id=eq.${userId}`);
         if (modelError) { setSalesLoading(false); return; }
         setSalesModels((myModels as ModelRow[]) || []);
-        const modelIds = ((myModels as ModelRow[]) || []).map((m) => m.id);
-        if (modelIds.length === 0) { setSalesPurchases([]); setSalesLoading(false); return; }
-        const { data: purchaseData, error: purchaseError } = await sbAuthFetch("purchases", `?select=id,model_id,price,created_at&model_id=in.(${modelIds.join(",")})&order=created_at.desc`);
-        if (purchaseError) { setSalesLoading(false); return; }
-        setSalesPurchases((purchaseData as PurchaseRow[]) || []);
+        // purchases는 구매자 본인만 조회 가능한 RLS라 판매자 관점에서는 항상 0건으로 보임.
+        // 정산관리와 동일하게 seller_id로 직접 조회 가능한 sale_records를 사용한다.
+        const { data: saleData, error: saleError } = await sbAuthFetch("sale_records", `?select=id,model_id,price:amount,created_at&seller_id=eq.${userId}&order=created_at.desc`);
+        if (saleError) { setSalesLoading(false); return; }
+        setSalesPurchases((saleData as PurchaseRow[]) || []);
       } catch (e) {
         console.error("판매 통계 불러오기 오류:", e);
       } finally {

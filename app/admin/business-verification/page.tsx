@@ -7,22 +7,25 @@ import { supabase } from "@/app/lib/supabase-browser";
 import { getAccessToken, decodeJwt } from "@/lib/supabase-fetch";
 import { showError, showSuccess } from "@/app/lib/toast";
 
-type PendingSeller = {
+type RegisteredSeller = {
   id: string;
   nickname: string | null;
   business_name: string | null;
   business_number: string | null;
   business_registration_url: string | null;
   is_business_verified: boolean;
+  seller_registered_at: string | null;
 };
+
+type FilterKey = "all" | "verified" | "revoked";
 
 export default function BusinessVerificationPage() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
-  const [sellers, setSellers] = useState<PendingSeller[]>([]);
-  const [showVerified, setShowVerified] = useState(false);
+  const [sellers, setSellers] = useState<RegisteredSeller[]>([]);
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,19 +54,18 @@ export default function BusinessVerificationPage() {
 
   useEffect(() => {
     if (authorized) fetchSellers();
-  }, [authorized, showVerified]);
+  }, [authorized]);
 
   const fetchSellers = async () => {
     setFetching(true);
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nickname, business_name, business_number, business_registration_url, is_business_verified")
+        .select("id, nickname, business_name, business_number, business_registration_url, is_business_verified, seller_registered_at")
         .not("business_registration_url", "is", null)
-        .eq("is_business_verified", showVerified)
         .order("seller_registered_at", { ascending: false });
       if (error) throw error;
-      setSellers((data as PendingSeller[]) || []);
+      setSellers((data as RegisteredSeller[]) || []);
     } catch (e) {
       console.error(e);
       showError("목록을 불러오지 못했습니다.");
@@ -72,18 +74,18 @@ export default function BusinessVerificationPage() {
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const handleSetVerified = async (id: string, verified: boolean) => {
     setProcessingId(id);
     try {
       const token = getAccessToken();
       const res = await fetch("/api/admin/business-verification", {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, verified }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || "승인 처리 실패"); return; }
-      showSuccess("승인되었습니다.");
+      if (!res.ok) { showError(data.error || "처리 실패"); return; }
+      showSuccess(verified ? "재인증되었습니다." : "인증이 취소되었습니다.");
       fetchSellers();
     } catch {
       showError("처리 중 오류가 발생했습니다.");
@@ -92,6 +94,12 @@ export default function BusinessVerificationPage() {
     }
   };
 
+  const filteredSellers = sellers.filter((s) => {
+    if (filter === "verified") return s.is_business_verified;
+    if (filter === "revoked") return !s.is_business_verified;
+    return true;
+  });
+
   if (loading) return <main style={{ padding: 60, textAlign: "center", color: "#6b7280" }}>확인 중...</main>;
   if (!authorized) return null;
 
@@ -99,9 +107,9 @@ export default function BusinessVerificationPage() {
     <main style={{ maxWidth: 900, margin: "40px auto", padding: "0 20px 80px", fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <div style={{ marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 32, fontWeight: 900, color: "#111827", margin: 0 }}>사업자 등록 승인</h1>
+          <h1 style={{ fontSize: 32, fontWeight: 900, color: "#111827", margin: 0 }}>사업자 등록 기록</h1>
           <p style={{ color: "#6b7280", marginTop: 6, fontSize: 13 }}>
-            사업자등록증을 등록한 판매자를 확인 후 승인하면 세금계산서 발행이 가능해집니다.
+            사업자 등록은 자동 승인됩니다. 부적절한 등록은 검토 후 취소할 수 있습니다.
           </p>
         </div>
         <Link href="/admin" style={{ height: 42, padding: "0 18px", borderRadius: 12, border: "1px solid #d1d5db", background: "white", color: "#111827", fontWeight: 800, fontSize: 13, textDecoration: "none", display: "flex", alignItems: "center" }}>
@@ -110,16 +118,16 @@ export default function BusinessVerificationPage() {
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
-        {[["pending", "승인 대기", false], ["verified", "승인 완료", true]].map(([key, label, val]) => {
-          const active = showVerified === val;
+        {([["all", "전체"], ["verified", "인증됨"], ["revoked", "취소됨"]] as [FilterKey, string][]).map(([key, label]) => {
+          const active = filter === key;
           return (
-            <button key={key as string} type="button" onClick={() => setShowVerified(val as boolean)} style={{
+            <button key={key} type="button" onClick={() => setFilter(key)} style={{
               height: 36, padding: "0 16px", borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: "pointer",
               border: active ? "none" : "1px solid #e5e7eb",
               background: active ? "#111827" : "white",
               color: active ? "white" : "#6b7280",
             }}>
-              {label as string}
+              {label}
             </button>
           );
         })}
@@ -128,19 +136,33 @@ export default function BusinessVerificationPage() {
       <div style={{ border: "1px solid #e5e7eb", borderRadius: 20, background: "white", overflow: "hidden" }}>
         {fetching ? (
           <div style={{ padding: 48, textAlign: "center", color: "#6b7280" }}>불러오는 중...</div>
-        ) : sellers.length === 0 ? (
+        ) : filteredSellers.length === 0 ? (
           <div style={{ padding: 48, textAlign: "center", color: "#6b7280" }}>
-            {showVerified ? "승인 완료된 판매자가 없습니다." : "승인 대기 중인 신청이 없습니다."}
+            등록된 사업자가 없습니다.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column" }}>
-            {sellers.map((s, i) => (
-              <div key={s.id} style={{ padding: "18px 20px", borderBottom: i < sellers.length - 1 ? "1px solid #f3f4f6" : "none", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+            {filteredSellers.map((s, i) => (
+              <div key={s.id} style={{ padding: "18px 20px", borderBottom: i < filteredSellers.length - 1 ? "1px solid #f3f4f6" : "none", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{s.nickname || s.id.slice(0, 8)}</div>
-                  <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{s.nickname || s.id.slice(0, 8)}</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999,
+                      background: s.is_business_verified ? "#dcfce7" : "#fee2e2",
+                      color: s.is_business_verified ? "#16a34a" : "#b91c1c",
+                    }}>
+                      {s.is_business_verified ? "인증됨" : "취소됨"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
                     {s.business_name || "상호명 미입력"} · {s.business_number || "사업자번호 미입력"}
                   </div>
+                  {s.seller_registered_at && (
+                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                      등록일 {new Date(s.seller_registered_at).toLocaleDateString("ko-KR")}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {s.business_registration_url && (
@@ -148,20 +170,19 @@ export default function BusinessVerificationPage() {
                       등록증 보기
                     </a>
                   )}
-                  {!showVerified && (
-                    <button
-                      type="button"
-                      onClick={() => handleApprove(s.id)}
-                      disabled={processingId === s.id}
-                      style={{
-                        height: 38, padding: "0 16px", borderRadius: 9, border: "none",
-                        background: processingId === s.id ? "#d1d5db" : "#16a34a", color: "white",
-                        fontWeight: 800, fontSize: 13, cursor: processingId === s.id ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {processingId === s.id ? "처리 중..." : "승인"}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSetVerified(s.id, !s.is_business_verified)}
+                    disabled={processingId === s.id}
+                    style={{
+                      height: 38, padding: "0 16px", borderRadius: 9, border: "none",
+                      background: processingId === s.id ? "#d1d5db" : (s.is_business_verified ? "#dc2626" : "#16a34a"),
+                      color: "white",
+                      fontWeight: 800, fontSize: 13, cursor: processingId === s.id ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {processingId === s.id ? "처리 중..." : (s.is_business_verified ? "인증취소" : "재인증")}
+                  </button>
                 </div>
               </div>
             ))}

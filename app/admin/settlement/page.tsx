@@ -42,6 +42,8 @@ interface PaymentRecord {
   createdAt: string;
   detail: string;
   orderId?: string | null;
+  taxInvoice: boolean;
+  vatAmount: number;
 }
 
 interface RecipientInfo {
@@ -127,12 +129,30 @@ export default function SettlementPage() {
       /* ── 1. 모델판매 (sale_records) ── */
       const { data: sales } = await supabase
         .from("sale_records")
-        .select("id, seller_id, buyer_id, amount, commission_rate, settlement_amount, created_at, order_id")
+        .select("id, seller_id, buyer_id, model_id, amount, commission_rate, settlement_amount, created_at, order_id")
         .gte("created_at", start)
         .lt("created_at", end);
 
+      /* ── 1-1. 모델판매별 세금계산서 신청 여부 — order_items(order_id + model_id)로 매칭 ── */
+      const modelOrderIds = [...new Set((sales ?? []).map((r) => r.order_id).filter(Boolean))];
+      const modelTaxInfo: Record<string, { taxInvoice: boolean; vat: number }> = {};
+      if (modelOrderIds.length > 0) {
+        const { data: modelOrderItems } = await supabase
+          .from("order_items")
+          .select("order_id, model_id, tax_invoice_requested, vat_amount")
+          .in("order_id", modelOrderIds)
+          .not("model_id", "is", null);
+        (modelOrderItems ?? []).forEach((oi: any) => {
+          modelTaxInfo[`${oi.order_id}::${oi.model_id}`] = {
+            taxInvoice: !!oi.tax_invoice_requested,
+            vat: oi.vat_amount ?? 0,
+          };
+        });
+      }
+
       for (const r of sales ?? []) {
         recipientIds.add(r.seller_id);
+        const taxInfo = r.order_id ? modelTaxInfo[`${r.order_id}::${r.model_id}`] : undefined;
         all.push({
           id: r.id, type: "model",
           recipientId: r.seller_id, buyerId: r.buyer_id ?? "",
@@ -142,6 +162,8 @@ export default function SettlementPage() {
           settlementAmount: r.settlement_amount,
           createdAt: r.created_at, detail: "",
           orderId: r.order_id ?? null,
+          taxInvoice: !!taxInfo?.taxInvoice,
+          vatAmount: taxInfo?.vat ?? 0,
         });
       }
 
@@ -203,7 +225,8 @@ export default function SettlementPage() {
           recipientId: c.target_seller_id, buyerId: c.user_id,
           amount: amt, commissionRate: RATE_COMMISSION,
           commissionAmount: comm, settlementAmount: (amt - comm) + vat,
-          createdAt: c.created_at, detail: vat > 0 ? `부가세 ${vat.toLocaleString("ko-KR")}원 포함` : "",
+          createdAt: c.created_at, detail: "",
+          taxInvoice: vat > 0, vatAmount: vat,
         });
       }
 
@@ -228,6 +251,7 @@ export default function SettlementPage() {
           amount: amt, commissionRate: rate,
           commissionAmount: comm, settlementAmount: amt - comm,
           createdAt: s.created_at, detail: (s.plan_type ?? "").toUpperCase(),
+          taxInvoice: false, vatAmount: 0,
         });
       }
 
@@ -267,6 +291,7 @@ export default function SettlementPage() {
           amount: amt, commissionRate: rate,
           commissionAmount: comm, settlementAmount: amt - comm,
           createdAt: a.created_at, detail: a.addon_type ?? "",
+          taxInvoice: false, vatAmount: 0,
         });
       }
 
@@ -292,6 +317,7 @@ export default function SettlementPage() {
           amount: amt, commissionRate: rate,
           commissionAmount: comm, settlementAmount: amt - comm,
           createdAt: s.created_at, detail: s.session_type ?? "",
+          taxInvoice: false, vatAmount: 0,
         });
       }
 
@@ -344,17 +370,19 @@ export default function SettlementPage() {
 
   const totalAmount     = filtered.reduce((s, r) => s + r.amount, 0);
   const totalCommission = filtered.reduce((s, r) => s + r.commissionAmount, 0);
+  const totalVat        = filtered.reduce((s, r) => s + r.vatAmount, 0);
   const totalSettlement = filtered.reduce((s, r) => s + r.settlementAmount, 0);
 
   /* ── 판매자(수령인)별 통합 집계 — 모델판매+의뢰+캐드스쿨을 한 명 단위로 합산 ──
      주의: filtered의 개별 레코드 금액을 그대로 합산할 뿐, 계산 로직은 건드리지 않음 */
   const sellerGroups = useMemo(() => {
-    const map = new Map<string, { count: number; amount: number; commission: number; settlement: number; types: Set<PaymentType> }>();
+    const map = new Map<string, { count: number; amount: number; commission: number; vat: number; settlement: number; types: Set<PaymentType> }>();
     for (const r of filtered) {
-      const g = map.get(r.recipientId) ?? { count: 0, amount: 0, commission: 0, settlement: 0, types: new Set<PaymentType>() };
+      const g = map.get(r.recipientId) ?? { count: 0, amount: 0, commission: 0, vat: 0, settlement: 0, types: new Set<PaymentType>() };
       g.count += 1;
       g.amount += r.amount;
       g.commission += r.commissionAmount;
+      g.vat += r.vatAmount;
       g.settlement += r.settlementAmount;
       g.types.add(r.type);
       map.set(r.recipientId, g);
@@ -366,7 +394,7 @@ export default function SettlementPage() {
 
   /* ── CSV 내보내기 ── */
   const downloadCsv = () => {
-    const header = ["결제일", "수령인", "등급", "결제유형", "상세", "판매액", "수수료율", "수수료", "정산액"];
+    const header = ["결제일", "수령인", "등급", "결제유형", "상세", "판매액", "수수료율", "수수료", "세금계산서", "부가세", "정산액"];
     const body = filtered.map((r) => {
       const info = recipientMap[r.recipientId];
       return [
@@ -378,6 +406,8 @@ export default function SettlementPage() {
         r.amount,
         `${(r.commissionRate * 100).toFixed(0)}%`,
         r.commissionAmount,
+        r.taxInvoice ? "Y" : "",
+        r.vatAmount,
         r.settlementAmount,
       ];
     });
@@ -497,7 +527,7 @@ export default function SettlementPage() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #e5e7eb", background: "#f9fafb" }}>
-                  {["수령인", "등급", "결제유형", "건수", "판매액", "수수료", "정산액"].map((h) => (
+                  {["수령인", "등급", "결제유형", "건수", "판매액(공급가)", "수수료", "부가세", "정산액"].map((h) => (
                     <th key={h} style={{
                       padding: "12px 16px", fontWeight: 800, color: "#374151", whiteSpace: "nowrap",
                       textAlign: ["수령인", "등급", "결제유형"].includes(h) ? "left" : "right",
@@ -536,8 +566,16 @@ export default function SettlementPage() {
                       <td style={{ padding: "11px 16px", textAlign: "right", color: "#dc2626", fontWeight: 700 }}>
                         {g.commission.toLocaleString("ko-KR")}원
                       </td>
+                      <td style={{ padding: "11px 16px", textAlign: "right", color: g.vat > 0 ? "#0f766e" : "#d1d5db", fontWeight: 700 }}>
+                        {g.vat > 0 ? `${g.vat.toLocaleString("ko-KR")}원` : "-"}
+                      </td>
                       <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 900, color: "#111827" }}>
                         {g.settlement.toLocaleString("ko-KR")}원
+                        {g.vat > 0 && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#0f766e" }}>
+                            (부가세 {g.vat.toLocaleString("ko-KR")}원 포함)
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -553,6 +591,9 @@ export default function SettlementPage() {
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 900, color: "#dc2626" }}>
                     {totalCommission.toLocaleString("ko-KR")}원
+                  </td>
+                  <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 900, color: "#0f766e" }}>
+                    {totalVat > 0 ? `${totalVat.toLocaleString("ko-KR")}원` : "-"}
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 900, color: "#111827" }}>
                     {totalSettlement.toLocaleString("ko-KR")}원
@@ -600,7 +641,18 @@ export default function SettlementPage() {
                           {TYPE_LABELS[r.type]}
                         </span>
                       </td>
-                      <td style={{ padding: "11px 16px", color: "#6b7280" }}>{r.detail}</td>
+                      <td style={{ padding: "11px 16px", color: "#6b7280" }}>
+                        {r.detail && <div>{r.detail}</div>}
+                        {r.taxInvoice && (
+                          <div style={{
+                            marginTop: r.detail ? 4 : 0, display: "inline-flex", alignItems: "center", gap: 4,
+                            fontSize: 11, fontWeight: 700, color: "#0f766e", background: "#ccfbf1",
+                            border: "1px solid #99f6e4", borderRadius: 999, padding: "2px 8px", whiteSpace: "nowrap",
+                          }}>
+                            세금계산서 · 부가세 {r.vatAmount.toLocaleString("ko-KR")}원 포함
+                          </div>
+                        )}
+                      </td>
                       <td style={{ padding: "11px 16px", textAlign: "right", fontWeight: 700, color: "#374151" }}>
                         {r.amount.toLocaleString("ko-KR")}원
                       </td>

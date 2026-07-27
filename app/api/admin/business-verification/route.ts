@@ -20,8 +20,11 @@ export async function PATCH(req: NextRequest) {
   const admin = await verifyAdmin(req);
   if (!admin) return NextResponse.json({ error: "권한 없음" }, { status: 403 });
 
-  const { id } = await req.json();
+  const { id, verified } = await req.json();
   if (!id) return NextResponse.json({ error: "id가 필요합니다." }, { status: 400 });
+  if (typeof verified !== "boolean") {
+    return NextResponse.json({ error: "verified가 필요합니다." }, { status: 400 });
+  }
 
   const { data: seller, error: fetchErr } = await adminSupabase
     .from("profiles")
@@ -35,13 +38,10 @@ export async function PATCH(req: NextRequest) {
   if (!seller.business_registration_url) {
     return NextResponse.json({ error: "등록된 사업자등록증이 없습니다." }, { status: 400 });
   }
-  if (seller.is_business_verified) {
-    return NextResponse.json({ error: "이미 승인된 판매자입니다." }, { status: 409 });
-  }
 
   const { error: updateErr } = await adminSupabase
     .from("profiles")
-    .update({ is_business_verified: true })
+    .update({ is_business_verified: verified })
     .eq("id", id);
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
@@ -49,7 +49,9 @@ export async function PATCH(req: NextRequest) {
   await adminSupabase.from("notifications").insert({
     user_id: id,
     type: "system",
-    title: "사업자 정보가 승인되어 세금계산서 발행이 가능합니다.",
+    title: verified
+      ? "사업자 정보가 재인증되어 세금계산서 발행이 가능합니다."
+      : "사업자 인증이 취소되었습니다. 세금계산서 발행이 제한됩니다.",
     link: "/profile?tab=seller",
     is_read: false,
   });
