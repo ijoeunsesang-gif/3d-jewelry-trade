@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Cinzel } from "next/font/google";
+import { Cormorant_Garamond, Cinzel, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -13,6 +13,16 @@ const cinzel = Cinzel({
   subsets: ["latin"],
   weight: ["700"],
   variable: "--font-cinzel",
+  display: "swap",
+});
+
+// Noto Sans KR(CJK 폰트)는 next/font/google에 "korean" subset 항목이 없다 —
+// 한글 글리프는 latin/latin-ext/cyrillic/vietnamese 선택과 무관하게 기본으로 포함되므로
+// subsets:["latin"]이 한글을 누락시키는 것은 아니다. 여기서는 로딩 위치만 layout.tsx로 일원화.
+const notoSansKR = Noto_Sans_KR({
+  subsets: ["latin"],
+  weight: ["700"],
+  variable: "--font-noto-sans-kr",
   display: "swap",
 });
 import Header from "@/app/components/Header";
@@ -46,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" className={`${cormorant.variable} ${cinzel.variable}`}>
+    <html lang="ko" className={`${cormorant.variable} ${cinzel.variable} ${notoSansKR.variable}`}>
       <body
         style={{
           margin: 0,

@@ -70,7 +70,7 @@ export default function TopModelCard({
               src={thumbUrl}
               alt={item.title}
               className={styles.thumbImg}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 25vw, 20vw"
+              sizes="(max-width: 640px) 50vw, (max-width: 1100px) 33vw, 16vw"
               style={{ objectFit: "cover", transition: "transform 0.25s ease" }}
             />
           )}

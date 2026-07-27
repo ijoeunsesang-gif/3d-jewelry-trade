@@ -3,9 +3,6 @@
 import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { scrollToSection } from "@/lib/scroll";
-import { Noto_Sans_KR } from "next/font/google";
-
-const notoSansKR = Noto_Sans_KR({ subsets: ["latin"], weight: ["700"] });
 import styles from "./page.module.css";
 import { supabase } from "./lib/supabase-browser";
 import { getAccessToken, sbAuthFetch, decodeJwt } from "@/lib/supabase-fetch";
@@ -27,6 +24,16 @@ const categoryOptions = ["ALL", "RING", "PENDANT", "EARRING", "BRACELET", "기�
 const recommendedKeywords = ["반지", "펜던트", "이어링", "기타부속", "링", "플라워", "큐빅", "체인"];
 const ITEMS_PER_PAGE = 12;
 
+// created_at 동률/페이지 경계에서 동일 모델이 두 배치에 겹쳐 들어올 수 있어 id 기준으로 정리한다.
+function dedupeById(items: ModelItem[]): ModelItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+}
+
 function HomeInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,6 +50,8 @@ function HomeInner() {
   const [search, setSearch] = useState("");
   const [models, setModels] = useState<ModelItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [sortBy, setSortBy] = useState<SortType>("latest");
@@ -167,66 +176,35 @@ function HomeInner() {
   }, [quickModel]);
 
   const fetchModels = async () => {
-    const headers = {
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
-    };
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/models?select=id,title,description,price,thumbnail,thumbnail_path,file_url,model_file_path,seller_id,category,created_at,view_count,download_count&order=created_at.desc&limit=200`,
-        { headers, cache: "no-store" }
-      );
+      const res = await fetch("/api/home-models?offset=0");
       const data = await res.json();
-      if (!Array.isArray(data)) { setModels([]); return; }
-
-      // 고유 seller_id 수집 후 profiles 일괄 조회
-      const sellerIds = [...new Set(data.map((m: any) => m.seller_id).filter(Boolean))];
-      let profileMap: Record<string, { nickname: string; grade: string }> = {};
-      if (sellerIds.length > 0) {
-        const pRes = await fetch(
-          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/profiles?select=id,nickname,grade&id=in.(${sellerIds.join(",")})`,
-          { headers }
-        );
-        const profiles = await pRes.json();
-        if (Array.isArray(profiles)) {
-          for (const p of profiles) {
-            profileMap[p.id] = { nickname: p.nickname, grade: p.grade };
-          }
-        }
-      }
-
-      // 모델별 댓글 수 일괄 조회 (model_comments 테이블, comment_count 컬럼 없으므로 별도 fetch)
-      const modelIds = data.map((m: any) => m.id).filter(Boolean);
-      let commentCountMap: Record<string, number> = {};
-      if (modelIds.length > 0) {
-        try {
-          const cRes = await fetch(
-            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/model_comments?select=model_id&model_id=in.(${modelIds.join(",")})&limit=10000`,
-            { headers }
-          );
-          const comments = await cRes.json();
-          if (Array.isArray(comments)) {
-            for (const c of comments) {
-              commentCountMap[c.model_id] = (commentCountMap[c.model_id] || 0) + 1;
-            }
-          }
-        } catch {
-          // 댓글 수 fetch 실패 시 0으로 유지
-        }
-      }
-
-      const mapped = data.map((m: any) => ({
-        ...m,
-        seller_nickname: profileMap[m.seller_id]?.nickname ?? null,
-        seller_grade: profileMap[m.seller_id]?.grade ?? null,
-        comment_count: commentCountMap[m.id] || 0,
-      }));
-      setModels(mapped);
+      setModels(dedupeById(Array.isArray(data.models) ? data.models : []));
+      setHasMore(!!data.hasMore);
     } catch (e) {
       console.error('[fetchModels] 에러:', e);
+      setModels([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 48개씩 서버에서 캐싱된 배치로 로드. 필터/정렬은 이미 로드된 목록 위에서 클라이언트가 처리하므로,
+  // 기본 보기(전체/최신순/검색 없음)에서 로드된 배치를 넘어가는 페이지로 이동할 때만 추가 로드한다.
+  const loadMoreModels = async () => {
+    if (loadingMore || !hasMore) return;
+    try {
+      setLoadingMore(true);
+      const res = await fetch(`/api/home-models?offset=${models.length}`);
+      const data = await res.json();
+      const more = Array.isArray(data.models) ? data.models : [];
+      setModels((prev) => dedupeById([...prev, ...more]));
+      setHasMore(!!data.hasMore);
+    } catch (e) {
+      console.error('[loadMoreModels] 에러:', e);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -438,26 +416,21 @@ function HomeInner() {
     [models]
   );
 
+  const isDefaultView = selectedCategory === "ALL" && !search.trim() && sortBy === "latest";
   const totalPages = Math.ceil(filteredModels.length / ITEMS_PER_PAGE);
+  const canGoNext = page < totalPages || (isDefaultView && hasMore);
   const paginatedModels = useMemo(
     () => filteredModels.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE),
     [filteredModels, page]
   );
 
-  // 페이지 변경 시 썸네일 URL 확인용 디버그 로그
+  // 기본 보기(필터/검색 없음)에서 이미 로드한 배치를 넘어서는 페이지로 이동하면 다음 배치를 미리 불러온다.
   useEffect(() => {
-    if (paginatedModels.length === 0) return;
-    console.log(`[home] page=${page} 모델 ${paginatedModels.length}개`);
-    paginatedModels.forEach((m, i) => {
-      const raw = m.thumbnail || m.thumbnail_path || '';
-      const converted = getModelThumbnailUrl(m);
-      if (raw !== converted) {
-        console.log(`[home] [${i}] ${m.title} | raw: ${raw.slice(0, 60)} → ${converted.slice(0, 60)}`);
-      } else {
-        console.log(`[home] [${i}] ${m.title} | src: ${converted.slice(0, 80)}`);
-      }
-    });
-  }, [page, paginatedModels]);
+    if (!isDefaultView || loading || loadingMore || !hasMore) return;
+    if (page * ITEMS_PER_PAGE > models.length) {
+      loadMoreModels();
+    }
+  }, [page, isDefaultView, models.length, hasMore, loadingMore, loading]);
 
   const openQuickView = (model: ModelItem) => {
     setViewerUrl("");
@@ -488,7 +461,7 @@ function HomeInner() {
         <section className={styles.hero}>
           <div className={styles.heroOverlay} />
           <div className={styles.heroContent}>
-            <p className={`${styles.heroTitle} ${notoSansKR.className}`}>
+            <p className={styles.heroTitle}>
               3D 마켓
             </p>
             <p className={styles.heroSubTitle}>
@@ -780,9 +753,9 @@ function HomeInner() {
               ))}
               <button
                 type="button"
-                onClick={() => goToPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: page === totalPages ? "default" : "pointer", fontWeight: 700, color: "#374151", opacity: page === totalPages ? 0.4 : 1 }}
+                onClick={() => goToPage(page + 1)}
+                disabled={!canGoNext}
+                style={{ height: 38, minWidth: 38, borderRadius: 10, border: "1px solid #d1d5db", background: "white", cursor: canGoNext ? "pointer" : "default", fontWeight: 700, color: "#374151", opacity: canGoNext ? 1 : 0.4 }}
               >
                 ›
               </button>

@@ -101,7 +101,7 @@ export default function ModelCard({
               src={thumbUrl}
               alt={item.title}
               className={styles.thumbImg}
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              sizes="(max-width: 768px) 50vw, 280px"
               style={{ objectFit: "cover", transition: "transform 0.25s ease" }}
             />
           )}

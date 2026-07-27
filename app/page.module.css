@@ -33,6 +33,7 @@
 
 .heroTitle {
   margin: 0 0 10px;
+  font-family: var(--font-noto-sans-kr), sans-serif;
   font-size: 64px;
   font-weight: 700;
   line-height: 1.15;
