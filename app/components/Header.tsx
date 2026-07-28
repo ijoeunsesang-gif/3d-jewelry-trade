@@ -13,6 +13,18 @@ const GOLD_LIGHT = "#fdf6e3";
 const GOLD_TAB = "#D4AF37";
 const TAB_INACTIVE = "rgba(255,255,255,0.72)";
 
+// 초기 마운트 시 카운트 조회(찜/문의함/알림)가 홈 등 페이지 핵심 데이터 fetch와
+// 동시에 몰려 네트워크/메인스레드를 경합하지 않도록, 브라우저가 한가할 때로 미룬다.
+// requestIdleCallback 미지원 브라우저(Safari 등)는 짧은 setTimeout으로 대체.
+function scheduleIdleWork(callback: () => void) {
+  if (typeof window === "undefined") return;
+  if (typeof window.requestIdleCallback === "function") {
+    window.requestIdleCallback(() => callback(), { timeout: 2000 });
+  } else {
+    window.setTimeout(callback, 200);
+  }
+}
+
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
@@ -55,9 +67,14 @@ export default function Header() {
   }, [myOpen]);
 
   useEffect(() => {
+    // 장바구니는 localStorage만 읽는 로컬 연산이라 네트워크 경합과 무관 — 즉시 실행 유지.
     updateCartCount();
-    fetchFavoriteCount();
-    fetchMessageCount();
+    // 찜/문의함 카운트는 네트워크 조회라 홈 등 페이지의 핵심 데이터 fetch와 경합하지
+    // 않도록 idle 시점으로 미룬다. 배지가 살짝 늦게 뜨는 정도는 허용.
+    scheduleIdleWork(() => {
+      fetchFavoriteCount();
+      fetchMessageCount();
+    });
     // fetchNotificationCount는 userId 확정 후 아래 useEffect에서 호출
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
@@ -183,8 +200,8 @@ export default function Header() {
   // userId 확정 후 카운트 재조회 + Realtime 구독
   useEffect(() => {
     if (!userId) return;
-    // 세션이 확인된 시점에 최신 카운트 가져오기
-    fetchNotificationCount();
+    // 세션이 확인된 시점에 최신 카운트 가져오기 — 이 역시 idle 시점으로 미뤄 초기 로딩과 경합 방지
+    scheduleIdleWork(fetchNotificationCount);
     const channel = supabase
       .channel(`notif-badge-${userId}`)
       .on(
