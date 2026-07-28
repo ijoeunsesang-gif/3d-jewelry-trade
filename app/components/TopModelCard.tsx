@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import styles from "../page.module.css";
-import type { ModelItem } from "./ModelCard";
+import { type ModelItem, isViewerSupported } from "./ModelCard";
+import { preloadModelViewer } from "@/app/lib/preloadModelViewer";
 
 type Props = {
   item: ModelItem;
@@ -165,6 +166,7 @@ export default function TopModelCard({
                 e.stopPropagation();
                 onQuickView(item);
               }}
+              onMouseEnter={() => { if (isViewerSupported(item)) preloadModelViewer(); }}
               style={{
                 height: 22,
                 lineHeight: "22px",

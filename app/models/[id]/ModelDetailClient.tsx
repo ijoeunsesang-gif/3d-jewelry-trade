@@ -13,6 +13,7 @@ import GradeBadge from "../../components/GradeBadge";
 import { Grade } from "@/lib/grades";
 import ModelComments from "../../components/ModelComments";
 import { getCdnImageUrl, getModelThumbnailUrl, getGalleryUrl } from "@/lib/imageUrl";
+import { preloadModelViewer } from "@/app/lib/preloadModelViewer";
 
 const spinnerOverlay = (
   <div style={{
@@ -33,7 +34,7 @@ const spinnerOverlay = (
   </div>
 );
 
-const ModelViewer = dynamic(() => import("../../components/ModelViewer"), {
+const ModelViewer = dynamic(() => preloadModelViewer(), {
   ssr: false,
   loading: () => spinnerOverlay,
 });
@@ -54,7 +55,13 @@ type ModelItem = {
   download_count?: number;
 };
 
-export default function ModelDetailClient({ model }: { model: ModelItem }) {
+type Props = {
+  initialModel: ModelItem;
+  initialGalleryImages: string[];
+};
+
+export default function ModelDetailClient({ initialModel, initialGalleryImages }: Props) {
+  const model = initialModel;
   const router = useRouter();
 
   const [copied, setCopied] = useState(false);
@@ -67,8 +74,8 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   const [seller, setSeller] = useState<any>(null);
   const [alreadyPurchased, setAlreadyPurchased] = useState(false);
   const [relatedModels, setRelatedModels] = useState<ModelItem[]>([]);
-  const [galleryImages, setGalleryImages] = useState<string[]>([]);
-  const [selectedImage, setSelectedImage] = useState("");
+  const [galleryImages, setGalleryImages] = useState<string[]>(initialGalleryImages);
+  const [selectedImage, setSelectedImage] = useState(initialGalleryImages[0] || "");
   const [liked, setLiked] = useState(false);
   const [isInCart, setIsInCart] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
@@ -203,7 +210,11 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
   }, [model.id]);
 
   useEffect(() => {
-    fetchGalleryImages();
+    // 서버 렌더가 이미 갤러리 이미지를 채워줬으므로 보통은 재요청하지 않는다.
+    // 서버 fetch가 실패해 빈 배열로 내려온 경우에만 클라이언트에서 한 번 자체 재시도한다.
+    if (initialGalleryImages.length === 0) {
+      fetchGalleryImages();
+    }
     fetchFavoriteStatus();
     fetchExtraFiles();
     checkCartStatus();
@@ -227,7 +238,9 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
 
     const ext = getModelExt();
     if (["stl", "obj"].includes(ext)) {
+      // 인증 API 호출과 ModelViewer 청크(~950KB) 다운로드를 병렬로 시작한다.
       loadViewerUrl();
+      preloadModelViewer();
     } else {
       setViewerUrl("");
     }
@@ -621,12 +634,15 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                 type="button"
                 onClick={() => {
                   if (isMobile) {
+                    // 모바일은 hover가 없어 클릭 시점에 인증 API 호출과 청크 다운로드를 병렬로 시작한다.
                     if (!viewerUrl && !viewerLoading) loadViewerUrl();
+                    preloadModelViewer();
                     setMobileViewerOpen(true);
                   } else {
                     setViewMode("viewer");
                   }
                 }}
+                onMouseEnter={() => preloadModelViewer()}
                 style={{
                   height: 52,
                   padding: "0 20px",
@@ -801,7 +817,7 @@ export default function ModelDetailClient({ model }: { model: ModelItem }) {
                     src={img}
                     alt={`gallery-${idx}`}
                     style={{ objectFit: "cover" }}
-                    sizes="20vw"
+                    sizes="(max-width: 860px) 18vw, 14vw"
                   />
                 </button>
               ))}

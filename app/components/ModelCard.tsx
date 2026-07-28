@@ -5,6 +5,7 @@ import Link from "next/link";
 import styles from "../page.module.css";
 import GradeBadge from "./GradeBadge";
 import type { Grade } from "@/lib/grades";
+import { preloadModelViewer } from "@/app/lib/preloadModelViewer";
 
 export type ModelItem = {
   id: string;
@@ -35,6 +36,15 @@ type Props = {
   getThumbnailUrl: (item: ModelItem) => string;
   currentUserId?: string | null;
 };
+
+// Quick View가 3D 뷰어를 지원하는 파일(stl/obj)일 때만 hover 시 ModelViewer 청크를
+// 미리 받는다 — 어차피 안 쓸 3dm 등 모델까지 무조건 받아버리지 않기 위함.
+// TopModelCard도 동일 로직을 재사용한다.
+export function isViewerSupported(item: ModelItem): boolean {
+  const source = item.model_file_path || item.file_url || "";
+  const ext = source.split("?")[0].split(".").pop()?.toLowerCase() || "";
+  return ext === "stl" || ext === "obj";
+}
 
 function highlightText(text: string | null | undefined, keyword: string) {
   const safeText = text ?? "";
@@ -179,6 +189,7 @@ export default function ModelCard({
                 e.stopPropagation();
                 onQuickView(item);
               }}
+              onMouseEnter={() => { if (isViewerSupported(item)) preloadModelViewer(); }}
               style={{
                 height: 26,
                 lineHeight: "26px",

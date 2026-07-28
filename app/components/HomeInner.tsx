@@ -16,6 +16,7 @@ import QuickViewModal from "./QuickViewModal";
 import { SkeletonCard, SkeletonTopCard } from "./SkeletonCard";
 import { getModelThumbnailUrl } from "@/lib/imageUrl";
 import PopupNoticeModal from "./PopupNoticeModal";
+import { preloadModelViewer } from "@/app/lib/preloadModelViewer";
 
 type SortType = "latest" | "price-low" | "price-high" | "popular";
 type FavoriteMap = Record<string, boolean>;
@@ -121,7 +122,9 @@ function HomeInner({ initialModels, initialHasMore }: Props) {
     if (quickModel) {
       const ext = getModelExt(quickModel);
       if (["stl", "obj"].includes(ext)) {
+        // 인증 API 호출과 ModelViewer 청크(~950KB) 다운로드를 병렬로 시작한다.
         loadQuickViewerUrl(quickModel);
+        preloadModelViewer();
       } else {
         setViewerUrl("");
       }

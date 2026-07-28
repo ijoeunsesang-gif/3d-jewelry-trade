@@ -9,8 +9,9 @@ import ErrorBoundary from "./ErrorBoundary";
 import GradeBadge from "./GradeBadge";
 import { Grade } from "@/lib/grades";
 import AvatarImage from "./AvatarImage";
+import { preloadModelViewer } from "@/app/lib/preloadModelViewer";
 
-const ModelViewer = dynamic(() => import("./ModelViewer"), { ssr: false });
+const ModelViewer = dynamic(() => preloadModelViewer(), { ssr: false });
 
 type Props = {
   model: ModelItem;
