@@ -13,6 +13,7 @@ type ModelProps = {
   url: string;
   controlsRef: React.MutableRefObject<any>;
   onFitted: (pos: THREE.Vector3) => void;
+  onProgress: (percent: number | null) => void;
 };
 
 /** 모델 중심을 origin으로 맞추고 카메라를 bounding sphere 기반으로 배치 */
@@ -38,12 +39,13 @@ function fitCameraToRadius(
   controls.update();
 }
 
-function STLModel({ url, controlsRef, onFitted }: ModelProps) {
+function STLModel({ url, controlsRef, onFitted, onProgress }: ModelProps) {
   const [geometry, setGeometry] = useState<THREE.BufferGeometry | null>(null);
   const { camera } = useThree();
 
   useEffect(() => {
     let active = true;
+    onProgress(null);
     const loader = new STLLoader();
     loader.load(
       url,
@@ -53,7 +55,10 @@ function STLModel({ url, controlsRef, onFitted }: ModelProps) {
         loaded.center();
         setGeometry(loaded);
       },
-      undefined,
+      (event) => {
+        if (!active) return;
+        onProgress(event.lengthComputable && event.total > 0 ? Math.round((event.loaded / event.total) * 100) : null);
+      },
       (error) => console.error("STL 로드 실패:", error)
     );
     return () => { active = false; };
@@ -76,12 +81,13 @@ function STLModel({ url, controlsRef, onFitted }: ModelProps) {
   );
 }
 
-function OBJModel({ url, controlsRef, onFitted }: ModelProps) {
+function OBJModel({ url, controlsRef, onFitted, onProgress }: ModelProps) {
   const [object, setObject] = useState<THREE.Group | null>(null);
   const { camera } = useThree();
 
   useEffect(() => {
     let active = true;
+    onProgress(null);
     const loader = new OBJLoader();
     loader.load(
       url,
@@ -104,7 +110,10 @@ function OBJModel({ url, controlsRef, onFitted }: ModelProps) {
         loaded.position.sub(center);
         setObject(loaded);
       },
-      undefined,
+      (event) => {
+        if (!active) return;
+        onProgress(event.lengthComputable && event.total > 0 ? Math.round((event.loaded / event.total) * 100) : null);
+      },
       (error) => console.error("OBJ 로드 실패:", error)
     );
     return () => { active = false; };
@@ -186,6 +195,19 @@ export default function ModelViewer({ url, onLoaded }: Props) {
   const savedPosRef = useRef<THREE.Vector3 | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
   const [resetSignal, setResetSignal] = useState(0);
+  const [modelReady, setModelReady] = useState(false);
+  // null = 서버가 Content-Length를 안 줘서 퍼센트를 알 수 없는 경우(진행률 바 없이 문구만 표시)
+  const [loadProgress, setLoadProgress] = useState<number | null>(null);
+
+  const handleFitted = (pos: THREE.Vector3) => {
+    savedPosRef.current = pos;
+    setModelReady(true);
+    onLoaded?.();
+  };
+
+  const handleProgress = (percent: number | null) => {
+    setLoadProgress((prev) => (prev === percent ? prev : percent));
+  };
 
   const ext = useMemo(() => {
     const clean = url.split("?")[0];
@@ -193,6 +215,13 @@ export default function ModelViewer({ url, onLoaded }: Props) {
   }, [url]);
 
   const supported = ["stl", "obj"].includes(ext);
+
+  // 다른 모델의 url로 바뀌면(같은 ModelViewer 인스턴스가 재사용되는 경우) 이전 모델의
+  // 완료/진행률 상태가 남아있지 않도록 초기화한다.
+  useEffect(() => {
+    setModelReady(false);
+    setLoadProgress(null);
+  }, [url]);
 
   if (!supported) {
     return (
@@ -221,6 +250,51 @@ export default function ModelViewer({ url, onLoaded }: Props) {
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      {!modelReady && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 25,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 14,
+            background: "#1b1c1f",
+          }}
+        >
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              border: "4px solid #2a2c31",
+              borderTop: "4px solid #b8960c",
+              borderRadius: "50%",
+              animation: "viewer-spin 1s linear infinite",
+            }}
+          />
+          <p style={{ color: "#aaa", fontSize: 14, margin: 0, fontWeight: 700 }}>
+            {loadProgress !== null ? `모델 불러오는 중... ${loadProgress}%` : "모델 불러오는 중..."}
+          </p>
+          {loadProgress !== null ? (
+            <div style={{ width: 200, height: 6, borderRadius: 999, background: "#2a2c31", overflow: "hidden" }}>
+              <div
+                style={{
+                  width: `${loadProgress}%`,
+                  height: "100%",
+                  background: "#b8960c",
+                  borderRadius: 999,
+                  transition: "width 0.15s ease",
+                }}
+              />
+            </div>
+          ) : (
+            <p style={{ color: "#666", fontSize: 12, margin: 0 }}>파일 크기에 따라 시간이 걸릴 수 있습니다</p>
+          )}
+        </div>
+      )}
+
       <div
         style={{
           position: "absolute",
@@ -271,14 +345,16 @@ export default function ModelViewer({ url, onLoaded }: Props) {
             <STLModel
               url={url}
               controlsRef={controlsRef}
-              onFitted={(pos) => { savedPosRef.current = pos; onLoaded?.(); }}
+              onFitted={handleFitted}
+              onProgress={handleProgress}
             />
           )}
           {ext === "obj" && (
             <OBJModel
               url={url}
               controlsRef={controlsRef}
-              onFitted={(pos) => { savedPosRef.current = pos; onLoaded?.(); }}
+              onFitted={handleFitted}
+              onProgress={handleProgress}
             />
           )}
           <Environment preset="studio" />

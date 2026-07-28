@@ -160,7 +160,9 @@ export default function ModelCard({
               fontSize: 18,
               fontWeight: 900,
               cursor: isOwnModel ? "not-allowed" : "pointer",
-              opacity: isOwnModel ? 0.45 : 1,
+              opacity: isOwnModel ? 0.45 : liking ? 0.7 : 1,
+              transform: liking ? "scale(0.88)" : "scale(1)",
+              transition: "transform 0.12s ease, opacity 0.12s ease, background 0.12s ease",
             }}
           >
             {liked ? "♥" : "♡"}

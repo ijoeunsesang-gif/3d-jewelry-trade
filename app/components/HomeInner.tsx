@@ -251,93 +251,84 @@ function HomeInner({ initialModels, initialHasMore }: Props) {
   };
 
   const toggleFavorite = async (modelId: string) => {
+    // 연타/더블클릭 방지: 이미 진행 중이면 무시
+    if (favoriteLoadingIds[modelId]) return;
+
+    const token = getAccessToken();
+    if (!token) {
+      showError("로그인 후 찜 기능을 사용할 수 있습니다.");
+      return;
+    }
+    const userId = (decodeJwt(token) as any)?.sub as string;
+    const wasLiked = !!favoriteMap[modelId];
+
+    // 낙관적 업데이트: 서버 응답을 기다리지 않고 클릭 즉시 하트를 바꾼다.
+    setFavoriteLoadingIds((prev) => ({ ...prev, [modelId]: true }));
+    setFavoriteMap((prev) => {
+      const next = { ...prev };
+      if (wasLiked) delete next[modelId];
+      else next[modelId] = true;
+      return next;
+    });
+    window.dispatchEvent(new Event("favorites-updated"));
+
     try {
-      setFavoriteLoadingIds((prev) => ({ ...prev, [modelId]: true }));
-      const token = getAccessToken();
-      if (!token) {
-        showError("로그인 후 찜 기능을 사용할 수 있습니다.");
-        return;
+      const { error } = wasLiked
+        ? await supabase.from("favorites").delete().eq("user_id", userId).eq("model_id", modelId)
+        : await supabase.from("favorites").insert({ user_id: userId, model_id: modelId });
+
+      if (error) {
+        // favoriteMap이 아직 안 채워진 상태에서 이미 찜된 걸 다시 찜하려 한 레이스(unique 위반)는
+        // 결과적으로 원하던 상태(찜됨)와 같으므로 롤백하지 않고 조용히 넘어간다.
+        if (!wasLiked && error.code === "23505") return;
+        throw error;
       }
-      const userId = (decodeJwt(token) as any)?.sub as string;
-
-      const liked = !!favoriteMap[modelId];
-      if (liked) {
-        const { error } = await supabase
-          .from("favorites")
-          .delete()
-          .eq("user_id", userId)
-          .eq("model_id", modelId);
-
-        if (error) {
-          showError("찜 해제에 실패했습니다.");
-          return;
-        }
-        setFavoriteMap((prev) => {
-          const next = { ...prev };
-          delete next[modelId];
-          return next;
-        });
-      } else {
-        const { error } = await supabase.from("favorites").insert({
-          user_id: userId,
-          model_id: modelId,
-        });
-
-        if (error) {
-          showError("찜 추가에 실패했습니다.");
-          return;
-        }
-        setFavoriteMap((prev) => ({ ...prev, [modelId]: true }));
-      }
-
-      window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
       console.error("찜 토글 오류:", error);
+      // 롤백
+      setFavoriteMap((prev) => {
+        const next = { ...prev };
+        if (wasLiked) next[modelId] = true;
+        else delete next[modelId];
+        return next;
+      });
+      window.dispatchEvent(new Event("favorites-updated"));
+      showError(wasLiked ? "찜 해제에 실패했습니다." : "찜 추가에 실패했습니다.");
     } finally {
       setFavoriteLoadingIds((prev) => ({ ...prev, [modelId]: false }));
     }
   };
 
   const toggleQuickFavorite = async () => {
+    if (!quickModel || quickFavoriteLoading) return;
+    const token = getAccessToken();
+    if (!token) {
+      showError("로그인 후 찜 기능을 사용할 수 있습니다.");
+      return;
+    }
+    const userId = (decodeJwt(token) as any)?.sub as string;
+    const wasLiked = quickLiked;
+    const modelId = quickModel.id;
+
+    // 낙관적 업데이트
+    setQuickFavoriteLoading(true);
+    setQuickLiked(!wasLiked);
+    window.dispatchEvent(new Event("favorites-updated"));
+
     try {
-      if (!quickModel) return;
-      const token = getAccessToken();
-      if (!token) {
-        showError("로그인 후 찜 기능을 사용할 수 있습니다.");
-        return;
+      const { error } = wasLiked
+        ? await supabase.from("favorites").delete().eq("user_id", userId).eq("model_id", modelId)
+        : await supabase.from("favorites").insert({ user_id: userId, model_id: modelId });
+
+      if (error) {
+        if (!wasLiked && error.code === "23505") return;
+        throw error;
       }
-      const userId = (decodeJwt(token) as any)?.sub as string;
-
-      setQuickFavoriteLoading(true);
-
-      if (quickLiked) {
-        const { error } = await supabase
-          .from("favorites")
-          .delete()
-          .eq("user_id", userId)
-          .eq("model_id", quickModel.id);
-
-        if (error) {
-          showError("찜 해제에 실패했습니다.");
-          return;
-        }
-        setQuickLiked(false);
-      } else {
-        const { error } = await supabase.from("favorites").insert({
-          user_id: userId,
-          model_id: quickModel.id,
-        });
-
-        if (error) {
-          showError("찜 추가에 실패했습니다.");
-          return;
-        }
-        setQuickLiked(true);
-      }
-
-      window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
       console.error("퀵뷰 찜 오류:", error);
+      setQuickLiked(wasLiked);
+      window.dispatchEvent(new Event("favorites-updated"));
+      showError(wasLiked ? "찜 해제에 실패했습니다." : "찜 추가에 실패했습니다.");
     } finally {
       setQuickFavoriteLoading(false);
     }

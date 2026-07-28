@@ -68,7 +68,6 @@ export default function ModelDetailClient({ initialModel, initialGalleryImages }
   const [viewMode, setViewMode] = useState<"image" | "viewer">("image");
   const [viewerUrl, setViewerUrl] = useState("");
   const [viewerLoading, setViewerLoading] = useState(false);
-  const [viewerModelLoaded, setViewerModelLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   const [seller, setSeller] = useState<any>(null);
@@ -356,48 +355,34 @@ export default function ModelDetailClient({ initialModel, initialGalleryImages }
   const getThumbnailUrl = getModelThumbnailUrl;
 
   const toggleFavorite = async () => {
+    if (favoriteLoading) return;
+    const token = getAccessToken();
+    if (!token) {
+      showError("로그인 후 찜 기능을 사용할 수 있습니다.");
+      return;
+    }
+    const userId = (decodeJwt(token) as any)?.sub as string;
+    const wasLiked = liked;
+
+    // 낙관적 업데이트: 서버 응답을 기다리지 않고 클릭 즉시 반영
+    setFavoriteLoading(true);
+    setLiked(!wasLiked);
+    window.dispatchEvent(new Event("favorites-updated"));
+
     try {
-      const token = getAccessToken();
-      if (!token) {
-        showError("로그인 후 찜 기능을 사용할 수 있습니다.");
-        return;
+      const { error } = wasLiked
+        ? await supabase.from("favorites").delete().eq("user_id", userId).eq("model_id", model.id)
+        : await supabase.from("favorites").insert({ user_id: userId, model_id: model.id });
+
+      if (error) {
+        if (!wasLiked && error.code === "23505") return;
+        throw error;
       }
-      const userId = (decodeJwt(token) as any)?.sub as string;
-
-      setFavoriteLoading(true);
-
-      if (liked) {
-        const { error } = await supabase
-          .from("favorites")
-          .delete()
-          .eq("user_id", userId)
-          .eq("model_id", model.id);
-
-        if (error) {
-          console.error("상세 찜 해제 실패:", error);
-          showError("찜 해제에 실패했습니다.");
-          return;
-        }
-
-        setLiked(false);
-      } else {
-        const { error } = await supabase.from("favorites").insert({
-          user_id: userId,
-          model_id: model.id,
-        });
-
-        if (error) {
-          console.error("상세 찜 추가 실패:", error);
-          showError("찜 추가에 실패했습니다.");
-          return;
-        }
-
-        setLiked(true);
-      }
-
-      window.dispatchEvent(new Event("favorites-updated"));
     } catch (error) {
       console.error("상세 찜 토글 오류:", error);
+      setLiked(wasLiked);
+      window.dispatchEvent(new Event("favorites-updated"));
+      showError(wasLiked ? "찜 해제에 실패했습니다." : "찜 추가에 실패했습니다.");
     } finally {
       setFavoriteLoading(false);
     }
@@ -411,7 +396,6 @@ export default function ModelDetailClient({ initialModel, initialGalleryImages }
 
   const loadViewerUrl = async () => {
     try {
-      setViewerModelLoaded(false);
       setViewerLoading(true);
 
       const token = getAccessToken();
@@ -700,10 +684,8 @@ export default function ModelDetailClient({ initialModel, initialGalleryImages }
                 {viewerLoading ? (
                   spinnerOverlay
                 ) : viewerUrl ? (
-                  <>
-                    {!viewerModelLoaded && spinnerOverlay}
-                    <ModelViewer url={viewerUrl} onLoaded={() => setViewerModelLoaded(true)} />
-                  </>
+                  // 파일 다운로드 진행률 오버레이는 ModelViewer 자체가 표시하므로 여기서 따로 덮지 않는다.
+                  <ModelViewer url={viewerUrl} />
                 ) : (
                   <div style={{
                     width: "100%", height: "100%",
@@ -749,8 +731,8 @@ export default function ModelDetailClient({ initialModel, initialGalleryImages }
                 spinnerOverlay
               ) : viewerUrl ? (
                 <div style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
-                  {!viewerModelLoaded && spinnerOverlay}
-                  <ModelViewer url={viewerUrl} onLoaded={() => setViewerModelLoaded(true)} />
+                  {/* 파일 다운로드 진행률 오버레이는 ModelViewer 자체가 표시함 */}
+                  <ModelViewer url={viewerUrl} />
                 </div>
               ) : (
                 <div

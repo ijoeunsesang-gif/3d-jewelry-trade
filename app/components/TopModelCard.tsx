@@ -138,6 +138,9 @@ export default function TopModelCard({
               fontSize: 16,
               fontWeight: 900,
               cursor: "pointer",
+              opacity: liking ? 0.7 : 1,
+              transform: liking ? "scale(0.88)" : "scale(1)",
+              transition: "transform 0.12s ease, opacity 0.12s ease, background 0.12s ease",
             }}
           >
             {liked ? "♥" : "♡"}
