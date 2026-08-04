@@ -49,15 +49,17 @@ export async function POST(req: NextRequest) {
 
     for (const [sellerId, delta] of sellerMap.entries()) {
       // seller_stats upsert
-      const { data: stats } = await adminSupabase
-        .from("seller_stats")
-        .select("total_sales_count, total_sales_amount, current_grade")
-        .eq("user_id", sellerId)
-        .maybeSingle();
+      const [{ data: stats }, { data: profile }] = await Promise.all([
+        adminSupabase
+          .from("seller_stats")
+          .select("total_sales_count, total_sales_amount")
+          .eq("user_id", sellerId)
+          .maybeSingle(),
+        adminSupabase.from("profiles").select("grade").eq("id", sellerId).maybeSingle(),
+      ]);
 
       const prevCount  = stats?.total_sales_count  ?? 0;
       const prevAmount = stats?.total_sales_amount  ?? 0;
-      const prevGrade  = (stats?.current_grade ?? "sprout") as Grade;
 
       const newCount  = prevCount  + delta.count;
       const newAmount = prevAmount + delta.amount;
@@ -72,7 +74,13 @@ export async function POST(req: NextRequest) {
       }, { onConflict: "user_id" });
 
       // 등급 승급 시 profiles 업데이트 (강등 없음)
-      if (gradeOrder(newGrade) > gradeOrder(prevGrade)) {
+      // 비교 기준은 seller_stats.current_grade가 아니라 profiles.grade 실제값이어야 한다 —
+      // 이벤트/수동 변경(app/api/admin/event-grade/approve, app/api/admin/grade-manual)은
+      // seller_stats를 건드리지 않고 profiles.grade만 올리므로, seller_stats 기준으로 비교하면
+      // 이후 판매로 계산된 순수 판매량 등급이 이벤트로 올려준 등급보다 낮을 때 그걸로 덮어써
+      // 강등되는 버그가 있었다.
+      const currentProfileGrade = (profile?.grade ?? "sprout") as Grade;
+      if (gradeOrder(newGrade) > gradeOrder(currentProfileGrade)) {
         await adminSupabase.from("profiles").update({ grade: newGrade }).eq("id", sellerId);
       }
 

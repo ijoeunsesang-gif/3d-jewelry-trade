@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const [profilesRes, authRes] = await Promise.all([
     adminSupabase
       .from("profiles")
-      .select("id, nickname, email, role, created_at, points, is_point_blocked, warning_count, deleted_at, last_active_at")
+      .select("id, nickname, email, role, grade, created_at, points, is_point_blocked, warning_count, deleted_at, last_active_at")
       .order("created_at", { ascending: false }),
     adminSupabase.auth.admin.listUsers({ perPage: 1000 }),
   ]);

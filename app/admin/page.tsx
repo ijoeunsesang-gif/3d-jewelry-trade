@@ -1379,6 +1379,9 @@ export default function AdminPage() {
           <Link href="/admin/business-verification" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
             사업자 승인 →
           </Link>
+          <Link href="/admin/event-grade" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}>
+            등급 상향 이벤트 →
+          </Link>
           <Link href="/" style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>
             ← 사이트로
           </Link>

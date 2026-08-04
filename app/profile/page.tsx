@@ -264,15 +264,21 @@ export default function ProfilePage() {
 
       if (isSeller) {
         fetches.push((async () => {
-          const { data } = await supabase
-            .from("seller_stats")
-            .select("current_grade, total_sales_count, total_sales_amount")
-            .eq("user_id", uid)
-            .maybeSingle();
+          // 현재 등급은 profiles.grade가 유일한 기준이다(관리자 이벤트승인/수동변경이 여길 갱신함).
+          // seller_stats.current_grade는 판매 자동승급 로직에서만 갱신되어 관리자 변경분이 반영 안 되므로
+          // 판매량 집계용으로만 쓰고 등급 표시에는 쓰지 않는다.
+          const [{ data: statsData }, { data: profileData }] = await Promise.all([
+            supabase
+              .from("seller_stats")
+              .select("total_sales_count, total_sales_amount")
+              .eq("user_id", uid)
+              .maybeSingle(),
+            supabase.from("profiles").select("grade").eq("id", uid).maybeSingle(),
+          ]);
           setGradeInfo({
-            grade: ((data?.current_grade) || "sprout") as Grade,
-            totalCount: data?.total_sales_count ?? 0,
-            totalAmount: data?.total_sales_amount ?? 0,
+            grade: ((profileData?.grade) || "sprout") as Grade,
+            totalCount: statsData?.total_sales_count ?? 0,
+            totalAmount: statsData?.total_sales_amount ?? 0,
           });
         })());
       }
