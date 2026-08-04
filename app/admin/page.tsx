@@ -11,6 +11,7 @@ import { showError, showSuccess } from "../lib/toast";
 import { GOLD } from "@/lib/constants";
 import { EmptyState } from "../components/EmptyState";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { GRADE_CONFIG, Grade } from "@/lib/grades";
 
 const SIDEBAR_BG = "#111827";
 
@@ -21,6 +22,7 @@ interface UserProfile {
   nickname: string | null;
   email: string | null;
   role: string;
+  grade: Grade | null;
   created_at: string;
   points: number | null;
   is_point_blocked: boolean;
@@ -1463,6 +1465,11 @@ export default function AdminPage() {
                               )}>
                                 {u.role}
                               </span>
+                              {u.role === "seller" && (
+                                <span style={badgeStyle(GRADE_CONFIG[u.grade || "sprout"].color, GRADE_CONFIG[u.grade || "sprout"].bg)}>
+                                  {GRADE_CONFIG[u.grade || "sprout"].emoji} {GRADE_CONFIG[u.grade || "sprout"].label}
+                                </span>
+                              )}
                             </td>
                             <td style={{ padding: "10px 12px", color: "#374151" }}>
                               {(u.points ?? 0).toLocaleString()}
