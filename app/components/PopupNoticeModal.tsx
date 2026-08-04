@@ -85,7 +85,7 @@ export default function PopupNoticeModal() {
           )}
 
           {/* 중앙: 이미지 + 본문 (스크롤) */}
-          {(p.image_url || p.content || (p.link_url && !p.image_url)) && (
+          {(p.image_url || p.content || p.link_url) && (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
               {p.image_url && (
                 p.link_url ? (
@@ -97,12 +97,12 @@ export default function PopupNoticeModal() {
                 )
               )}
 
-              {(p.content || (p.link_url && !p.image_url)) && (
+              {(p.content || p.link_url) && (
                 <div style={{ padding: "16px 20px" }}>
                   {p.content && (
                     <div style={{ fontSize: 14, color: "#374151", whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>{p.content}</div>
                   )}
-                  {p.link_url && !p.image_url && (
+                  {p.link_url && (
                     <a
                       href={p.link_url}
                       target="_blank"
