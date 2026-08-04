@@ -40,6 +40,23 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.3d-jewelry-trade.com"),
+  title: {
+    default: "3D 마켓 - 주얼리 3D 모델 거래 플랫폼",
+    template: "%s | 3D 마켓",
+  },
+  description:
+    "반지, 목걸이, 펜던트 등 주얼리 3D 모델을 사고파는 거래 플랫폼. STL 파일 다운로드, 출력소 연결, 의뢰 제작까지 한 곳에서.",
+  keywords: ["주얼리 3D 모델", "주얼리 캐드", "반지 3D", "STL 파일", "주얼리 CAD", "3D 마켓", "주얼리 제작"],
+  openGraph: {
+    type: "website",
+    locale: "ko_KR",
+    url: "https://www.3d-jewelry-trade.com",
+    siteName: "3D 마켓",
+    title: "3D 마켓 - 주얼리 3D 모델 거래 플랫폼",
+    description: "반지, 목걸이, 펜던트 등 주얼리 3D 모델을 사고파는 거래 플랫폼.",
+    images: [{ url: "/logo/logo.png", width: 1119, height: 472, alt: "3D 마켓" }],
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
