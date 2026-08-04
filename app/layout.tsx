@@ -48,6 +48,11 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icon-192.png",
   },
+  verification: {
+    other: {
+      "naver-site-verification": "dad60eb2f45afb39780aad36db71d63c2cc2351d",
+    },
+  },
 };
 
 export default function RootLayout({
